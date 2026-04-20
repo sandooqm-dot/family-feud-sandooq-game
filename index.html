@@ -186,17 +186,24 @@
       font-size:48px;
       font-weight:900;
       cursor:pointer;
-      transition:transform .15s ease, filter .15s ease;
+      transition:transform .15s ease, filter .15s ease, opacity .15s ease;
       box-shadow:0 10px 18px rgba(0,0,0,.12);
     }
 
-    .start-btn:hover{
+    .start-btn:hover:not(:disabled){
       transform:translateY(-1px);
       filter:brightness(1.03);
     }
 
-    .start-btn:active{
+    .start-btn:active:not(:disabled){
       transform:scale(.985);
+    }
+
+    .start-btn:disabled{
+      opacity:.55;
+      cursor:not-allowed;
+      filter:none;
+      transform:none;
     }
 
     .actions-row{
@@ -352,6 +359,90 @@
       font-weight:800;
       color:var(--gold);
     }
+
+    body.portrait .game-shell{
+      width:768px;
+      height:1600px;
+    }
+
+    body.portrait .store-logo{
+      top:26px;
+      left:22px;
+      width:120px;
+      height:120px;
+    }
+
+    body.portrait .hero-logo-wrap{
+      top:88px;
+      width:470px;
+    }
+
+    body.portrait .hero-logo{
+      max-height:250px;
+    }
+
+    body.portrait .setup-panel{
+      top:640px;
+      width:650px;
+      height:520px;
+      padding:34px 32px 28px;
+    }
+
+    body.portrait .teams-row{
+      gap:26px;
+    }
+
+    body.portrait .team-label{
+      font-size:40px;
+      margin-bottom:18px;
+    }
+
+    body.portrait .team-input{
+      height:84px;
+      font-size:28px;
+      padding:0 18px;
+    }
+
+    body.portrait .start-wrap{
+      margin-top:42px;
+      margin-bottom:34px;
+    }
+
+    body.portrait .start-btn{
+      min-width:230px;
+      height:94px;
+      font-size:52px;
+    }
+
+    body.portrait .actions-row{
+      gap:14px;
+    }
+
+    body.portrait .action-btn{
+      height:86px;
+      font-size:30px;
+    }
+
+    body.portrait .modal{
+      width:620px;
+      max-width:96%;
+    }
+
+    @media (max-width: 900px){
+      body.portrait .store-logo{
+        width:106px;
+        height:106px;
+      }
+
+      body.portrait .hero-logo-wrap{
+        width:430px;
+      }
+
+      body.portrait .setup-panel{
+        width:620px;
+        height:500px;
+      }
+    }
   </style>
 </head>
 <body>
@@ -381,7 +472,7 @@
           </div>
 
           <div class="start-wrap">
-            <button id="startBtn" class="start-btn" type="button">ابدأ</button>
+            <button id="startBtn" class="start-btn" type="button" disabled>ابدأ</button>
           </div>
 
           <div class="actions-row">
@@ -429,13 +520,44 @@
   </main>
 
   <script>
-    const DESIGN_WIDTH = 1600;
-    const DESIGN_HEIGHT = 768;
+    const LANDSCAPE_WIDTH = 1600;
+    const LANDSCAPE_HEIGHT = 768;
+    const PORTRAIT_WIDTH = 768;
+    const PORTRAIT_HEIGHT = 1600;
+
     const root = document.documentElement;
 
     const teamOneInput = document.getElementById("teamOneInput");
     const teamTwoInput = document.getElementById("teamTwoInput");
     const nameInputs = [teamOneInput, teamTwoInput];
+
+    const guideBtn = document.getElementById("guideBtn");
+    const answersBtn = document.getElementById("answersBtn");
+    const startBtn = document.getElementById("startBtn");
+    const guideOverlay = document.getElementById("guideOverlay");
+    const answersOverlay = document.getElementById("answersOverlay");
+    const answersLinkInput = document.getElementById("answersLinkInput");
+    const qrImage = document.getElementById("qrImage");
+    const copyBtn = document.getElementById("copyBtn");
+    const copyMsg = document.getElementById("copyMsg");
+
+    function isPortraitMode() {
+      const vv = window.visualViewport;
+      const vw = vv ? vv.width : window.innerWidth;
+      const vh = vv ? vv.height : window.innerHeight;
+      return vh > vw;
+    }
+
+    function applyOrientationClass() {
+      document.body.classList.toggle("portrait", isPortraitMode());
+    }
+
+    function getDesignSize() {
+      if (document.body.classList.contains("portrait")) {
+        return { width: PORTRAIT_WIDTH, height: PORTRAIT_HEIGHT };
+      }
+      return { width: LANDSCAPE_WIDTH, height: LANDSCAPE_HEIGHT };
+    }
 
     function isTypingNow() {
       return nameInputs.includes(document.activeElement);
@@ -458,6 +580,8 @@
       const vw = vv ? vv.width : window.innerWidth;
       const vh = vv ? vv.height : window.innerHeight;
 
+      const { width, height } = getDesignSize();
+
       const horizontalPadding = 8;
       const verticalPadding = 8;
 
@@ -465,8 +589,8 @@
       const usableHeight = vh - verticalPadding;
 
       const scale = Math.min(
-        usableWidth / DESIGN_WIDTH,
-        usableHeight / DESIGN_HEIGHT
+        usableWidth / width,
+        usableHeight / height
       );
 
       root.style.setProperty("--app-scale", String(scale));
@@ -490,22 +614,14 @@
     }
 
     function updateLayout(force = false) {
+      applyOrientationClass();
       setAppHeight(force);
+
       requestAnimationFrame(() => {
         fitGameToViewport(force);
         if (!isTypingNow() || force) nudgeSafariBar();
       });
     }
-
-    const guideBtn = document.getElementById("guideBtn");
-    const answersBtn = document.getElementById("answersBtn");
-    const startBtn = document.getElementById("startBtn");
-    const guideOverlay = document.getElementById("guideOverlay");
-    const answersOverlay = document.getElementById("answersOverlay");
-    const answersLinkInput = document.getElementById("answersLinkInput");
-    const qrImage = document.getElementById("qrImage");
-    const copyBtn = document.getElementById("copyBtn");
-    const copyMsg = document.getElementById("copyMsg");
 
     function buildAnswersLink() {
       const url = new URL(window.location.href);
@@ -539,13 +655,24 @@
       el.classList.remove("show");
     }
 
+    function updateStartButtonState() {
+      const ready =
+        teamOneInput.value.trim().length > 0 &&
+        teamTwoInput.value.trim().length > 0;
+
+      startBtn.disabled = !ready;
+    }
+
     guideBtn.addEventListener("click", () => openOverlay(guideOverlay));
+
     answersBtn.addEventListener("click", () => {
       updateAnswersBox();
       openOverlay(answersOverlay);
     });
 
     startBtn.addEventListener("click", () => {
+      if (startBtn.disabled) return;
+
       sessionStorage.setItem("familyfeud_team1", teamOneInput.value.trim());
       sessionStorage.setItem("familyfeud_team2", teamTwoInput.value.trim());
       window.location.href = "game.html";
@@ -591,10 +718,12 @@
 
     teamOneInput.addEventListener("input", () => {
       sessionStorage.setItem("familyfeud_team1", teamOneInput.value);
+      updateStartButtonState();
     });
 
     teamTwoInput.addEventListener("input", () => {
       sessionStorage.setItem("familyfeud_team2", teamTwoInput.value);
+      updateStartButtonState();
     });
 
     nameInputs.forEach(input => {
@@ -623,6 +752,7 @@
       storeLogo.style.display = "none";
     });
 
+    updateStartButtonState();
     updateLayout(true);
 
     window.addEventListener("load", () => {
@@ -631,6 +761,7 @@
     }, { passive: true });
 
     window.addEventListener("resize", () => updateLayout(), { passive: true });
+
     window.addEventListener("orientationchange", () => {
       setTimeout(() => updateLayout(true), 80);
       setTimeout(() => updateLayout(true), 250);
