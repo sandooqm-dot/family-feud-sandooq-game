@@ -7,6 +7,11 @@
 
   <style>
     :root{
+      --safe-top: env(safe-area-inset-top, 0px);
+      --safe-right: env(safe-area-inset-right, 0px);
+      --safe-bottom: env(safe-area-inset-bottom, 0px);
+      --safe-left: env(safe-area-inset-left, 0px);
+
       --bg:#334cad;
       --dot:#b08a4f;
       --gold:#f1d14f;
@@ -20,32 +25,63 @@
       --red:#ff2a2a;
       --panel-border:#1d1d1d;
       --board-inner:#d9ddef;
-      --app-scale:1;
+
+      --app-height: 100vh;
+      --stage-ratio: 1.7786458333;
+      --app-scale: 1;
     }
 
     *{
       box-sizing:border-box;
       -webkit-tap-highlight-color:transparent;
       user-select:none;
+      margin:0;
+      padding:0;
     }
 
-    html, body{
-      margin:0;
-      width:100%;
-      height:100%;
-      overflow:hidden;
-      font-family: Arial, "Helvetica Neue", sans-serif;
+    html{
+      min-height:100%;
       background:#2f47aa;
     }
 
     body{
-      position:fixed;
-      inset:0;
-      overflow:hidden;
+      min-height:100%;
+      background:#2f47aa;
+      font-family: Arial, "Helvetica Neue", sans-serif;
+      -webkit-text-size-adjust:100%;
+      text-size-adjust:100%;
+      overflow-x:hidden;
+      overflow-y:auto;
+    }
+
+    .page{
+      width:100%;
+      min-height:calc(var(--app-height) + 26px);
+      padding:
+        calc(var(--safe-top) + 6px)
+        max(4px, var(--safe-right))
+        calc(var(--safe-bottom) + 14px)
+        max(4px, var(--safe-left));
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      background:#2f47aa;
+    }
+
+    .safe-stage{
+      position:relative;
+      width:min(
+        calc(100vw - var(--safe-left) - var(--safe-right) - 8px),
+        calc((var(--app-height) - var(--safe-top) - var(--safe-bottom) - 22px) * var(--stage-ratio))
+      );
+      aspect-ratio: var(--stage-ratio);
+      max-width:1800px;
+      margin:0 auto;
+      flex-shrink:0;
     }
 
     .fit-root{
-      position:fixed;
+      position:absolute;
       inset:0;
       overflow:hidden;
       background:
@@ -451,81 +487,134 @@
         transform:translateY(0) scale(1);
       }
     }
+
+    @media (max-width: 900px) {
+      .page{
+        min-height:calc(var(--app-height) + 22px);
+        padding:
+          calc(var(--safe-top) + 5px)
+          max(3px, var(--safe-right))
+          calc(var(--safe-bottom) + 12px)
+          max(3px, var(--safe-left));
+      }
+
+      .safe-stage{
+        width:min(
+          calc(100vw - var(--safe-left) - var(--safe-right) - 6px),
+          calc((var(--app-height) - var(--safe-top) - var(--safe-bottom) - 18px) * var(--stage-ratio))
+        );
+      }
+    }
+
+    @media (max-width: 600px) {
+      .page{
+        min-height:calc(var(--app-height) + 18px);
+        padding:
+          calc(var(--safe-top) + 3px)
+          max(2px, var(--safe-right))
+          calc(var(--safe-bottom) + 10px)
+          max(2px, var(--safe-left));
+      }
+
+      .safe-stage{
+        width:min(
+          calc(100vw - var(--safe-left) - var(--safe-right) - 4px),
+          calc((var(--app-height) - var(--safe-top) - var(--safe-bottom) - 14px) * var(--stage-ratio))
+        );
+      }
+    }
   </style>
 </head>
 <body>
 
-  <div class="fit-root">
-    <div class="game-shell" id="gameShell">
+  <main class="page">
+    <section class="safe-stage" id="safeStage">
+      <div class="fit-root">
+        <div class="game-shell" id="gameShell">
 
-      <aside class="team-panel left" id="teamTwoPanel" data-team="1">
-        <div class="team-title">اسم الفريق</div>
-        <div class="team-score-box">
-          <div class="team-score">0</div>
-        </div>
-        <div class="team-strikes" id="teamTwoStrikes">
-          <div class="strike">X</div>
-          <div class="strike">X</div>
-          <div class="strike">X</div>
-        </div>
-      </aside>
+          <aside class="team-panel left" id="teamTwoPanel" data-team="1">
+            <div class="team-title">اسم الفريق</div>
+            <div class="team-score-box">
+              <div class="team-score">0</div>
+            </div>
+            <div class="team-strikes" id="teamTwoStrikes">
+              <div class="strike">X</div>
+              <div class="strike">X</div>
+              <div class="strike">X</div>
+            </div>
+          </aside>
 
-      <div class="question-box">
-        <div class="question-text" id="questionText">اذكر شيئًا يستخدمه الناس يوميًا</div>
+          <div class="question-box">
+            <div class="question-text" id="questionText">اذكر شيئًا يستخدمه الناس يوميًا</div>
+          </div>
+
+          <div class="round-box">
+            <div class="round-label">نقاط الجولة</div>
+            <div class="round-score" id="roundScore">0</div>
+          </div>
+
+          <div class="board">
+            <div class="board-inner"></div>
+
+            <div class="answers-grid" id="answersGrid">
+              <!-- answers -->
+            </div>
+          </div>
+
+          <aside class="team-panel right" id="teamOnePanel" data-team="0">
+            <div class="team-title">اسم الفريق</div>
+            <div class="team-score-box">
+              <div class="team-score">0</div>
+            </div>
+            <div class="team-strikes" id="teamOneStrikes">
+              <div class="strike">X</div>
+              <div class="strike">X</div>
+              <div class="strike">X</div>
+            </div>
+          </aside>
+
+          <button class="nav-btn prev" id="prevBtn" type="button">السابق</button>
+          <button class="nav-btn next" id="nextBtn" type="button">التالي</button>
+
+          <div class="overlay" id="strikeOverlay">
+            <div class="overlay-x">X</div>
+            <div class="transfer-box">السؤال ينتقل للفريق الاخر</div>
+          </div>
+
+        </div>
       </div>
-
-      <div class="round-box">
-        <div class="round-label">نقاط الجولة</div>
-        <div class="round-score" id="roundScore">0</div>
-      </div>
-
-      <div class="board">
-        <div class="board-inner"></div>
-
-        <div class="answers-grid" id="answersGrid">
-          <!-- answers -->
-        </div>
-      </div>
-
-      <aside class="team-panel right" id="teamOnePanel" data-team="0">
-        <div class="team-title">اسم الفريق</div>
-        <div class="team-score-box">
-          <div class="team-score">0</div>
-        </div>
-        <div class="team-strikes" id="teamOneStrikes">
-          <div class="strike">X</div>
-          <div class="strike">X</div>
-          <div class="strike">X</div>
-        </div>
-      </aside>
-
-      <button class="nav-btn prev" id="prevBtn" type="button">السابق</button>
-      <button class="nav-btn next" id="nextBtn" type="button">التالي</button>
-
-      <div class="overlay" id="strikeOverlay">
-        <div class="overlay-x">X</div>
-        <div class="transfer-box">السؤال ينتقل للفريق الاخر</div>
-      </div>
-
-    </div>
-  </div>
+    </section>
+  </main>
 
   <script>
     const DESIGN_WIDTH = 1366;
     const DESIGN_HEIGHT = 768;
+    const root = document.documentElement;
+    const safeStage = document.getElementById("safeStage");
+
+    function setAppHeight() {
+      const h = window.visualViewport && window.visualViewport.height
+        ? window.visualViewport.height
+        : window.innerHeight;
+
+      root.style.setProperty("--app-height", h + "px");
+    }
 
     function fitGameToViewport() {
-      const vv = window.visualViewport;
-      const vw = vv ? vv.width : window.innerWidth;
-      const vh = vv ? vv.height : window.innerHeight;
+      const safeWidth = safeStage.clientWidth || DESIGN_WIDTH;
+      const safeHeight = safeStage.clientHeight || DESIGN_HEIGHT;
 
-      const padding = 8;
       const scale = Math.min(
-        (vw - padding) / DESIGN_WIDTH,
-        (vh - padding) / DESIGN_HEIGHT
+        safeWidth / DESIGN_WIDTH,
+        safeHeight / DESIGN_HEIGHT
       );
 
-      document.documentElement.style.setProperty("--app-scale", String(scale));
+      root.style.setProperty("--app-scale", String(scale));
+    }
+
+    function updateLayout() {
+      setAppHeight();
+      requestAnimationFrame(fitGameToViewport);
     }
 
     const GAME_DATA = {
@@ -675,16 +764,19 @@
     prevBtn.addEventListener("click", hidePrevious);
     nextBtn.addEventListener("click", revealNext);
 
-    fitGameToViewport();
+    updateLayout();
     updateStrikeRows();
     renderAnswers();
 
-    window.addEventListener("resize", fitGameToViewport);
-    window.addEventListener("orientationchange", fitGameToViewport);
+    window.addEventListener("resize", updateLayout, { passive: true });
+    window.addEventListener("orientationchange", () => {
+      setTimeout(updateLayout, 80);
+      setTimeout(updateLayout, 250);
+    }, { passive: true });
 
     if (window.visualViewport) {
-      window.visualViewport.addEventListener("resize", fitGameToViewport);
-      window.visualViewport.addEventListener("scroll", fitGameToViewport);
+      window.visualViewport.addEventListener("resize", updateLayout, { passive: true });
+      window.visualViewport.addEventListener("scroll", updateLayout, { passive: true });
     }
   </script>
 </body>
