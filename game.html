@@ -28,6 +28,7 @@
 
       --app-height: 100vh;
       --app-scale: 1;
+      --safari-nudge: 34px;
     }
 
     *{
@@ -38,36 +39,41 @@
       padding:0;
     }
 
-    html, body{
-      width:100%;
-      height:100%;
-      overflow:hidden;
+    html{
+      min-height:100%;
+      background:#2f47aa;
+    }
+
+    body{
+      min-height:100%;
       background:#2f47aa;
       font-family: Arial, "Helvetica Neue", sans-serif;
       -webkit-text-size-adjust:100%;
       text-size-adjust:100%;
-    }
-
-    body{
-      position:fixed;
-      inset:0;
-      overscroll-behavior:none;
+      overflow-x:hidden;
+      overflow-y:auto;
+      -webkit-overflow-scrolling:touch;
+      overscroll-behavior-y:auto;
     }
 
     .page{
-      position:fixed;
-      inset:0;
-      height:var(--app-height);
-      overflow:hidden;
+      width:100%;
+      min-height:calc(var(--app-height) + var(--safari-nudge));
       background:
         radial-gradient(circle, rgba(176,138,79,.95) 0 4px, transparent 4.5px) 0 0 / 48px 48px,
         linear-gradient(180deg, #3a53b6 0%, #2e47a8 100%);
     }
 
     .fit-root{
-      position:absolute;
-      inset:0;
+      position:relative;
+      width:100%;
+      height:var(--app-height);
       overflow:hidden;
+    }
+
+    .page-spacer{
+      height:var(--safari-nudge);
+      pointer-events:none;
     }
 
     .game-shell{
@@ -527,6 +533,8 @@
 
       </div>
     </div>
+
+    <div class="page-spacer" aria-hidden="true"></div>
   </main>
 
   <script>
@@ -561,9 +569,33 @@
       root.style.setProperty("--app-scale", String(scale));
     }
 
+    function nudgeSafariBar() {
+      const vv = window.visualViewport;
+      const visibleHeight = vv ? vv.height : window.innerHeight;
+      const fullHeight = Math.max(
+        document.body.scrollHeight,
+        document.documentElement.scrollHeight
+      );
+
+      if (fullHeight <= visibleHeight + 8) return;
+
+      window.scrollTo(0, 1);
+
+      setTimeout(() => {
+        window.scrollTo(0, 1);
+      }, 120);
+
+      setTimeout(() => {
+        window.scrollTo(0, 1);
+      }, 280);
+    }
+
     function updateLayout() {
       setAppHeight();
-      requestAnimationFrame(fitGameToViewport);
+      requestAnimationFrame(() => {
+        fitGameToViewport();
+        nudgeSafariBar();
+      });
     }
 
     const GAME_DATA = {
@@ -717,16 +749,25 @@
     updateStrikeRows();
     renderAnswers();
 
+    window.addEventListener("load", () => {
+      setTimeout(updateLayout, 60);
+      setTimeout(updateLayout, 220);
+    }, { passive: true });
+
     window.addEventListener("resize", updateLayout, { passive: true });
     window.addEventListener("orientationchange", () => {
       setTimeout(updateLayout, 80);
       setTimeout(updateLayout, 250);
+      setTimeout(updateLayout, 500);
     }, { passive: true });
 
     if (window.visualViewport) {
       window.visualViewport.addEventListener("resize", updateLayout, { passive: true });
       window.visualViewport.addEventListener("scroll", updateLayout, { passive: true });
     }
+
+    document.addEventListener("touchstart", nudgeSafariBar, { passive: true });
+    document.addEventListener("touchend", nudgeSafariBar, { passive: true });
   </script>
 </body>
 </html>
