@@ -114,17 +114,19 @@
     .setup-panel{
       position:absolute;
       left:50%;
-      top:470px;
+      top:485px;
       transform:translate(-50%, -50%);
-      width:900px;
-      height:380px;
+      width:920px;
+      height:430px;
       border-radius:36px;
       border:10px solid #0f0f0f;
       background:linear-gradient(180deg, #0f2c88 0%, #081d61 100%);
       box-shadow:
         inset 0 0 0 1px rgba(255,255,255,.05),
         0 18px 40px rgba(0,0,0,.22);
-      padding:34px 40px 28px;
+      padding:30px 40px 26px;
+      display:flex;
+      flex-direction:column;
     }
 
     .teams-row{
@@ -132,7 +134,6 @@
       grid-template-columns:1fr 1fr;
       gap:40px;
       align-items:start;
-      margin-top:2px;
     }
 
     .team-block{
@@ -144,7 +145,7 @@
       font-size:42px;
       font-weight:900;
       line-height:1.15;
-      margin-bottom:22px;
+      margin-bottom:20px;
     }
 
     .team-input{
@@ -171,8 +172,8 @@
       display:flex;
       align-items:center;
       justify-content:center;
-      margin-top:38px;
-      margin-bottom:34px;
+      margin-top:34px;
+      margin-bottom:28px;
     }
 
     .start-btn{
@@ -199,6 +200,7 @@
     }
 
     .actions-row{
+      margin-top:auto;
       display:grid;
       grid-template-columns:1fr 1fr 1fr;
       gap:24px;
@@ -431,14 +433,27 @@
     const DESIGN_HEIGHT = 768;
     const root = document.documentElement;
 
-    function setAppHeight() {
+    const teamOneInput = document.getElementById("teamOneInput");
+    const teamTwoInput = document.getElementById("teamTwoInput");
+    const nameInputs = [teamOneInput, teamTwoInput];
+
+    function isTypingNow() {
+      return nameInputs.includes(document.activeElement);
+    }
+
+    function setAppHeight(force = false) {
+      if (isTypingNow() && !force) return;
+
       const h = window.visualViewport && window.visualViewport.height
         ? window.visualViewport.height
         : window.innerHeight;
+
       root.style.setProperty("--app-height", h + "px");
     }
 
-    function fitGameToViewport() {
+    function fitGameToViewport(force = false) {
+      if (isTypingNow() && !force) return;
+
       const vv = window.visualViewport;
       const vw = vv ? vv.width : window.innerWidth;
       const vh = vv ? vv.height : window.innerHeight;
@@ -458,6 +473,8 @@
     }
 
     function nudgeSafariBar() {
+      if (isTypingNow()) return;
+
       const vv = window.visualViewport;
       const visibleHeight = vv ? vv.height : window.innerHeight;
       const fullHeight = Math.max(
@@ -472,16 +489,14 @@
       setTimeout(() => window.scrollTo(0, 1), 280);
     }
 
-    function updateLayout() {
-      setAppHeight();
+    function updateLayout(force = false) {
+      setAppHeight(force);
       requestAnimationFrame(() => {
-        fitGameToViewport();
-        nudgeSafariBar();
+        fitGameToViewport(force);
+        if (!isTypingNow() || force) nudgeSafariBar();
       });
     }
 
-    const teamOneInput = document.getElementById("teamOneInput");
-    const teamTwoInput = document.getElementById("teamTwoInput");
     const guideBtn = document.getElementById("guideBtn");
     const answersBtn = document.getElementById("answersBtn");
     const startBtn = document.getElementById("startBtn");
@@ -582,6 +597,19 @@
       sessionStorage.setItem("familyfeud_team2", teamTwoInput.value);
     });
 
+    nameInputs.forEach(input => {
+      input.addEventListener("focus", () => {
+        document.body.classList.add("typing");
+      });
+
+      input.addEventListener("blur", () => {
+        setTimeout(() => {
+          document.body.classList.remove("typing");
+          updateLayout(true);
+        }, 80);
+      });
+    });
+
     const familyLogo = document.getElementById("familyLogo");
     const familyLogoFallback = document.getElementById("familyLogoFallback");
 
@@ -595,23 +623,23 @@
       storeLogo.style.display = "none";
     });
 
-    updateLayout();
+    updateLayout(true);
 
     window.addEventListener("load", () => {
-      setTimeout(updateLayout, 60);
-      setTimeout(updateLayout, 220);
+      setTimeout(() => updateLayout(true), 60);
+      setTimeout(() => updateLayout(true), 220);
     }, { passive: true });
 
-    window.addEventListener("resize", updateLayout, { passive: true });
+    window.addEventListener("resize", () => updateLayout(), { passive: true });
     window.addEventListener("orientationchange", () => {
-      setTimeout(updateLayout, 80);
-      setTimeout(updateLayout, 250);
-      setTimeout(updateLayout, 500);
+      setTimeout(() => updateLayout(true), 80);
+      setTimeout(() => updateLayout(true), 250);
+      setTimeout(() => updateLayout(true), 500);
     }, { passive: true });
 
     if (window.visualViewport) {
-      window.visualViewport.addEventListener("resize", updateLayout, { passive: true });
-      window.visualViewport.addEventListener("scroll", updateLayout, { passive: true });
+      window.visualViewport.addEventListener("resize", () => updateLayout(), { passive: true });
+      window.visualViewport.addEventListener("scroll", () => updateLayout(), { passive: true });
     }
 
     document.addEventListener("touchstart", nudgeSafariBar, { passive: true });
