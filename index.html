@@ -361,35 +361,35 @@
     }
 
     body.portrait .game-shell{
-      width:768px;
-      height:1600px;
+      width:640px;
+      height:1280px;
     }
 
     body.portrait .store-logo{
-      top:26px;
-      left:22px;
-      width:120px;
-      height:120px;
+      top:10px;
+      left:2px;
+      width:132px;
+      height:132px;
     }
 
     body.portrait .hero-logo-wrap{
-      top:88px;
-      width:470px;
+      top:72px;
+      width:560px;
     }
 
     body.portrait .hero-logo{
-      max-height:250px;
+      max-height:320px;
     }
 
     body.portrait .setup-panel{
-      top:640px;
-      width:650px;
-      height:520px;
-      padding:34px 32px 28px;
+      top:820px;
+      width:620px;
+      height:470px;
+      padding:34px 28px 28px;
     }
 
     body.portrait .teams-row{
-      gap:26px;
+      gap:20px;
     }
 
     body.portrait .team-label{
@@ -398,20 +398,20 @@
     }
 
     body.portrait .team-input{
-      height:84px;
+      height:82px;
       font-size:28px;
       padding:0 18px;
     }
 
     body.portrait .start-wrap{
-      margin-top:42px;
-      margin-bottom:34px;
+      margin-top:40px;
+      margin-bottom:30px;
     }
 
     body.portrait .start-btn{
-      min-width:230px;
-      height:94px;
-      font-size:52px;
+      min-width:240px;
+      height:96px;
+      font-size:54px;
     }
 
     body.portrait .actions-row{
@@ -426,22 +426,6 @@
     body.portrait .modal{
       width:620px;
       max-width:96%;
-    }
-
-    @media (max-width: 900px){
-      body.portrait .store-logo{
-        width:106px;
-        height:106px;
-      }
-
-      body.portrait .hero-logo-wrap{
-        width:430px;
-      }
-
-      body.portrait .setup-panel{
-        width:620px;
-        height:500px;
-      }
     }
   </style>
 </head>
@@ -522,8 +506,8 @@
   <script>
     const LANDSCAPE_WIDTH = 1600;
     const LANDSCAPE_HEIGHT = 768;
-    const PORTRAIT_WIDTH = 768;
-    const PORTRAIT_HEIGHT = 1600;
+    const PORTRAIT_WIDTH = 640;
+    const PORTRAIT_HEIGHT = 1280;
 
     const root = document.documentElement;
 
@@ -541,15 +525,30 @@
     const copyBtn = document.getElementById("copyBtn");
     const copyMsg = document.getElementById("copyMsg");
 
-    function isPortraitMode() {
+    let stableViewport = { width: window.innerWidth, height: window.innerHeight };
+    let stableOrientationPortrait = window.innerHeight > window.innerWidth;
+
+    function getCurrentViewport() {
       const vv = window.visualViewport;
-      const vw = vv ? vv.width : window.innerWidth;
-      const vh = vv ? vv.height : window.innerHeight;
-      return vh > vw;
+      return {
+        width: vv ? vv.width : window.innerWidth,
+        height: vv ? vv.height : window.innerHeight
+      };
+    }
+
+    function isTypingNow() {
+      return nameInputs.includes(document.activeElement);
+    }
+
+    function updateStableViewport() {
+      if (isTypingNow()) return;
+      const vp = getCurrentViewport();
+      stableViewport = { width: vp.width, height: vp.height };
+      stableOrientationPortrait = vp.height > vp.width;
     }
 
     function applyOrientationClass() {
-      document.body.classList.toggle("portrait", isPortraitMode());
+      document.body.classList.toggle("portrait", stableOrientationPortrait);
     }
 
     function getDesignSize() {
@@ -559,34 +558,25 @@
       return { width: LANDSCAPE_WIDTH, height: LANDSCAPE_HEIGHT };
     }
 
-    function isTypingNow() {
-      return nameInputs.includes(document.activeElement);
-    }
-
     function setAppHeight(force = false) {
-      if (isTypingNow() && !force) return;
-
-      const h = window.visualViewport && window.visualViewport.height
-        ? window.visualViewport.height
-        : window.innerHeight;
-
-      root.style.setProperty("--app-height", h + "px");
+      if (!isTypingNow() || force) {
+        updateStableViewport();
+      }
+      root.style.setProperty("--app-height", stableViewport.height + "px");
     }
 
     function fitGameToViewport(force = false) {
-      if (isTypingNow() && !force) return;
-
-      const vv = window.visualViewport;
-      const vw = vv ? vv.width : window.innerWidth;
-      const vh = vv ? vv.height : window.innerHeight;
+      if (!isTypingNow() || force) {
+        updateStableViewport();
+      }
 
       const { width, height } = getDesignSize();
 
       const horizontalPadding = 8;
       const verticalPadding = 8;
 
-      const usableWidth = vw - horizontalPadding;
-      const usableHeight = vh - verticalPadding;
+      const usableWidth = stableViewport.width - horizontalPadding;
+      const usableHeight = stableViewport.height - verticalPadding;
 
       const scale = Math.min(
         usableWidth / width,
@@ -599,8 +589,7 @@
     function nudgeSafariBar() {
       if (isTypingNow()) return;
 
-      const vv = window.visualViewport;
-      const visibleHeight = vv ? vv.height : window.innerHeight;
+      const visibleHeight = stableViewport.height;
       const fullHeight = Math.max(
         document.body.scrollHeight,
         document.documentElement.scrollHeight
@@ -614,12 +603,18 @@
     }
 
     function updateLayout(force = false) {
+      if (!isTypingNow() || force) {
+        updateStableViewport();
+      }
+
       applyOrientationClass();
       setAppHeight(force);
 
       requestAnimationFrame(() => {
         fitGameToViewport(force);
-        if (!isTypingNow() || force) nudgeSafariBar();
+        if (!isTypingNow() || force) {
+          nudgeSafariBar();
+        }
       });
     }
 
@@ -760,7 +755,9 @@
       setTimeout(() => updateLayout(true), 220);
     }, { passive: true });
 
-    window.addEventListener("resize", () => updateLayout(), { passive: true });
+    window.addEventListener("resize", () => {
+      if (!isTypingNow()) updateLayout();
+    }, { passive: true });
 
     window.addEventListener("orientationchange", () => {
       setTimeout(() => updateLayout(true), 80);
@@ -769,8 +766,13 @@
     }, { passive: true });
 
     if (window.visualViewport) {
-      window.visualViewport.addEventListener("resize", () => updateLayout(), { passive: true });
-      window.visualViewport.addEventListener("scroll", () => updateLayout(), { passive: true });
+      window.visualViewport.addEventListener("resize", () => {
+        if (!isTypingNow()) updateLayout();
+      }, { passive: true });
+
+      window.visualViewport.addEventListener("scroll", () => {
+        if (!isTypingNow()) updateLayout();
+      }, { passive: true });
     }
 
     document.addEventListener("touchstart", nudgeSafariBar, { passive: true });
