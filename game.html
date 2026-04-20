@@ -253,30 +253,21 @@
       left:50%;
       transform:translateX(-50%);
       width:940px;
-      height:370px;
+      height:392px;
       border-radius:38px;
       border:6px solid var(--gold);
       background:linear-gradient(180deg, #3f56b6 0%, #3247af 100%);
       box-shadow: inset 0 0 0 1px rgba(255,255,255,.05);
-      padding:24px 18px 18px;
-    }
-
-    .board-inner{
-      position:absolute;
-      inset:28px 18px 18px 18px;
-      border-radius:32px;
-      border:3px solid rgba(219,224,243,.72);
-      pointer-events:none;
-      opacity:.85;
     }
 
     .answers-grid{
-      position:relative;
+      position:absolute;
+      inset:28px 18px 28px 18px;
       z-index:2;
       display:grid;
       grid-template-columns:1fr 1fr;
+      grid-template-rows:repeat(3, 1fr);
       gap:18px 28px;
-      height:100%;
     }
 
     .answer-slot{
@@ -286,7 +277,8 @@
       margin:0;
       cursor:pointer;
       perspective:1400px;
-      height:98px;
+      width:100%;
+      height:100%;
     }
 
     .answer-flip{
@@ -572,7 +564,7 @@
       <div class="game-shell" id="gameShell">
 
         <aside class="team-panel left" id="teamTwoPanel" data-team="1">
-          <div class="team-title">اسم الفريق</div>
+          <div class="team-title" id="teamTwoTitle">اسم الفريق</div>
           <div class="team-score-box">
             <div class="team-score" id="teamTwoScore">0</div>
           </div>
@@ -593,15 +585,11 @@
         </div>
 
         <div class="board">
-          <div class="board-inner"></div>
-
-          <div class="answers-grid" id="answersGrid">
-            <!-- answers -->
-          </div>
+          <div class="answers-grid" id="answersGrid"></div>
         </div>
 
         <aside class="team-panel right" id="teamOnePanel" data-team="0">
-          <div class="team-title">اسم الفريق</div>
+          <div class="team-title" id="teamOneTitle">اسم الفريق</div>
           <div class="team-score-box">
             <div class="team-score" id="teamOneScore">0</div>
           </div>
@@ -647,7 +635,6 @@
       const h = window.visualViewport && window.visualViewport.height
         ? window.visualViewport.height
         : window.innerHeight;
-
       root.style.setProperty("--app-height", h + "px");
     }
 
@@ -681,14 +668,8 @@
       if (fullHeight <= visibleHeight + 8) return;
 
       window.scrollTo(0, 1);
-
-      setTimeout(() => {
-        window.scrollTo(0, 1);
-      }, 120);
-
-      setTimeout(() => {
-        window.scrollTo(0, 1);
-      }, 280);
+      setTimeout(() => window.scrollTo(0, 1), 120);
+      setTimeout(() => window.scrollTo(0, 1), 280);
     }
 
     function updateLayout() {
@@ -699,26 +680,51 @@
       });
     }
 
-    const TEAM_NAMES = ["الفريق الأول", "الفريق الثاني"];
+    const QUESTIONS = [
+      {
+        question: "اذكر شيئًا يستخدمه الناس يوميًا",
+        answers: [
+          { text: "الجوال", points: 32 },
+          { text: "المفاتيح", points: 18 },
+          { text: "الماء", points: 14 },
+          { text: "السيارة", points: 10 },
+          { text: "المحفظة", points: 8 },
+          { text: "النظارة", points: 6 }
+        ]
+      },
+      {
+        question: "اذكر شيئًا تجده في المطبخ",
+        answers: [
+          { text: "الثلاجة", points: 28 },
+          { text: "الفرن", points: 20 },
+          { text: "الصحون", points: 16 },
+          { text: "الملاعق", points: 12 },
+          { text: "الكاسات", points: 9 },
+          { text: "القدر", points: 7 }
+        ]
+      },
+      {
+        question: "اذكر شيئًا يحمله الطالب معه",
+        answers: [
+          { text: "الحقيبة", points: 30 },
+          { text: "القلم", points: 18 },
+          { text: "الدفتر", points: 16 },
+          { text: "الكتب", points: 14 },
+          { text: "المقلمة", points: 8 },
+          { text: "الآيباد", points: 6 }
+        ]
+      }
+    ];
 
-    const GAME_DATA = {
-      question: "اذكر شيئًا يستخدمه الناس يوميًا",
-      answers: [
-        { text: "الجوال", points: 32 },
-        { text: "المفاتيح", points: 18 },
-        { text: "الماء", points: 14 },
-        { text: "السيارة", points: 10 },
-        { text: "المحفظة", points: 8 },
-        { text: "النظارة", points: 6 }
-      ]
-    };
-
-    const state = {
-      revealed: [false, false, false, false, false, false],
-      revealStack: [],
+    const questionStates = QUESTIONS.map(q => ({
+      revealed: new Array(q.answers.length).fill(false),
       strikes: [0, 0],
-      teamScores: [0, 0]
-    };
+      awardedTo: null,
+      awardedPoints: 0
+    }));
+
+    let currentQuestionIndex = 0;
+    let overlayTimer = null;
 
     const questionText = document.getElementById("questionText");
     const roundScoreEl = document.getElementById("roundScore");
@@ -730,9 +736,10 @@
 
     const teamOneScoreEl = document.getElementById("teamOneScore");
     const teamTwoScoreEl = document.getElementById("teamTwoScore");
+    const teamOneTitleEl = document.getElementById("teamOneTitle");
+    const teamTwoTitleEl = document.getElementById("teamTwoTitle");
 
     const awardOverlay = document.getElementById("awardOverlay");
-    const awardModal = document.getElementById("awardModal");
     const awardSubtitle = document.getElementById("awardSubtitle");
     const awardTeam1Btn = document.getElementById("awardTeam1Btn");
     const awardTeam2Btn = document.getElementById("awardTeam2Btn");
@@ -742,12 +749,19 @@
       document.querySelectorAll("#teamTwoStrikes .strike")
     ];
 
-    let overlayTimer = null;
+    function getCurrentQuestion() {
+      return QUESTIONS[currentQuestionIndex];
+    }
 
-    questionText.textContent = GAME_DATA.question;
+    function getCurrentState() {
+      return questionStates[currentQuestionIndex];
+    }
 
     function getCurrentRoundPoints() {
-      return GAME_DATA.answers.reduce((sum, answer, index) => {
+      const question = getCurrentQuestion();
+      const state = getCurrentState();
+
+      return question.answers.reduce((sum, answer, index) => {
         return state.revealed[index] ? sum + answer.points : sum;
       }, 0);
     }
@@ -757,8 +771,16 @@
     }
 
     function updateTeamScores() {
-      teamOneScoreEl.textContent = state.teamScores[0];
-      teamTwoScoreEl.textContent = state.teamScores[1];
+      const totals = [0, 0];
+
+      questionStates.forEach(state => {
+        if (state.awardedTo !== null) {
+          totals[state.awardedTo] += state.awardedPoints || 0;
+        }
+      });
+
+      teamOneScoreEl.textContent = totals[0];
+      teamTwoScoreEl.textContent = totals[1];
     }
 
     function bumpTeamScore(teamIndex) {
@@ -769,6 +791,8 @@
     }
 
     function updateStrikeRows() {
+      const state = getCurrentState();
+
       strikeRows.forEach((row, teamIndex) => {
         row.forEach((strikeEl, index) => {
           strikeEl.classList.toggle("active", index < state.strikes[teamIndex]);
@@ -777,15 +801,35 @@
     }
 
     function updateNavButtons() {
-      const hiddenCount = state.revealed.filter(v => !v).length;
-      prevBtn.disabled = state.revealStack.length === 0;
-      nextBtn.disabled = hiddenCount === 0;
+      prevBtn.disabled = currentQuestionIndex === 0;
+      nextBtn.disabled = currentQuestionIndex === QUESTIONS.length - 1;
+    }
+
+    function syncAwardedPointsWithCurrentQuestion() {
+      const state = getCurrentState();
+      if (state.awardedTo !== null) {
+        state.awardedPoints = getCurrentRoundPoints();
+        updateTeamScores();
+      }
+    }
+
+    function renderQuestion() {
+      const question = getCurrentQuestion();
+      questionText.textContent = question.question;
+      renderAnswers();
+      updateStrikeRows();
+      updateRoundScore();
+      updateNavButtons();
+      closeAwardModal();
     }
 
     function renderAnswers() {
+      const question = getCurrentQuestion();
+      const state = getCurrentState();
+
       answersGrid.innerHTML = "";
 
-      GAME_DATA.answers.forEach((answer, index) => {
+      question.answers.forEach((answer, index) => {
         const slot = document.createElement("button");
         slot.type = "button";
         slot.className = "answer-slot" + (state.revealed[index] ? " revealed" : "");
@@ -796,7 +840,6 @@
             <div class="answer-face answer-back">
               <div class="rank-circle">${index + 1}</div>
             </div>
-
             <div class="answer-face answer-front">
               <div class="answer-points">${answer.points}</div>
               <div class="answer-label">${answer.text}</div>
@@ -812,29 +855,31 @@
       });
 
       updateRoundScore();
-      updateNavButtons();
     }
 
     function revealSpecific(index) {
+      const state = getCurrentState();
       if (state.revealed[index]) return;
+
       state.revealed[index] = true;
-      state.revealStack.push(index);
       renderAnswers();
+      syncAwardedPointsWithCurrentQuestion();
     }
 
-    function revealNext() {
-      const nextIndex = state.revealed.findIndex(v => !v);
-      if (nextIndex === -1) return;
-      state.revealed[nextIndex] = true;
-      state.revealStack.push(nextIndex);
-      renderAnswers();
+    function goToQuestion(index) {
+      if (index < 0 || index >= QUESTIONS.length) return;
+      currentQuestionIndex = index;
+      renderQuestion();
     }
 
-    function hidePrevious() {
-      if (!state.revealStack.length) return;
-      const lastIndex = state.revealStack.pop();
-      state.revealed[lastIndex] = false;
-      renderAnswers();
+    function goNextQuestion() {
+      if (currentQuestionIndex >= QUESTIONS.length - 1) return;
+      goToQuestion(currentQuestionIndex + 1);
+    }
+
+    function goPrevQuestion() {
+      if (currentQuestionIndex <= 0) return;
+      goToQuestion(currentQuestionIndex - 1);
     }
 
     function showStrikeOverlay(isThirdStrike) {
@@ -853,18 +898,28 @@
       }, isThirdStrike ? 1500 : 900);
     }
 
-    function addStrike(teamIndex) {
-      if (state.strikes[teamIndex] >= 3) return;
+    function addOrResetStrike(teamIndex) {
+      const state = getCurrentState();
+
+      if (state.strikes[teamIndex] >= 3) {
+        state.strikes[teamIndex] = 0;
+        updateStrikeRows();
+        return;
+      }
+
       state.strikes[teamIndex] += 1;
       updateStrikeRows();
 
-      const isThirdStrike = state.strikes[teamIndex] === 3;
-      showStrikeOverlay(isThirdStrike);
+      if (state.strikes[teamIndex] === 3) {
+        showStrikeOverlay(true);
+      }
     }
 
     function openAwardModal() {
       const points = getCurrentRoundPoints();
       awardSubtitle.textContent = `النقاط الحالية: ${points}`;
+      awardTeam1Btn.textContent = teamOneTitleEl.textContent.trim() || "الفريق الأول";
+      awardTeam2Btn.textContent = teamTwoTitleEl.textContent.trim() || "الفريق الثاني";
       awardOverlay.classList.add("show");
     }
 
@@ -873,23 +928,24 @@
     }
 
     function awardRoundToTeam(teamIndex) {
-      const points = getCurrentRoundPoints();
-      state.teamScores[teamIndex] += points;
+      const state = getCurrentState();
+      state.awardedTo = teamIndex;
+      state.awardedPoints = getCurrentRoundPoints();
       updateTeamScores();
       bumpTeamScore(teamIndex);
       closeAwardModal();
     }
 
     document.getElementById("teamOnePanel").addEventListener("click", () => {
-      addStrike(0);
+      addOrResetStrike(0);
     });
 
     document.getElementById("teamTwoPanel").addEventListener("click", () => {
-      addStrike(1);
+      addOrResetStrike(1);
     });
 
-    prevBtn.addEventListener("click", hidePrevious);
-    nextBtn.addEventListener("click", revealNext);
+    prevBtn.addEventListener("click", goPrevQuestion);
+    nextBtn.addEventListener("click", goNextQuestion);
 
     roundBox.addEventListener("click", openAwardModal);
     roundBox.addEventListener("keydown", (event) => {
@@ -898,9 +954,6 @@
         openAwardModal();
       }
     });
-
-    awardTeam1Btn.textContent = TEAM_NAMES[0];
-    awardTeam2Btn.textContent = TEAM_NAMES[1];
 
     awardTeam1Btn.addEventListener("click", () => {
       awardRoundToTeam(0);
@@ -916,10 +969,15 @@
       }
     });
 
+    document.addEventListener("keydown", (event) => {
+      if (event.key === "Escape") {
+        closeAwardModal();
+      }
+    });
+
     updateLayout();
-    updateStrikeRows();
     updateTeamScores();
-    renderAnswers();
+    renderQuestion();
 
     window.addEventListener("load", () => {
       setTimeout(updateLayout, 60);
