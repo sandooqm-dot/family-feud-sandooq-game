@@ -13,8 +13,7 @@
       --safe-left: env(safe-area-inset-left, 0px);
 
       --gold:#f1d14f;
-      --blue-1:#2b3fc2;
-      --blue-2:#06204f;
+      --answer-blue:#3479FF;
       --red:#ff2a2a;
       --gray-x:#6a6a6a;
       --panel-border:#1d1d1d;
@@ -82,7 +81,6 @@
       direction:rtl;
     }
 
-    /* ===== اللوحتان الجانبيتان ===== */
     .team-panel{
       position:absolute;
       top:50px;
@@ -177,7 +175,6 @@
       text-shadow:0 0 14px rgba(255,0,0,.18);
     }
 
-    /* ===== المنطقة الوسطى ===== */
     .question-box{
       position:absolute;
       top:34px;
@@ -301,7 +298,7 @@
       height:100%;
       border-radius:34px;
       border:4px solid rgba(243,242,234,.96);
-      background:linear-gradient(90deg, var(--blue-1) 0%, var(--blue-2) 100%);
+      background:var(--answer-blue);
       backface-visibility:hidden;
       -webkit-backface-visibility:hidden;
       overflow:hidden;
@@ -326,7 +323,7 @@
       width:62px;
       height:62px;
       border-radius:50%;
-      border:4px solid rgba(243,242,234,.96);
+      border:4px solid #D9D9D9;
       display:flex;
       align-items:center;
       justify-content:center;
@@ -369,7 +366,6 @@
       padding:0 10px;
     }
 
-    /* ===== الأزرار السفلية ===== */
     .nav-btn{
       position:absolute;
       bottom:18px;
@@ -404,7 +400,6 @@
       right:24px;
     }
 
-    /* ===== طبقة الخطأ ===== */
     .overlay{
       position:absolute;
       inset:0;
@@ -484,7 +479,6 @@
       }
     }
 
-    /* ===== منح النقاط ===== */
     .award-overlay{
       position:absolute;
       inset:0;
@@ -539,7 +533,7 @@
       min-height:76px;
       border-radius:24px;
       border:4px solid rgba(243,242,234,.96);
-      background:linear-gradient(90deg, var(--blue-1) 0%, var(--blue-2) 100%);
+      background:linear-gradient(90deg, #2b3fc2 0%, #06204f 100%);
       color:#f5f2e8;
       font-size:28px;
       font-weight:900;
@@ -609,7 +603,7 @@
         </div>
 
         <div class="award-overlay" id="awardOverlay">
-          <div class="award-modal" id="awardModal">
+          <div class="award-modal">
             <div class="award-title">لمن تُمنح نقاط الجولة؟</div>
             <div class="award-subtitle" id="awardSubtitle">النقاط الحالية: 0</div>
 
@@ -910,9 +904,8 @@
       state.strikes[teamIndex] += 1;
       updateStrikeRows();
 
-      if (state.strikes[teamIndex] === 3) {
-        showStrikeOverlay(true);
-      }
+      const isThirdStrike = state.strikes[teamIndex] === 3;
+      showStrikeOverlay(isThirdStrike);
     }
 
     function openAwardModal() {
