@@ -570,7 +570,7 @@
         </aside>
 
         <div class="question-box">
-          <div class="question-text" id="questionText">اذكر شيئًا يستخدمه الناس يوميًا</div>
+          <div class="question-text" id="questionText">اذكر شيئًا تستخدمه الناس يوميًا</div>
         </div>
 
         <div class="round-box" id="roundBox" role="button" tabindex="0" aria-label="منح نقاط الجولة">
@@ -742,6 +742,14 @@
       document.querySelectorAll("#teamOneStrikes .strike"),
       document.querySelectorAll("#teamTwoStrikes .strike")
     ];
+
+    function applyTeamNamesFromSession() {
+      const team1 = (sessionStorage.getItem("familyfeud_team1") || "").trim();
+      const team2 = (sessionStorage.getItem("familyfeud_team2") || "").trim();
+
+      teamOneTitleEl.textContent = team1 || "اسم الفريق";
+      teamTwoTitleEl.textContent = team2 || "اسم الفريق";
+    }
 
     function getCurrentQuestion() {
       return QUESTIONS[currentQuestionIndex];
@@ -968,11 +976,17 @@
       }
     });
 
+    applyTeamNamesFromSession();
     updateLayout();
     updateTeamScores();
     renderQuestion();
 
+    window.addEventListener("pageshow", () => {
+      applyTeamNamesFromSession();
+    });
+
     window.addEventListener("load", () => {
+      applyTeamNamesFromSession();
       setTimeout(updateLayout, 60);
       setTimeout(updateLayout, 220);
     }, { passive: true });
