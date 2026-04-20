@@ -7,26 +7,18 @@
 
   <style>
     :root{
-      --safe-top: env(safe-area-inset-top, 0px);
-      --safe-right: env(safe-area-inset-right, 0px);
-      --safe-bottom: env(safe-area-inset-bottom, 0px);
-      --safe-left: env(safe-area-inset-left, 0px);
-
       --gold:#f1d14f;
-      --blue-1:#2b3fc2;
-      --blue-2:#06204f;
       --white:#f4f2ea;
-
-      --app-height: 100vh;
-      --app-scale: 1;
-      --safari-nudge: 34px;
+      --app-height:100vh;
+      --app-scale:1;
+      --safari-nudge:34px;
     }
 
     *{
       box-sizing:border-box;
-      -webkit-tap-highlight-color:transparent;
       margin:0;
       padding:0;
+      -webkit-tap-highlight-color:transparent;
     }
 
     html{
@@ -37,7 +29,7 @@
     body{
       min-height:100%;
       background:#2f47aa;
-      font-family: Arial, "Helvetica Neue", sans-serif;
+      font-family:Arial, "Helvetica Neue", sans-serif;
       -webkit-text-size-adjust:100%;
       text-size-adjust:100%;
       overflow-x:hidden;
@@ -78,37 +70,19 @@
       direction:rtl;
     }
 
-    .brand-badge{
+    .store-logo{
       position:absolute;
-      top:20px;
+      top:18px;
       left:18px;
-      display:flex;
-      align-items:center;
-      gap:10px;
-      z-index:5;
-    }
-
-    .brand-badge img{
-      width:60px;
-      height:60px;
+      width:150px;
+      height:150px;
       object-fit:contain;
-      flex:0 0 auto;
-    }
-
-    .brand-text{
-      line-height:1.05;
-      font-weight:900;
-      font-size:28px;
-      color:#ffffff;
-    }
-
-    .brand-text .accent{
-      color:#f3c23c;
+      z-index:5;
     }
 
     .hero-logo-wrap{
       position:absolute;
-      top:26px;
+      top:22px;
       left:50%;
       transform:translateX(-50%);
       width:620px;
@@ -121,7 +95,7 @@
     .hero-logo{
       display:block;
       max-width:100%;
-      max-height:260px;
+      max-height:245px;
       object-fit:contain;
     }
 
@@ -129,7 +103,7 @@
       display:none;
       width:100%;
       text-align:center;
-      font-size:64px;
+      font-size:66px;
       font-weight:900;
       color:#ffd34d;
       text-shadow:
@@ -140,25 +114,25 @@
     .setup-panel{
       position:absolute;
       left:50%;
-      top:455px;
+      top:470px;
       transform:translate(-50%, -50%);
-      width:730px;
-      height:335px;
-      border-radius:34px;
-      border:9px solid #111111;
+      width:900px;
+      height:380px;
+      border-radius:36px;
+      border:10px solid #0f0f0f;
       background:linear-gradient(180deg, #0f2c88 0%, #081d61 100%);
       box-shadow:
         inset 0 0 0 1px rgba(255,255,255,.05),
         0 18px 40px rgba(0,0,0,.22);
-      padding:34px 36px 26px;
+      padding:34px 40px 28px;
     }
 
     .teams-row{
       display:grid;
       grid-template-columns:1fr 1fr;
-      gap:34px;
+      gap:40px;
       align-items:start;
-      margin-top:4px;
+      margin-top:2px;
     }
 
     .team-block{
@@ -167,24 +141,24 @@
 
     .team-label{
       color:var(--white);
-      font-size:34px;
+      font-size:42px;
       font-weight:900;
       line-height:1.15;
-      margin-bottom:24px;
+      margin-bottom:22px;
     }
 
     .team-input{
       width:100%;
-      height:68px;
+      height:76px;
       border-radius:999px;
       border:4px solid #101010;
       background:#f3f3f3;
       color:#222;
-      font-size:24px;
+      font-size:26px;
       font-weight:700;
       text-align:center;
       outline:none;
-      padding:0 18px;
+      padding:0 20px;
       box-shadow: inset 0 2px 0 rgba(255,255,255,.75);
     }
 
@@ -193,23 +167,50 @@
       font-weight:700;
     }
 
+    .start-wrap{
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      margin-top:38px;
+      margin-bottom:34px;
+    }
+
+    .start-btn{
+      min-width:220px;
+      height:86px;
+      border-radius:999px;
+      border:5px solid rgba(243,242,234,.95);
+      background:linear-gradient(180deg, #ff922b 0%, #ff7b14 100%);
+      color:#ffffff;
+      font-size:48px;
+      font-weight:900;
+      cursor:pointer;
+      transition:transform .15s ease, filter .15s ease;
+      box-shadow:0 10px 18px rgba(0,0,0,.12);
+    }
+
+    .start-btn:hover{
+      transform:translateY(-1px);
+      filter:brightness(1.03);
+    }
+
+    .start-btn:active{
+      transform:scale(.985);
+    }
+
     .actions-row{
-      position:absolute;
-      left:36px;
-      right:36px;
-      bottom:24px;
       display:grid;
       grid-template-columns:1fr 1fr 1fr;
-      gap:20px;
+      gap:24px;
     }
 
     .action-btn{
-      height:76px;
-      border-radius:28px;
+      height:82px;
+      border-radius:30px;
       border:4px solid rgba(243,242,234,.95);
       background:rgba(46, 81, 198, .28);
       color:var(--white);
-      font-size:34px;
+      font-size:36px;
       font-weight:900;
       cursor:pointer;
       transition:transform .15s ease, filter .15s ease, opacity .15s ease;
@@ -357,13 +358,7 @@
     <div class="fit-root">
       <div class="game-shell">
 
-        <div class="brand-badge">
-          <img id="storeLogo" src="logo.PNG" alt="صندوق المسابقات" />
-          <div class="brand-text">
-            <div>صندوق</div>
-            <div class="accent">المسابقات</div>
-          </div>
-        </div>
+        <img id="storeLogo" class="store-logo" src="logo.PNG" alt="صندوق المسابقات" />
 
         <div class="hero-logo-wrap">
           <img id="familyLogo" class="hero-logo" src="logo-family-feud.PNG" alt="فاميلي فيود" />
@@ -383,6 +378,10 @@
             </div>
           </div>
 
+          <div class="start-wrap">
+            <button id="startBtn" class="start-btn" type="button">ابدأ</button>
+          </div>
+
           <div class="actions-row">
             <button id="guideBtn" class="action-btn" type="button">التعليمات</button>
             <button id="answersBtn" class="action-btn" type="button">الإجابات</button>
@@ -395,8 +394,8 @@
             <div class="modal-title">التعليمات</div>
             <div class="modal-text">
               اكتب اسم كل فريق في الخانة الخاصة به.<br>
-              استخدم زر الإجابات لفتح نافذة الباركود والرابط الخاص بالإجابات.<br>
-              زر الرئيسية سنربطه لاحقًا.
+              ثم اضغط ابدأ للدخول إلى صفحة اللعب.<br>
+              وزر الإجابات يفتح نافذة الباركود والرابط.
             </div>
             <button class="close-btn" type="button" data-close="guideOverlay">إغلاق</button>
           </div>
@@ -485,6 +484,7 @@
     const teamTwoInput = document.getElementById("teamTwoInput");
     const guideBtn = document.getElementById("guideBtn");
     const answersBtn = document.getElementById("answersBtn");
+    const startBtn = document.getElementById("startBtn");
     const guideOverlay = document.getElementById("guideOverlay");
     const answersOverlay = document.getElementById("answersOverlay");
     const answersLinkInput = document.getElementById("answersLinkInput");
@@ -528,6 +528,12 @@
     answersBtn.addEventListener("click", () => {
       updateAnswersBox();
       openOverlay(answersOverlay);
+    });
+
+    startBtn.addEventListener("click", () => {
+      sessionStorage.setItem("familyfeud_team1", teamOneInput.value.trim());
+      sessionStorage.setItem("familyfeud_team2", teamTwoInput.value.trim());
+      window.location.href = "game.html";
     });
 
     document.querySelectorAll("[data-close]").forEach(btn => {
