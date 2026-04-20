@@ -140,6 +140,16 @@
       transform:translateY(-2px);
     }
 
+    .team-score.bump{
+      animation: scoreBump .28s ease;
+    }
+
+    @keyframes scoreBump{
+      0%{ transform:translateY(-2px) scale(1); }
+      50%{ transform:translateY(-2px) scale(1.14); }
+      100%{ transform:translateY(-2px) scale(1); }
+    }
+
     .team-strikes{
       margin-top:42px;
       display:flex;
@@ -170,11 +180,11 @@
     /* ===== المنطقة الوسطى ===== */
     .question-box{
       position:absolute;
-      top:36px;
+      top:34px;
       left:50%;
       transform:translateX(-50%);
       width:940px;
-      height:158px;
+      height:150px;
       border-radius:36px;
       border:5px solid var(--gold);
       background:linear-gradient(180deg, #0b1d4a 0%, #08173c 100%);
@@ -198,12 +208,12 @@
 
     .round-box{
       position:absolute;
-      top:184px;
+      top:198px;
       left:50%;
       transform:translateX(-50%);
-      width:260px;
-      height:116px;
-      border-radius:34px;
+      width:248px;
+      height:104px;
+      border-radius:32px;
       border:5px solid var(--gold);
       background:linear-gradient(180deg, #0b1d4a 0%, #08173c 100%);
       display:flex;
@@ -212,10 +222,17 @@
       justify-content:center;
       z-index:5;
       box-shadow:0 8px 18px rgba(0,0,0,.12);
+      cursor:pointer;
+      transition:transform .15s ease, filter .15s ease;
+    }
+
+    .round-box:hover{
+      transform:translateX(-50%) translateY(-1px);
+      filter:brightness(1.04);
     }
 
     .round-label{
-      font-size:24px;
+      font-size:22px;
       font-weight:900;
       line-height:1;
       color:var(--gold);
@@ -223,7 +240,7 @@
     }
 
     .round-score{
-      font-size:58px;
+      font-size:54px;
       line-height:1;
       font-weight:900;
       color:#f6f2e8;
@@ -236,12 +253,12 @@
       left:50%;
       transform:translateX(-50%);
       width:940px;
-      height:392px;
+      height:370px;
       border-radius:38px;
       border:6px solid var(--gold);
       background:linear-gradient(180deg, #3f56b6 0%, #3247af 100%);
       box-shadow: inset 0 0 0 1px rgba(255,255,255,.05);
-      padding:26px 18px 18px;
+      padding:24px 18px 18px;
     }
 
     .board-inner{
@@ -268,30 +285,33 @@
       padding:0;
       margin:0;
       cursor:pointer;
-      perspective:1200px;
-      min-height:98px;
+      perspective:1400px;
+      height:98px;
     }
 
     .answer-flip{
       position:relative;
       width:100%;
       height:100%;
-      min-height:98px;
       transform-style:preserve-3d;
       transition:transform .6s cubic-bezier(.22,1,.36,1);
+      transform-origin:center center;
     }
 
     .answer-slot.revealed .answer-flip{
-      transform:rotateX(180deg);
+      transform:rotateY(180deg);
     }
 
     .answer-face{
       position:absolute;
       inset:0;
+      width:100%;
+      height:100%;
       border-radius:34px;
       border:4px solid rgba(243,242,234,.96);
       background:linear-gradient(90deg, var(--blue-1) 0%, var(--blue-2) 100%);
       backface-visibility:hidden;
+      -webkit-backface-visibility:hidden;
       overflow:hidden;
     }
 
@@ -302,7 +322,7 @@
     }
 
     .answer-front{
-      transform:rotateX(180deg);
+      transform:rotateY(180deg);
       display:flex;
       align-items:center;
       justify-content:center;
@@ -471,6 +491,78 @@
         transform:translateY(0) scale(1);
       }
     }
+
+    /* ===== منح النقاط ===== */
+    .award-overlay{
+      position:absolute;
+      inset:0;
+      z-index:1300;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      background:rgba(3, 10, 34, .42);
+      opacity:0;
+      pointer-events:none;
+      transition:opacity .18s ease;
+    }
+
+    .award-overlay.show{
+      opacity:1;
+      pointer-events:auto;
+    }
+
+    .award-modal{
+      width:480px;
+      max-width:90%;
+      border-radius:30px;
+      border:5px solid var(--gold);
+      background:linear-gradient(180deg, #0b1d4a 0%, #08173c 100%);
+      box-shadow:0 20px 40px rgba(0,0,0,.28);
+      padding:24px 22px 22px;
+      color:#f5f2e8;
+      text-align:center;
+    }
+
+    .award-title{
+      font-size:34px;
+      font-weight:900;
+      line-height:1.2;
+      margin-bottom:8px;
+    }
+
+    .award-subtitle{
+      font-size:24px;
+      font-weight:800;
+      color:var(--gold);
+      margin-bottom:18px;
+    }
+
+    .award-actions{
+      display:grid;
+      grid-template-columns:1fr 1fr;
+      gap:14px;
+    }
+
+    .award-team-btn{
+      min-height:76px;
+      border-radius:24px;
+      border:4px solid rgba(243,242,234,.96);
+      background:linear-gradient(90deg, var(--blue-1) 0%, var(--blue-2) 100%);
+      color:#f5f2e8;
+      font-size:28px;
+      font-weight:900;
+      cursor:pointer;
+      transition:transform .15s ease, filter .15s ease;
+    }
+
+    .award-team-btn:hover{
+      transform:translateY(-1px);
+      filter:brightness(1.05);
+    }
+
+    .award-team-btn:active{
+      transform:scale(.98);
+    }
   </style>
 </head>
 <body>
@@ -482,7 +574,7 @@
         <aside class="team-panel left" id="teamTwoPanel" data-team="1">
           <div class="team-title">اسم الفريق</div>
           <div class="team-score-box">
-            <div class="team-score">0</div>
+            <div class="team-score" id="teamTwoScore">0</div>
           </div>
           <div class="team-strikes" id="teamTwoStrikes">
             <div class="strike">X</div>
@@ -495,7 +587,7 @@
           <div class="question-text" id="questionText">اذكر شيئًا يستخدمه الناس يوميًا</div>
         </div>
 
-        <div class="round-box">
+        <div class="round-box" id="roundBox" role="button" tabindex="0" aria-label="منح نقاط الجولة">
           <div class="round-label">نقاط الجولة</div>
           <div class="round-score" id="roundScore">0</div>
         </div>
@@ -511,7 +603,7 @@
         <aside class="team-panel right" id="teamOnePanel" data-team="0">
           <div class="team-title">اسم الفريق</div>
           <div class="team-score-box">
-            <div class="team-score">0</div>
+            <div class="team-score" id="teamOneScore">0</div>
           </div>
           <div class="team-strikes" id="teamOneStrikes">
             <div class="strike">X</div>
@@ -526,6 +618,18 @@
         <div class="overlay" id="strikeOverlay">
           <div class="overlay-x">X</div>
           <div class="transfer-box">السؤال ينتقل للفريق الاخر</div>
+        </div>
+
+        <div class="award-overlay" id="awardOverlay">
+          <div class="award-modal" id="awardModal">
+            <div class="award-title">لمن تُمنح نقاط الجولة؟</div>
+            <div class="award-subtitle" id="awardSubtitle">النقاط الحالية: 0</div>
+
+            <div class="award-actions">
+              <button class="award-team-btn" id="awardTeam1Btn" type="button">الفريق الأول</button>
+              <button class="award-team-btn" id="awardTeam2Btn" type="button">الفريق الثاني</button>
+            </div>
+          </div>
         </div>
 
       </div>
@@ -595,6 +699,8 @@
       });
     }
 
+    const TEAM_NAMES = ["الفريق الأول", "الفريق الثاني"];
+
     const GAME_DATA = {
       question: "اذكر شيئًا يستخدمه الناس يوميًا",
       answers: [
@@ -610,15 +716,26 @@
     const state = {
       revealed: [false, false, false, false, false, false],
       revealStack: [],
-      strikes: [0, 0]
+      strikes: [0, 0],
+      teamScores: [0, 0]
     };
 
     const questionText = document.getElementById("questionText");
     const roundScoreEl = document.getElementById("roundScore");
+    const roundBox = document.getElementById("roundBox");
     const answersGrid = document.getElementById("answersGrid");
     const strikeOverlay = document.getElementById("strikeOverlay");
     const prevBtn = document.getElementById("prevBtn");
     const nextBtn = document.getElementById("nextBtn");
+
+    const teamOneScoreEl = document.getElementById("teamOneScore");
+    const teamTwoScoreEl = document.getElementById("teamTwoScore");
+
+    const awardOverlay = document.getElementById("awardOverlay");
+    const awardModal = document.getElementById("awardModal");
+    const awardSubtitle = document.getElementById("awardSubtitle");
+    const awardTeam1Btn = document.getElementById("awardTeam1Btn");
+    const awardTeam2Btn = document.getElementById("awardTeam2Btn");
 
     const strikeRows = [
       document.querySelectorAll("#teamOneStrikes .strike"),
@@ -629,12 +746,26 @@
 
     questionText.textContent = GAME_DATA.question;
 
-    function updateRoundScore() {
-      const total = GAME_DATA.answers.reduce((sum, answer, index) => {
+    function getCurrentRoundPoints() {
+      return GAME_DATA.answers.reduce((sum, answer, index) => {
         return state.revealed[index] ? sum + answer.points : sum;
       }, 0);
+    }
 
-      roundScoreEl.textContent = total;
+    function updateRoundScore() {
+      roundScoreEl.textContent = getCurrentRoundPoints();
+    }
+
+    function updateTeamScores() {
+      teamOneScoreEl.textContent = state.teamScores[0];
+      teamTwoScoreEl.textContent = state.teamScores[1];
+    }
+
+    function bumpTeamScore(teamIndex) {
+      const target = teamIndex === 0 ? teamOneScoreEl : teamTwoScoreEl;
+      target.classList.remove("bump");
+      void target.offsetWidth;
+      target.classList.add("bump");
     }
 
     function updateStrikeRows() {
@@ -731,6 +862,24 @@
       showStrikeOverlay(isThirdStrike);
     }
 
+    function openAwardModal() {
+      const points = getCurrentRoundPoints();
+      awardSubtitle.textContent = `النقاط الحالية: ${points}`;
+      awardOverlay.classList.add("show");
+    }
+
+    function closeAwardModal() {
+      awardOverlay.classList.remove("show");
+    }
+
+    function awardRoundToTeam(teamIndex) {
+      const points = getCurrentRoundPoints();
+      state.teamScores[teamIndex] += points;
+      updateTeamScores();
+      bumpTeamScore(teamIndex);
+      closeAwardModal();
+    }
+
     document.getElementById("teamOnePanel").addEventListener("click", () => {
       addStrike(0);
     });
@@ -742,8 +891,34 @@
     prevBtn.addEventListener("click", hidePrevious);
     nextBtn.addEventListener("click", revealNext);
 
+    roundBox.addEventListener("click", openAwardModal);
+    roundBox.addEventListener("keydown", (event) => {
+      if (event.key === "Enter" || event.key === " ") {
+        event.preventDefault();
+        openAwardModal();
+      }
+    });
+
+    awardTeam1Btn.textContent = TEAM_NAMES[0];
+    awardTeam2Btn.textContent = TEAM_NAMES[1];
+
+    awardTeam1Btn.addEventListener("click", () => {
+      awardRoundToTeam(0);
+    });
+
+    awardTeam2Btn.addEventListener("click", () => {
+      awardRoundToTeam(1);
+    });
+
+    awardOverlay.addEventListener("click", (event) => {
+      if (event.target === awardOverlay) {
+        closeAwardModal();
+      }
+    });
+
     updateLayout();
     updateStrikeRows();
+    updateTeamScores();
     renderAnswers();
 
     window.addEventListener("load", () => {
