@@ -12,19 +12,13 @@
       --safe-bottom: env(safe-area-inset-bottom, 0px);
       --safe-left: env(safe-area-inset-left, 0px);
 
-      --bg:#334cad;
-      --dot:#b08a4f;
       --gold:#f1d14f;
-      --navy:#09193f;
-      --navy-2:#061534;
       --blue-1:#2b3fc2;
       --blue-2:#06204f;
-      --white:#f4f2ea;
-      --black:#111111;
-      --gray-x:#6a6a6a;
       --red:#ff2a2a;
+      --gray-x:#6a6a6a;
       --panel-border:#1d1d1d;
-      --board-inner:#d9ddef;
+      --white:#f4f2ea;
 
       --app-height: 100vh;
       --app-scale: 1;
@@ -80,7 +74,7 @@
       position:absolute;
       left:50%;
       top:50%;
-      width:1366px;
+      width:1600px;
       height:768px;
       transform:translate(-50%, -50%) scale(var(--app-scale));
       transform-origin:center center;
@@ -91,10 +85,10 @@
     /* ===== اللوحتان الجانبيتان ===== */
     .team-panel{
       position:absolute;
-      top:58px;
-      width:260px;
-      height:388px;
-      border-radius:36px;
+      top:50px;
+      width:285px;
+      height:420px;
+      border-radius:38px;
       border:9px solid var(--panel-border);
       background:linear-gradient(90deg, #2c43c4 0%, #071939 100%);
       box-shadow:
@@ -107,16 +101,16 @@
     }
 
     .team-panel.right{
-      right:24px;
+      right:34px;
     }
 
     .team-panel.left{
-      left:24px;
+      left:34px;
     }
 
     .team-title{
-      margin-top:22px;
-      font-size:34px;
+      margin-top:24px;
+      font-size:37px;
       font-weight:900;
       line-height:1.15;
       text-align:center;
@@ -126,10 +120,10 @@
     }
 
     .team-score-box{
-      margin-top:18px;
-      width:190px;
-      height:110px;
-      border-radius:32px;
+      margin-top:20px;
+      width:205px;
+      height:118px;
+      border-radius:34px;
       border:5px solid var(--gold);
       background:#000000;
       display:flex;
@@ -139,7 +133,7 @@
     }
 
     .team-score{
-      font-size:82px;
+      font-size:90px;
       line-height:1;
       font-weight:900;
       color:var(--gold);
@@ -147,16 +141,16 @@
     }
 
     .team-strikes{
-      margin-top:34px;
+      margin-top:42px;
       display:flex;
-      gap:16px;
+      gap:18px;
       align-items:center;
       justify-content:center;
       direction:ltr;
     }
 
     .strike{
-      font-size:82px;
+      font-size:88px;
       line-height:1;
       font-weight:900;
       color:var(--gray-x);
@@ -176,12 +170,12 @@
     /* ===== المنطقة الوسطى ===== */
     .question-box{
       position:absolute;
-      top:44px;
+      top:36px;
       left:50%;
       transform:translateX(-50%);
-      width:715px;
-      height:146px;
-      border-radius:34px;
+      width:940px;
+      height:158px;
+      border-radius:36px;
       border:5px solid var(--gold);
       background:linear-gradient(180deg, #0b1d4a 0%, #08173c 100%);
       display:flex;
@@ -191,12 +185,15 @@
     }
 
     .question-text{
-      font-size:46px;
+      font-size:54px;
       font-weight:900;
       text-align:center;
       line-height:1.15;
       color:#f4f2e8;
-      padding:0 28px;
+      padding:0 34px;
+      white-space:nowrap;
+      overflow:hidden;
+      text-overflow:ellipsis;
     }
 
     .round-box{
@@ -204,9 +201,9 @@
       top:182px;
       left:50%;
       transform:translateX(-50%);
-      width:242px;
-      height:118px;
-      border-radius:34px;
+      width:290px;
+      height:132px;
+      border-radius:36px;
       border:5px solid var(--gold);
       background:linear-gradient(180deg, #0b1d4a 0%, #08173c 100%);
       display:flex;
@@ -218,15 +215,15 @@
     }
 
     .round-label{
-      font-size:22px;
+      font-size:28px;
       font-weight:900;
       line-height:1;
       color:var(--gold);
-      margin-bottom:8px;
+      margin-bottom:10px;
     }
 
     .round-score{
-      font-size:58px;
+      font-size:64px;
       line-height:1;
       font-weight:900;
       color:#f6f2e8;
@@ -235,22 +232,22 @@
 
     .board{
       position:absolute;
-      top:255px;
+      top:262px;
       left:50%;
       transform:translateX(-50%);
-      width:724px;
-      height:367px;
-      border-radius:36px;
+      width:940px;
+      height:410px;
+      border-radius:38px;
       border:6px solid var(--gold);
       background:linear-gradient(180deg, #3f56b6 0%, #3247af 100%);
       box-shadow: inset 0 0 0 1px rgba(255,255,255,.05);
-      padding:28px 18px 18px;
+      padding:26px 18px 18px;
     }
 
     .board-inner{
       position:absolute;
       inset:28px 18px 18px 18px;
-      border-radius:30px;
+      border-radius:32px;
       border:3px solid rgba(219,224,243,.72);
       pointer-events:none;
       opacity:.85;
@@ -261,7 +258,7 @@
       z-index:2;
       display:grid;
       grid-template-columns:1fr 1fr;
-      gap:14px 24px;
+      gap:18px 28px;
       height:100%;
     }
 
@@ -272,14 +269,14 @@
       margin:0;
       cursor:pointer;
       perspective:1200px;
-      min-height:92px;
+      min-height:104px;
     }
 
     .answer-flip{
       position:relative;
       width:100%;
       height:100%;
-      min-height:92px;
+      min-height:104px;
       transform-style:preserve-3d;
       transition:transform .6s cubic-bezier(.22,1,.36,1);
     }
@@ -291,7 +288,7 @@
     .answer-face{
       position:absolute;
       inset:0;
-      border-radius:32px;
+      border-radius:34px;
       border:4px solid rgba(243,242,234,.96);
       background:linear-gradient(90deg, var(--blue-1) 0%, var(--blue-2) 100%);
       backface-visibility:hidden;
@@ -310,19 +307,19 @@
       align-items:center;
       justify-content:center;
       position:relative;
-      padding:0 70px 0 70px;
+      padding:0 78px 0 78px;
     }
 
     .rank-circle{
-      width:56px;
-      height:56px;
+      width:62px;
+      height:62px;
       border-radius:50%;
       border:4px solid rgba(243,242,234,.96);
       display:flex;
       align-items:center;
       justify-content:center;
       color:#f5f2e8;
-      font-size:28px;
+      font-size:31px;
       font-weight:900;
       background:rgba(22,40,105,.18);
     }
@@ -332,8 +329,8 @@
       left:16px;
       top:50%;
       transform:translateY(-50%);
-      width:52px;
-      height:52px;
+      width:58px;
+      height:58px;
       border-radius:50%;
       background:var(--gold);
       color:#000;
@@ -341,7 +338,7 @@
       display:flex;
       align-items:center;
       justify-content:center;
-      font-size:24px;
+      font-size:27px;
       font-weight:900;
       line-height:1;
       box-shadow:0 4px 10px rgba(0,0,0,.16);
@@ -350,27 +347,27 @@
     .answer-label{
       width:100%;
       text-align:center;
-      font-size:32px;
+      font-size:40px;
       line-height:1;
       font-weight:900;
       color:#f5f2e8;
       white-space:nowrap;
       overflow:hidden;
       text-overflow:ellipsis;
-      padding:0 8px;
+      padding:0 10px;
     }
 
     /* ===== الأزرار السفلية ===== */
     .nav-btn{
       position:absolute;
-      bottom:12px;
-      width:196px;
-      height:96px;
-      border-radius:34px;
+      bottom:18px;
+      width:214px;
+      height:98px;
+      border-radius:36px;
       border:5px solid rgba(243,242,234,.96);
       background:transparent;
       color:#f5f2e8;
-      font-size:40px;
+      font-size:42px;
       font-weight:900;
       line-height:1;
       cursor:pointer;
@@ -388,11 +385,11 @@
     }
 
     .nav-btn.prev{
-      left:14px;
+      left:24px;
     }
 
     .nav-btn.next{
-      right:14px;
+      right:24px;
     }
 
     /* ===== طبقة الخطأ ===== */
@@ -413,7 +410,7 @@
     }
 
     .overlay-x{
-      font-size:340px;
+      font-size:360px;
       font-weight:900;
       line-height:1;
       color:var(--red);
@@ -445,11 +442,11 @@
 
     .transfer-box{
       margin-top:10px;
-      min-width:320px;
+      min-width:340px;
       max-width:80vw;
-      min-height:72px;
-      padding:16px 26px;
-      border-radius:26px;
+      min-height:76px;
+      padding:16px 28px;
+      border-radius:28px;
       border:4px solid var(--gold);
       background:linear-gradient(180deg, #0b1d4a 0%, #08173c 100%);
       color:#f5f2e8;
@@ -457,7 +454,7 @@
       align-items:center;
       justify-content:center;
       text-align:center;
-      font-size:28px;
+      font-size:30px;
       font-weight:900;
       line-height:1.2;
       opacity:0;
@@ -538,7 +535,7 @@
   </main>
 
   <script>
-    const DESIGN_WIDTH = 1366;
+    const DESIGN_WIDTH = 1600;
     const DESIGN_HEIGHT = 768;
     const root = document.documentElement;
 
