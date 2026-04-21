@@ -15,8 +15,9 @@
       --gold:#f1d14f;
       --blue-1:#2b3fc2;
       --blue-2:#06204f;
-      --red:#ff2a2a;
-      --gray-x:#6a6a6a;
+      --red:#ef1e2d;
+      --green:#19c63e;
+      --gray-x:#8c8c8c;
       --panel-border:#1d1d1d;
       --white:#f4f2ea;
 
@@ -54,7 +55,7 @@
       width:100%;
       min-height:calc(var(--app-height) + var(--safari-nudge));
       background:
-        radial-gradient(circle, rgba(176,138,79,.95) 0 4px, transparent 4.5px) 0 0 / 48px 48px,
+        radial-gradient(circle, rgba(241,177,33,.95) 0 4px, transparent 4.5px) 0 0 / 48px 48px,
         linear-gradient(180deg, #3a53b6 0%, #2e47a8 100%);
     }
 
@@ -84,9 +85,9 @@
 
     .team-panel{
       position:absolute;
-      top:50px;
-      width:285px;
-      height:420px;
+      top:46px;
+      width:300px;
+      height:468px;
       border-radius:38px;
       border:9px solid var(--panel-border);
       background:linear-gradient(90deg, #2c43c4 0%, #071939 100%);
@@ -100,27 +101,16 @@
     }
 
     .team-panel.right{
-      right:34px;
+      right:28px;
     }
 
     .team-panel.left{
-      left:34px;
-    }
-
-    .team-title{
-      margin-top:24px;
-      font-size:37px;
-      font-weight:900;
-      line-height:1.15;
-      text-align:center;
-      letter-spacing:.2px;
-      color:#f5f2e7;
-      white-space:nowrap;
+      left:28px;
     }
 
     .team-score-box{
-      margin-top:20px;
-      width:205px;
+      margin-top:22px;
+      width:212px;
       height:118px;
       border-radius:34px;
       border:5px solid var(--gold);
@@ -132,7 +122,7 @@
     }
 
     .team-score{
-      font-size:90px;
+      font-size:92px;
       line-height:1;
       font-weight:900;
       color:var(--gold);
@@ -149,8 +139,51 @@
       100%{ transform:translateY(-2px) scale(1); }
     }
 
+    .team-info-box{
+      margin-top:18px;
+      width:212px;
+      height:156px;
+      border-radius:28px;
+      border:3px solid rgba(243,242,234,.92);
+      background:linear-gradient(180deg, rgba(44,67,196,.20) 0%, rgba(8,29,97,.16) 100%);
+      display:flex;
+      flex-direction:column;
+      align-items:center;
+      justify-content:center;
+      padding:14px 10px;
+      text-align:center;
+    }
+
+    .team-name-display{
+      color:#f6f2e8;
+      font-size:31px;
+      font-weight:900;
+      line-height:1.2;
+      width:100%;
+      white-space:nowrap;
+      overflow:hidden;
+      text-overflow:ellipsis;
+    }
+
+    .team-player-display{
+      color:var(--gold);
+      font-size:28px;
+      font-weight:900;
+      line-height:1.2;
+      min-height:36px;
+      margin-top:12px;
+      width:100%;
+      white-space:nowrap;
+      overflow:hidden;
+      text-overflow:ellipsis;
+    }
+
+    .team-player-display.empty{
+      opacity:0;
+    }
+
     .team-strikes{
-      margin-top:42px;
+      margin-top:26px;
       display:flex;
       gap:18px;
       align-items:center;
@@ -163,7 +196,7 @@
       line-height:1;
       font-weight:900;
       color:var(--gray-x);
-      opacity:.9;
+      opacity:.95;
       transform:scale(.92);
       transition:transform .18s ease, color .18s ease, opacity .18s ease;
       text-shadow:0 2px 0 rgba(0,0,0,.12);
@@ -178,10 +211,10 @@
 
     .question-box{
       position:absolute;
-      top:34px;
+      top:30px;
       left:50%;
       transform:translateX(-50%);
-      width:940px;
+      width:944px;
       height:150px;
       border-radius:36px;
       border:5px solid var(--gold);
@@ -193,7 +226,7 @@
     }
 
     .question-text{
-      font-size:54px;
+      font-size:55px;
       font-weight:900;
       text-align:center;
       line-height:1.15;
@@ -206,10 +239,10 @@
 
     .round-box{
       position:absolute;
-      top:198px;
+      top:196px;
       left:50%;
       transform:translateX(-50%);
-      width:248px;
+      width:252px;
       height:104px;
       border-radius:32px;
       border:5px solid var(--gold);
@@ -238,7 +271,7 @@
     }
 
     .round-score{
-      font-size:54px;
+      font-size:56px;
       line-height:1;
       font-weight:900;
       color:#f6f2e8;
@@ -250,8 +283,8 @@
       top:280px;
       left:50%;
       transform:translateX(-50%);
-      width:940px;
-      height:392px;
+      width:944px;
+      height:370px;
       border-radius:38px;
       border:6px solid var(--gold);
       background:linear-gradient(180deg, #3f56b6 0%, #3247af 100%);
@@ -370,13 +403,13 @@
     .nav-btn{
       position:absolute;
       bottom:18px;
-      width:214px;
-      height:98px;
-      border-radius:36px;
+      width:200px;
+      height:92px;
+      border-radius:34px;
       border:5px solid rgba(243,242,234,.96);
       background:transparent;
       color:#f5f2e8;
-      font-size:42px;
+      font-size:40px;
       font-weight:900;
       line-height:1;
       cursor:pointer;
@@ -394,11 +427,46 @@
     }
 
     .nav-btn.prev{
-      left:24px;
+      left:10px;
     }
 
     .nav-btn.next{
-      right:24px;
+      right:18px;
+      width:190px;
+    }
+
+    .buzz-toggle-btn{
+      position:absolute;
+      bottom:18px;
+      right:228px;
+      width:178px;
+      height:92px;
+      border-radius:34px;
+      border:5px solid #111111;
+      color:#ffffff;
+      font-size:38px;
+      font-weight:900;
+      line-height:1;
+      cursor:pointer;
+      transition:transform .15s ease, filter .15s ease, background .15s ease;
+      box-shadow:0 8px 18px rgba(0,0,0,.18);
+    }
+
+    .buzz-toggle-btn:hover{
+      transform:translateY(-1px);
+      filter:brightness(1.04);
+    }
+
+    .buzz-toggle-btn:active{
+      transform:scale(.985);
+    }
+
+    .buzz-toggle-btn.on{
+      background:linear-gradient(180deg, #27db4f 0%, #0aa830 100%);
+    }
+
+    .buzz-toggle-btn.off{
+      background:linear-gradient(180deg, #ff3342 0%, #d81424 100%);
     }
 
     .overlay{
@@ -559,10 +627,15 @@
       <div class="game-shell" id="gameShell">
 
         <aside class="team-panel left" id="teamTwoPanel" data-team="1">
-          <div class="team-title" id="teamTwoTitle">اسم الفريق</div>
           <div class="team-score-box">
             <div class="team-score" id="teamTwoScore">0</div>
           </div>
+
+          <div class="team-info-box">
+            <div class="team-name-display" id="teamTwoNameDisplay">اسم الفريق</div>
+            <div class="team-player-display empty" id="teamTwoPlayerDisplay">—</div>
+          </div>
+
           <div class="team-strikes" id="teamTwoStrikes">
             <div class="strike">X</div>
             <div class="strike">X</div>
@@ -571,7 +644,7 @@
         </aside>
 
         <div class="question-box">
-          <div class="question-text" id="questionText">اذكر شيئًا يستخدمه الناس يوميًا</div>
+          <div class="question-text" id="questionText">نص السؤال</div>
         </div>
 
         <div class="round-box" id="roundBox" role="button" tabindex="0" aria-label="منح نقاط الجولة">
@@ -584,10 +657,15 @@
         </div>
 
         <aside class="team-panel right" id="teamOnePanel" data-team="0">
-          <div class="team-title" id="teamOneTitle">اسم الفريق</div>
           <div class="team-score-box">
             <div class="team-score" id="teamOneScore">0</div>
           </div>
+
+          <div class="team-info-box">
+            <div class="team-name-display" id="teamOneNameDisplay">اسم الفريق</div>
+            <div class="team-player-display empty" id="teamOnePlayerDisplay">—</div>
+          </div>
+
           <div class="team-strikes" id="teamOneStrikes">
             <div class="strike">X</div>
             <div class="strike">X</div>
@@ -596,6 +674,7 @@
         </aside>
 
         <button class="nav-btn prev" id="prevBtn" type="button">السابق</button>
+        <button class="buzz-toggle-btn on" id="buzzToggleBtn" type="button">الجرس</button>
         <button class="nav-btn next" id="nextBtn" type="button">التالي</button>
 
         <div class="overlay" id="strikeOverlay">
@@ -720,6 +799,7 @@
 
     let currentQuestionIndex = 0;
     let overlayTimer = null;
+    let buzzEnabled = true;
 
     const questionText = document.getElementById("questionText");
     const roundScoreEl = document.getElementById("roundScore");
@@ -728,11 +808,15 @@
     const strikeOverlay = document.getElementById("strikeOverlay");
     const prevBtn = document.getElementById("prevBtn");
     const nextBtn = document.getElementById("nextBtn");
+    const buzzToggleBtn = document.getElementById("buzzToggleBtn");
 
     const teamOneScoreEl = document.getElementById("teamOneScore");
     const teamTwoScoreEl = document.getElementById("teamTwoScore");
-    const teamOneTitleEl = document.getElementById("teamOneTitle");
-    const teamTwoTitleEl = document.getElementById("teamTwoTitle");
+
+    const teamOneNameDisplay = document.getElementById("teamOneNameDisplay");
+    const teamTwoNameDisplay = document.getElementById("teamTwoNameDisplay");
+    const teamOnePlayerDisplay = document.getElementById("teamOnePlayerDisplay");
+    const teamTwoPlayerDisplay = document.getElementById("teamTwoPlayerDisplay");
 
     const awardOverlay = document.getElementById("awardOverlay");
     const awardSubtitle = document.getElementById("awardSubtitle");
@@ -748,8 +832,31 @@
       const team1 = (sessionStorage.getItem("familyfeud_team1") || "").trim();
       const team2 = (sessionStorage.getItem("familyfeud_team2") || "").trim();
 
-      teamOneTitleEl.textContent = team1 || "اسم الفريق";
-      teamTwoTitleEl.textContent = team2 || "اسم الفريق";
+      teamOneNameDisplay.textContent = team1 || "اسم الفريق";
+      teamTwoNameDisplay.textContent = team2 || "اسم الفريق";
+    }
+
+    function applyBuzzWinnerFromSession() {
+      const firstTeam = (sessionStorage.getItem("familyfeud_buzz_first_team") || "").trim();
+      const firstName = (sessionStorage.getItem("familyfeud_buzz_first_name") || "").trim();
+
+      teamOnePlayerDisplay.textContent = "";
+      teamTwoPlayerDisplay.textContent = "";
+
+      teamOnePlayerDisplay.classList.add("empty");
+      teamTwoPlayerDisplay.classList.add("empty");
+
+      if (!firstTeam || !firstName) return;
+
+      if (firstTeam === "team1") {
+        teamOnePlayerDisplay.textContent = firstName;
+        teamOnePlayerDisplay.classList.remove("empty");
+      }
+
+      if (firstTeam === "team2") {
+        teamTwoPlayerDisplay.textContent = firstName;
+        teamTwoPlayerDisplay.classList.remove("empty");
+      }
     }
 
     function getCurrentQuestion() {
@@ -806,6 +913,12 @@
     function updateNavButtons() {
       prevBtn.disabled = currentQuestionIndex === 0;
       nextBtn.disabled = currentQuestionIndex === QUESTIONS.length - 1;
+    }
+
+    function updateBuzzButton() {
+      buzzToggleBtn.classList.toggle("on", buzzEnabled);
+      buzzToggleBtn.classList.toggle("off", !buzzEnabled);
+      buzzToggleBtn.textContent = "الجرس";
     }
 
     function syncAwardedPointsWithCurrentQuestion() {
@@ -920,8 +1033,8 @@
     function openAwardModal() {
       const points = getCurrentRoundPoints();
       awardSubtitle.textContent = `النقاط الحالية: ${points}`;
-      awardTeam1Btn.textContent = teamOneTitleEl.textContent.trim() || "الفريق الأول";
-      awardTeam2Btn.textContent = teamTwoTitleEl.textContent.trim() || "الفريق الثاني";
+      awardTeam1Btn.textContent = teamOneNameDisplay.textContent.trim() || "الفريق الأول";
+      awardTeam2Btn.textContent = teamTwoNameDisplay.textContent.trim() || "الفريق الثاني";
       awardOverlay.classList.add("show");
     }
 
@@ -938,6 +1051,12 @@
       closeAwardModal();
     }
 
+    function toggleBuzz() {
+      buzzEnabled = !buzzEnabled;
+      sessionStorage.setItem("familyfeud_buzz_enabled_presenter", buzzEnabled ? "1" : "0");
+      updateBuzzButton();
+    }
+
     document.getElementById("teamOnePanel").addEventListener("click", () => {
       addOrResetStrike(0);
     });
@@ -948,6 +1067,7 @@
 
     prevBtn.addEventListener("click", goPrevQuestion);
     nextBtn.addEventListener("click", goNextQuestion);
+    buzzToggleBtn.addEventListener("click", toggleBuzz);
 
     roundBox.addEventListener("click", openAwardModal);
     roundBox.addEventListener("keydown", (event) => {
@@ -978,16 +1098,39 @@
     });
 
     applyTeamNamesFromSession();
+    applyBuzzWinnerFromSession();
+
+    const storedBuzzEnabled = sessionStorage.getItem("familyfeud_buzz_enabled_presenter");
+    if (storedBuzzEnabled === "0") {
+      buzzEnabled = false;
+    } else {
+      buzzEnabled = true;
+    }
+
+    updateBuzzButton();
     updateLayout();
     updateTeamScores();
     renderQuestion();
 
     window.addEventListener("pageshow", () => {
       applyTeamNamesFromSession();
+      applyBuzzWinnerFromSession();
+      const stored = sessionStorage.getItem("familyfeud_buzz_enabled_presenter");
+      buzzEnabled = stored === "0" ? false : true;
+      updateBuzzButton();
+    });
+
+    window.addEventListener("focus", () => {
+      applyTeamNamesFromSession();
+      applyBuzzWinnerFromSession();
+      const stored = sessionStorage.getItem("familyfeud_buzz_enabled_presenter");
+      buzzEnabled = stored === "0" ? false : true;
+      updateBuzzButton();
     });
 
     window.addEventListener("load", () => {
       applyTeamNamesFromSession();
+      applyBuzzWinnerFromSession();
       setTimeout(updateLayout, 60);
       setTimeout(updateLayout, 220);
     }, { passive: true });
