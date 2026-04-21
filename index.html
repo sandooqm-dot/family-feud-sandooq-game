@@ -117,7 +117,7 @@
       top:485px;
       transform:translate(-50%, -50%);
       width:920px;
-      height:430px;
+      height:500px;
       border-radius:36px;
       border:10px solid #0f0f0f;
       background:linear-gradient(180deg, #0f2c88 0%, #081d61 100%);
@@ -174,7 +174,7 @@
       align-items:center;
       justify-content:center;
       margin-top:34px;
-      margin-bottom:28px;
+      margin-bottom:24px;
     }
 
     .start-btn{
@@ -207,11 +207,11 @@
       transform:none;
     }
 
-    .actions-row{
+    .actions-grid{
       margin-top:auto;
       display:grid;
-      grid-template-columns:1fr 1fr 1fr;
-      gap:24px;
+      grid-template-columns:1fr 1fr;
+      gap:18px 24px;
     }
 
     .action-btn{
@@ -220,7 +220,7 @@
       border:4px solid rgba(243,242,234,.95);
       background:rgba(46, 81, 198, .28);
       color:var(--white);
-      font-size:36px;
+      font-size:32px;
       font-weight:900;
       cursor:pointer;
       transition:transform .15s ease, filter .15s ease, opacity .15s ease;
@@ -385,7 +385,7 @@
     body.portrait .setup-panel{
       top:820px;
       width:620px;
-      height:470px;
+      height:560px;
       padding:34px 28px 28px;
     }
 
@@ -410,7 +410,7 @@
 
     body.portrait .start-wrap{
       margin-top:40px;
-      margin-bottom:30px;
+      margin-bottom:26px;
     }
 
     body.portrait .start-btn{
@@ -419,13 +419,13 @@
       font-size:54px;
     }
 
-    body.portrait .actions-row{
+    body.portrait .actions-grid{
       gap:14px;
     }
 
     body.portrait .action-btn{
       height:86px;
-      font-size:30px;
+      font-size:28px;
     }
 
     body.portrait .modal{
@@ -464,9 +464,10 @@
             <button id="startBtn" class="start-btn" type="button" disabled>ابدأ</button>
           </div>
 
-          <div class="actions-row">
+          <div class="actions-grid">
+            <button id="answersBtn" class="action-btn" type="button">باركود الإجابات</button>
+            <button id="buzzBtn" class="action-btn" type="button">باركود الأجراس</button>
             <button id="guideBtn" class="action-btn" type="button">التعليمات</button>
-            <button id="answersBtn" class="action-btn" type="button">الإجابات</button>
             <button class="action-btn" type="button" disabled>الرئيسية</button>
           </div>
         </section>
@@ -477,7 +478,8 @@
             <div class="modal-text">
               اكتب اسم كل فريق في الخانة الخاصة به.<br>
               ثم اضغط ابدأ للدخول إلى صفحة اللعب.<br>
-              وزر الإجابات يفتح نافذة الباركود والرابط.
+              استخدم باركود الإجابات لعرض صفحة الإجابات.<br>
+              واستخدم باركود الأجراس لإدخال اللاعبين إلى صفحة الجرس.
             </div>
             <button class="close-btn" type="button" data-close="guideOverlay">إغلاق</button>
           </div>
@@ -485,7 +487,7 @@
 
         <div id="answersOverlay" class="overlay">
           <div class="modal">
-            <div class="modal-title">الإجابات</div>
+            <div class="modal-title">باركود الإجابات</div>
 
             <div class="answers-card">
               <div class="qr-box">
@@ -499,6 +501,25 @@
             </div>
 
             <button class="close-btn" type="button" data-close="answersOverlay">إغلاق</button>
+          </div>
+        </div>
+
+        <div id="buzzOverlay" class="overlay">
+          <div class="modal">
+            <div class="modal-title">باركود الأجراس</div>
+
+            <div class="answers-card">
+              <div class="qr-box">
+                <img id="buzzQrImage" alt="QR Code" />
+              </div>
+
+              <input id="buzzLinkInput" class="answers-link" type="text" readonly />
+
+              <button id="buzzCopyBtn" class="copy-btn" type="button">نسخ الرابط</button>
+              <div id="buzzCopyMsg" class="copy-msg"></div>
+            </div>
+
+            <button class="close-btn" type="button" data-close="buzzOverlay">إغلاق</button>
           </div>
         </div>
 
@@ -522,13 +543,22 @@
 
     const guideBtn = document.getElementById("guideBtn");
     const answersBtn = document.getElementById("answersBtn");
+    const buzzBtn = document.getElementById("buzzBtn");
     const startBtn = document.getElementById("startBtn");
+
     const guideOverlay = document.getElementById("guideOverlay");
     const answersOverlay = document.getElementById("answersOverlay");
+    const buzzOverlay = document.getElementById("buzzOverlay");
+
     const answersLinkInput = document.getElementById("answersLinkInput");
     const qrImage = document.getElementById("qrImage");
     const copyBtn = document.getElementById("copyBtn");
     const copyMsg = document.getElementById("copyMsg");
+
+    const buzzLinkInput = document.getElementById("buzzLinkInput");
+    const buzzQrImage = document.getElementById("buzzQrImage");
+    const buzzCopyBtn = document.getElementById("buzzCopyBtn");
+    const buzzCopyMsg = document.getElementById("buzzCopyMsg");
 
     let stableViewport = { width: window.innerWidth, height: window.innerHeight };
     let stableOrientationPortrait = window.innerHeight > window.innerWidth;
@@ -576,10 +606,8 @@
       }
 
       const { width, height } = getDesignSize();
-
       const horizontalPadding = 8;
       const verticalPadding = 8;
-
       const usableWidth = stableViewport.width - horizontalPadding;
       const usableHeight = stableViewport.height - verticalPadding;
 
@@ -640,11 +668,34 @@
       return url.toString();
     }
 
+    function buildBuzzLink() {
+      const url = new URL(window.location.href);
+      const path = url.pathname;
+
+      if (/index\.html?$/i.test(path)) {
+        url.pathname = path.replace(/index\.html?$/i, "buzz.html");
+      } else if (path.endsWith("/")) {
+        url.pathname = path + "buzz.html";
+      } else {
+        url.pathname = path.replace(/\/[^/]*$/, "/buzz.html");
+      }
+
+      url.search = "";
+      url.hash = "";
+      return url.toString();
+    }
+
     const ANSWERS_LINK = buildAnswersLink();
+    const BUZZ_LINK = buildBuzzLink();
 
     function updateAnswersBox() {
       answersLinkInput.value = ANSWERS_LINK;
       qrImage.src = "https://api.qrserver.com/v1/create-qr-code/?size=260x260&data=" + encodeURIComponent(ANSWERS_LINK);
+    }
+
+    function updateBuzzBox() {
+      buzzLinkInput.value = BUZZ_LINK;
+      buzzQrImage.src = "https://api.qrserver.com/v1/create-qr-code/?size=260x260&data=" + encodeURIComponent(BUZZ_LINK);
     }
 
     function openOverlay(el) {
@@ -670,6 +721,11 @@
       openOverlay(answersOverlay);
     });
 
+    buzzBtn.addEventListener("click", () => {
+      updateBuzzBox();
+      openOverlay(buzzOverlay);
+    });
+
     startBtn.addEventListener("click", () => {
       if (startBtn.disabled) return;
 
@@ -685,7 +741,7 @@
       });
     });
 
-    [guideOverlay, answersOverlay].forEach(overlay => {
+    [guideOverlay, answersOverlay, buzzOverlay].forEach(overlay => {
       overlay.addEventListener("click", (event) => {
         if (event.target === overlay) closeOverlay(overlay);
       });
@@ -695,6 +751,7 @@
       if (event.key === "Escape") {
         closeOverlay(guideOverlay);
         closeOverlay(answersOverlay);
+        closeOverlay(buzzOverlay);
       }
     });
 
@@ -710,6 +767,21 @@
 
       setTimeout(() => {
         copyMsg.textContent = "";
+      }, 1600);
+    });
+
+    buzzCopyBtn.addEventListener("click", async () => {
+      try {
+        await navigator.clipboard.writeText(buzzLinkInput.value);
+        buzzCopyMsg.textContent = "تم نسخ الرابط";
+      } catch (e) {
+        buzzLinkInput.select();
+        document.execCommand("copy");
+        buzzCopyMsg.textContent = "تم نسخ الرابط";
+      }
+
+      setTimeout(() => {
+        buzzCopyMsg.textContent = "";
       }, 1600);
     });
 
