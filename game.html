@@ -450,7 +450,7 @@
       font-weight:900;
       line-height:1;
       cursor:pointer;
-      transition:transform .15s ease, filter .15s ease, background .15s ease;
+      transition:transform .15s ease, filter .15s ease, background .15s ease, opacity .15s ease;
       box-shadow:0 8px 18px rgba(0,0,0,.18);
     }
 
@@ -461,6 +461,13 @@
 
     .buzz-toggle-btn:active{
       transform:scale(.985);
+    }
+
+    .buzz-toggle-btn:disabled{
+      opacity:.72;
+      cursor:default;
+      transform:none;
+      filter:none;
     }
 
     .buzz-toggle-btn.on{
@@ -702,10 +709,95 @@
     <div class="page-spacer" aria-hidden="true"></div>
   </main>
 
+  <script src="https://js.pusher.com/8.4.0/pusher.min.js"></script>
   <script>
     const DESIGN_WIDTH = 1600;
     const DESIGN_HEIGHT = 768;
+    const API_BASE = "https://family-feud-buzz.sandooq-m.workers.dev";
+
     const root = document.documentElement;
+
+    const QUESTIONS = [
+      {
+        question: "اذكر شيئًا يستخدمه الناس يوميًا",
+        answers: [
+          { text: "الجوال", points: 32 },
+          { text: "المفاتيح", points: 18 },
+          { text: "الماء", points: 14 },
+          { text: "السيارة", points: 10 },
+          { text: "المحفظة", points: 8 },
+          { text: "النظارة", points: 6 }
+        ]
+      },
+      {
+        question: "اذكر شيئًا تجده في المطبخ",
+        answers: [
+          { text: "الثلاجة", points: 28 },
+          { text: "الفرن", points: 20 },
+          { text: "الصحون", points: 16 },
+          { text: "الملاعق", points: 12 },
+          { text: "الكاسات", points: 9 },
+          { text: "القدر", points: 7 }
+        ]
+      },
+      {
+        question: "اذكر شيئًا يحمله الطالب معه",
+        answers: [
+          { text: "الحقيبة", points: 30 },
+          { text: "القلم", points: 18 },
+          { text: "الدفتر", points: 16 },
+          { text: "الكتب", points: 14 },
+          { text: "المقلمة", points: 8 },
+          { text: "الآيباد", points: 6 }
+        ]
+      }
+    ];
+
+    const questionStates = QUESTIONS.map(q => ({
+      revealed: new Array(q.answers.length).fill(false),
+      strikes: [0, 0],
+      awardedTo: null,
+      awardedPoints: 0
+    }));
+
+    let currentQuestionIndex = 0;
+    let overlayTimer = null;
+
+    let buzzEnabled = true;
+    let currentBuzzState = null;
+    let buzzToggleInFlight = false;
+    let pusher = null;
+    let channel = null;
+    let fallbackPoll = null;
+
+    const roomId = getRoomId();
+
+    const questionText = document.getElementById("questionText");
+    const roundScoreEl = document.getElementById("roundScore");
+    const roundBox = document.getElementById("roundBox");
+    const answersGrid = document.getElementById("answersGrid");
+    const strikeOverlay = document.getElementById("strikeOverlay");
+    const prevBtn = document.getElementById("prevBtn");
+    const nextBtn = document.getElementById("nextBtn");
+    const buzzToggleBtn = document.getElementById("buzzToggleBtn");
+
+    const teamOneScoreEl = document.getElementById("teamOneScore");
+    const teamTwoScoreEl = document.getElementById("teamTwoScore");
+
+    const teamOneNameDisplay = document.getElementById("teamOneNameDisplay");
+    const teamTwoNameDisplay = document.getElementById("teamTwoNameDisplay");
+    const teamOnePlayerDisplay = document.getElementById("teamOnePlayerDisplay");
+    const teamTwoPlayerDisplay = document.getElementById("teamTwoPlayerDisplay");
+
+    const awardOverlay = document.getElementById("awardOverlay");
+    const awardSubtitle = document.getElementById("awardSubtitle");
+    const awardTeam1Btn = document.getElementById("awardTeam1Btn");
+    const awardTeam2Btn = document.getElementById("awardTeam2Btn");
+
+    const strikeRows = [
+      document.querySelectorAll("#teamOneStrikes .strike"),
+      document.querySelectorAll("#teamTwoStrikes .strike")
+    ];
 
     function setAppHeight() {
       const h = window.visualViewport && window.visualViewport.height
@@ -756,109 +848,17 @@
       });
     }
 
-    const QUESTIONS = [
-      {
-        question: "اذكر شيئًا يستخدمه الناس يوميًا",
-        answers: [
-          { text: "الجوال", points: 32 },
-          { text: "المفاتيح", points: 18 },
-          { text: "الماء", points: 14 },
-          { text: "السيارة", points: 10 },
-          { text: "المحفظة", points: 8 },
-          { text: "النظارة", points: 6 }
-        ]
-      },
-      {
-        question: "اذكر شيئًا تجده في المطبخ",
-        answers: [
-          { text: "الثلاجة", points: 28 },
-          { text: "الفرن", points: 20 },
-          { text: "الصحون", points: 16 },
-          { text: "الملاعق", points: 12 },
-          { text: "الكاسات", points: 9 },
-          { text: "القدر", points: 7 }
-        ]
-      },
-      {
-        question: "اذكر شيئًا يحمله الطالب معه",
-        answers: [
-          { text: "الحقيبة", points: 30 },
-          { text: "القلم", points: 18 },
-          { text: "الدفتر", points: 16 },
-          { text: "الكتب", points: 14 },
-          { text: "المقلمة", points: 8 },
-          { text: "الآيباد", points: 6 }
-        ]
-      }
-    ];
-
-    const questionStates = QUESTIONS.map(q => ({
-      revealed: new Array(q.answers.length).fill(false),
-      strikes: [0, 0],
-      awardedTo: null,
-      awardedPoints: 0
-    }));
-
-    let currentQuestionIndex = 0;
-    let overlayTimer = null;
-    let buzzEnabled = true;
-
-    const questionText = document.getElementById("questionText");
-    const roundScoreEl = document.getElementById("roundScore");
-    const roundBox = document.getElementById("roundBox");
-    const answersGrid = document.getElementById("answersGrid");
-    const strikeOverlay = document.getElementById("strikeOverlay");
-    const prevBtn = document.getElementById("prevBtn");
-    const nextBtn = document.getElementById("nextBtn");
-    const buzzToggleBtn = document.getElementById("buzzToggleBtn");
-
-    const teamOneScoreEl = document.getElementById("teamOneScore");
-    const teamTwoScoreEl = document.getElementById("teamTwoScore");
-
-    const teamOneNameDisplay = document.getElementById("teamOneNameDisplay");
-    const teamTwoNameDisplay = document.getElementById("teamTwoNameDisplay");
-    const teamOnePlayerDisplay = document.getElementById("teamOnePlayerDisplay");
-    const teamTwoPlayerDisplay = document.getElementById("teamTwoPlayerDisplay");
-
-    const awardOverlay = document.getElementById("awardOverlay");
-    const awardSubtitle = document.getElementById("awardSubtitle");
-    const awardTeam1Btn = document.getElementById("awardTeam1Btn");
-    const awardTeam2Btn = document.getElementById("awardTeam2Btn");
-
-    const strikeRows = [
-      document.querySelectorAll("#teamOneStrikes .strike"),
-      document.querySelectorAll("#teamTwoStrikes .strike")
-    ];
-
-    function applyTeamNamesFromSession() {
-      const team1 = (sessionStorage.getItem("familyfeud_team1") || "").trim();
-      const team2 = (sessionStorage.getItem("familyfeud_team2") || "").trim();
-
-      teamOneNameDisplay.textContent = team1 || "اسم الفريق";
-      teamTwoNameDisplay.textContent = team2 || "اسم الفريق";
+    function normalizeRoom(value) {
+      return String(value || "").trim().toLowerCase().replace(/[^a-z0-9_-]/g, "").slice(0, 64);
     }
 
-    function applyBuzzWinnerFromSession() {
-      const firstTeam = (sessionStorage.getItem("familyfeud_buzz_first_team") || "").trim();
-      const firstName = (sessionStorage.getItem("familyfeud_buzz_first_name") || "").trim();
-
-      teamOnePlayerDisplay.textContent = "";
-      teamTwoPlayerDisplay.textContent = "";
-
-      teamOnePlayerDisplay.classList.add("empty");
-      teamTwoPlayerDisplay.classList.add("empty");
-
-      if (!firstTeam || !firstName) return;
-
-      if (firstTeam === "team1") {
-        teamOnePlayerDisplay.textContent = firstName;
-        teamOnePlayerDisplay.classList.remove("empty");
-      }
-
-      if (firstTeam === "team2") {
-        teamTwoPlayerDisplay.textContent = firstName;
-        teamTwoPlayerDisplay.classList.remove("empty");
-      }
+    function getRoomId() {
+      const url = new URL(window.location.href);
+      const fromQuery = normalizeRoom(url.searchParams.get("room"));
+      const fromStorage = normalizeRoom(sessionStorage.getItem("familyfeud_room"));
+      const room = fromQuery || fromStorage || "family-feud-demo";
+      sessionStorage.setItem("familyfeud_room", room);
+      return room;
     }
 
     function getCurrentQuestion() {
@@ -917,10 +917,88 @@
       nextBtn.disabled = currentQuestionIndex === QUESTIONS.length - 1;
     }
 
+    function applyTeamNamesFromSession() {
+      const team1 = (sessionStorage.getItem("familyfeud_team1") || "").trim();
+      const team2 = (sessionStorage.getItem("familyfeud_team2") || "").trim();
+
+      teamOneNameDisplay.textContent = team1 || "اسم الفريق";
+      teamTwoNameDisplay.textContent = team2 || "اسم الفريق";
+    }
+
+    function clearBuzzWinnerStorage() {
+      sessionStorage.removeItem("familyfeud_buzz_first_team");
+      sessionStorage.removeItem("familyfeud_buzz_first_name");
+    }
+
+    function clearBuzzWinnerDisplays() {
+      teamOnePlayerDisplay.textContent = "";
+      teamTwoPlayerDisplay.textContent = "";
+      teamOnePlayerDisplay.classList.add("empty");
+      teamTwoPlayerDisplay.classList.add("empty");
+    }
+
+    function applyBuzzWinnerFromSession() {
+      clearBuzzWinnerDisplays();
+
+      const firstTeam = (sessionStorage.getItem("familyfeud_buzz_first_team") || "").trim();
+      const firstName = (sessionStorage.getItem("familyfeud_buzz_first_name") || "").trim();
+
+      if (!firstTeam || !firstName) return;
+
+      if (firstTeam === "team1") {
+        teamOnePlayerDisplay.textContent = firstName;
+        teamOnePlayerDisplay.classList.remove("empty");
+      }
+
+      if (firstTeam === "team2") {
+        teamTwoPlayerDisplay.textContent = firstName;
+        teamTwoPlayerDisplay.classList.remove("empty");
+      }
+    }
+
+    function applyBuzzState(state) {
+      currentBuzzState = state || null;
+
+      clearBuzzWinnerDisplays();
+
+      if (!currentBuzzState) {
+        buzzEnabled = false;
+        sessionStorage.setItem("familyfeud_buzz_enabled_presenter", "0");
+        updateBuzzButton();
+        return;
+      }
+
+      buzzEnabled = !!currentBuzzState.enabled;
+      sessionStorage.setItem("familyfeud_buzz_enabled_presenter", buzzEnabled ? "1" : "0");
+
+      if (currentBuzzState.firstBuzz && currentBuzzState.firstBuzz.team && currentBuzzState.firstBuzz.name) {
+        const firstTeam = currentBuzzState.firstBuzz.team;
+        const firstName = currentBuzzState.firstBuzz.name;
+
+        sessionStorage.setItem("familyfeud_buzz_first_team", firstTeam);
+        sessionStorage.setItem("familyfeud_buzz_first_name", firstName);
+
+        if (firstTeam === "team1") {
+          teamOnePlayerDisplay.textContent = firstName;
+          teamOnePlayerDisplay.classList.remove("empty");
+        }
+
+        if (firstTeam === "team2") {
+          teamTwoPlayerDisplay.textContent = firstName;
+          teamTwoPlayerDisplay.classList.remove("empty");
+        }
+      } else {
+        clearBuzzWinnerStorage();
+      }
+
+      updateBuzzButton();
+    }
+
     function updateBuzzButton() {
       buzzToggleBtn.classList.toggle("on", buzzEnabled);
       buzzToggleBtn.classList.toggle("off", !buzzEnabled);
       buzzToggleBtn.textContent = "الجرس";
+      buzzToggleBtn.disabled = buzzToggleInFlight;
     }
 
     function syncAwardedPointsWithCurrentQuestion() {
@@ -1053,10 +1131,161 @@
       closeAwardModal();
     }
 
-    function toggleBuzz() {
-      buzzEnabled = !buzzEnabled;
-      sessionStorage.setItem("familyfeud_buzz_enabled_presenter", buzzEnabled ? "1" : "0");
+    async function apiGet(path) {
+      const response = await fetch(`${API_BASE}${path}`, {
+        method: "GET",
+        headers: {
+          "Accept": "application/json"
+        }
+      });
+
+      const data = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        throw new Error(data.error || "GET_REQUEST_FAILED");
+      }
+
+      return data;
+    }
+
+    async function apiPost(path, payload) {
+      const response = await fetch(`${API_BASE}${path}`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Accept": "application/json"
+        },
+        body: JSON.stringify(payload || {})
+      });
+
+      const data = await response.json().catch(() => ({}));
+      return { ok: response.ok, status: response.status, data };
+    }
+
+    async function fetchBuzzState() {
+      try {
+        const res = await apiGet(`/api/buzz/state?room=${encodeURIComponent(roomId)}`);
+        applyBuzzState(res.state);
+      } catch (error) {
+        buzzEnabled = false;
+        updateBuzzButton();
+      }
+    }
+
+    async function toggleBuzzRemote() {
+      if (buzzToggleInFlight) return;
+
+      if (currentBuzzState === null) {
+        await fetchBuzzState();
+      }
+
+      const desiredEnabled = !buzzEnabled;
+
+      buzzToggleInFlight = true;
       updateBuzzButton();
+
+      try {
+        const res = await apiPost(`/api/buzz/toggle?room=${encodeURIComponent(roomId)}`, {
+          enabled: desiredEnabled
+        });
+
+        if (res.ok && res.data && res.data.state) {
+          applyBuzzState(res.data.state);
+          return;
+        }
+
+        await fetchBuzzState();
+      } catch (error) {
+        await fetchBuzzState();
+      } finally {
+        buzzToggleInFlight = false;
+        updateBuzzButton();
+      }
+    }
+
+    function startFallbackPolling() {
+      stopFallbackPolling();
+      fallbackPoll = setInterval(() => {
+        fetchBuzzState();
+      }, 4000);
+    }
+
+    function stopFallbackPolling() {
+      if (fallbackPoll) {
+        clearInterval(fallbackPoll);
+        fallbackPoll = null;
+      }
+    }
+
+    async function initPusher() {
+      try {
+        const cfgRes = await apiGet(`/api/buzz/pusher-config?room=${encodeURIComponent(roomId)}`);
+
+        if (!cfgRes.ok || !cfgRes.key || !cfgRes.cluster || !cfgRes.channel || !window.Pusher) {
+          startFallbackPolling();
+          return;
+        }
+
+        const authEndpoint = String(cfgRes.authEndpoint || "").startsWith("http")
+          ? cfgRes.authEndpoint
+          : `${API_BASE}${cfgRes.authEndpoint}`;
+
+        window.Pusher.logToConsole = false;
+
+        pusher = new window.Pusher(cfgRes.key, {
+          cluster: cfgRes.cluster,
+          authEndpoint,
+          authTransport: "ajax",
+          channelAuthorization: {
+            endpoint: authEndpoint,
+            transport: "ajax"
+          }
+        });
+
+        channel = pusher.subscribe(cfgRes.channel);
+
+        channel.bind("pusher:subscription_succeeded", () => {
+          stopFallbackPolling();
+          fetchBuzzState();
+        });
+
+        channel.bind("buzz-updated", (payload) => {
+          applyBuzzState(payload);
+        });
+
+        channel.bind("pusher:subscription_error", () => {
+          startFallbackPolling();
+        });
+
+        pusher.connection.bind("error", () => {
+          startFallbackPolling();
+        });
+
+        pusher.connection.bind("disconnected", () => {
+          startFallbackPolling();
+        });
+
+        pusher.connection.bind("connected", () => {
+          stopFallbackPolling();
+        });
+      } catch (error) {
+        startFallbackPolling();
+      }
+    }
+
+    function destroyPusher() {
+      stopFallbackPolling();
+
+      if (channel) {
+        try { channel.unbind_all(); } catch (e) {}
+        try { pusher.unsubscribe(channel.name); } catch (e) {}
+        channel = null;
+      }
+
+      if (pusher) {
+        try { pusher.disconnect(); } catch (e) {}
+        pusher = null;
+      }
     }
 
     document.getElementById("teamOnePanel").addEventListener("click", () => {
@@ -1069,7 +1298,7 @@
 
     prevBtn.addEventListener("click", goPrevQuestion);
     nextBtn.addEventListener("click", goNextQuestion);
-    buzzToggleBtn.addEventListener("click", toggleBuzz);
+    buzzToggleBtn.addEventListener("click", toggleBuzzRemote);
 
     roundBox.addEventListener("click", openAwardModal);
     roundBox.addEventListener("keydown", (event) => {
@@ -1099,6 +1328,8 @@
       }
     });
 
+    window.addEventListener("beforeunload", destroyPusher);
+
     applyTeamNamesFromSession();
     applyBuzzWinnerFromSession();
 
@@ -1113,26 +1344,25 @@
     updateLayout();
     updateTeamScores();
     renderQuestion();
+    initPusher();
+    fetchBuzzState();
 
     window.addEventListener("pageshow", () => {
       applyTeamNamesFromSession();
       applyBuzzWinnerFromSession();
-      const stored = sessionStorage.getItem("familyfeud_buzz_enabled_presenter");
-      buzzEnabled = stored === "0" ? false : true;
-      updateBuzzButton();
+      fetchBuzzState();
     });
 
     window.addEventListener("focus", () => {
       applyTeamNamesFromSession();
       applyBuzzWinnerFromSession();
-      const stored = sessionStorage.getItem("familyfeud_buzz_enabled_presenter");
-      buzzEnabled = stored === "0" ? false : true;
-      updateBuzzButton();
+      fetchBuzzState();
     });
 
     window.addEventListener("load", () => {
       applyTeamNamesFromSession();
       applyBuzzWinnerFromSession();
+      fetchBuzzState();
       setTimeout(updateLayout, 60);
       setTimeout(updateLayout, 220);
     }, { passive: true });
