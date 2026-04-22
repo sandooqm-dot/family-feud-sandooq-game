@@ -88,9 +88,9 @@
     .store-logo{
       position:absolute;
       top:10px;
-      left:16px;
-      width:138px;
-      height:94px;
+      left:12px;
+      width:152px;
+      height:103px;
       object-fit:contain;
       z-index:5;
     }
@@ -98,20 +98,20 @@
     .game-logo{
       position:absolute;
       top:8px;
-      right:14px;
-      width:146px;
-      height:86px;
+      right:12px;
+      width:162px;
+      height:95px;
       object-fit:contain;
       z-index:5;
     }
 
     .question-box{
       position:absolute;
-      top:34px;
+      top:38px;
       left:50%;
       transform:translateX(-50%);
-      width:840px;
-      height:184px;
+      width:860px;
+      height:150px;
       border-radius:34px;
       border:6px solid var(--gold);
       background:linear-gradient(180deg, #0a1d56 0%, #08173d 100%);
@@ -128,8 +128,8 @@
       padding:0 36px;
       text-align:center;
       color:var(--white);
-      font-size:72px;
-      line-height:1.1;
+      font-size:68px;
+      line-height:1.08;
       font-weight:900;
       white-space:nowrap;
       overflow:hidden;
@@ -138,11 +138,11 @@
 
     .round-box{
       position:absolute;
-      top:224px;
+      top:206px;
       left:50%;
       transform:translateX(-50%);
-      width:292px;
-      height:118px;
+      width:286px;
+      height:114px;
       border-radius:32px;
       border:6px solid var(--gold);
       background:linear-gradient(180deg, #0a1d56 0%, #08173d 100%);
@@ -156,7 +156,7 @@
 
     .round-label{
       color:var(--white);
-      font-size:26px;
+      font-size:24px;
       line-height:1;
       font-weight:900;
       margin-bottom:8px;
@@ -164,18 +164,18 @@
 
     .round-score{
       color:var(--gold);
-      font-size:66px;
+      font-size:64px;
       line-height:1;
       font-weight:900;
     }
 
     .board{
       position:absolute;
-      top:282px;
+      top:298px;
       left:50%;
       transform:translateX(-50%);
       width:900px;
-      height:390px;
+      height:366px;
       border-radius:38px;
       border:7px solid var(--gold);
       background:#2b47ad;
@@ -189,6 +189,7 @@
       grid-template-columns:1fr 1fr;
       grid-template-rows:repeat(3, 1fr);
       gap:18px 26px;
+      direction:ltr;
     }
 
     .answer-slot{
@@ -264,9 +265,9 @@
 
     .team-panel{
       position:absolute;
-      top:132px;
-      width:310px;
-      height:492px;
+      top:140px;
+      width:312px;
+      height:484px;
       border-radius:38px;
       border:8px solid var(--panel-border);
       background:linear-gradient(180deg, #0b2270 0%, #091f64 100%);
@@ -287,12 +288,12 @@
     }
 
     .team-name{
-      margin-top:36px;
+      margin-top:34px;
       width:100%;
       padding:0 18px;
       text-align:center;
       color:var(--white);
-      font-size:58px;
+      font-size:56px;
       line-height:1.05;
       font-weight:900;
       white-space:nowrap;
@@ -351,130 +352,6 @@
     .strike.active{
       color:var(--strike-on);
     }
-
-    body.portrait .game-shell{
-      width:768px;
-      height:1366px;
-    }
-
-    body.portrait .store-logo{
-      top:12px;
-      left:14px;
-      width:120px;
-      height:86px;
-    }
-
-    body.portrait .game-logo{
-      top:10px;
-      right:14px;
-      width:132px;
-      height:80px;
-    }
-
-    body.portrait .question-box{
-      top:108px;
-      width:700px;
-      height:170px;
-    }
-
-    body.portrait .question-text{
-      font-size:56px;
-    }
-
-    body.portrait .round-box{
-      top:274px;
-      width:248px;
-      height:106px;
-    }
-
-    body.portrait .round-label{
-      font-size:22px;
-    }
-
-    body.portrait .round-score{
-      font-size:58px;
-    }
-
-    body.portrait .board{
-      top:342px;
-      width:700px;
-      height:418px;
-    }
-
-    body.portrait .answers-grid{
-      inset:24px 18px 24px 18px;
-      gap:16px 20px;
-    }
-
-    body.portrait .answer-slot{
-      border-radius:28px;
-    }
-
-    body.portrait .answer-slot.revealed{
-      padding:0 74px 0 72px;
-    }
-
-    body.portrait .rank-circle{
-      width:56px;
-      height:56px;
-      font-size:28px;
-    }
-
-    body.portrait .answer-points{
-      width:54px;
-      height:54px;
-      font-size:25px;
-      left:12px;
-    }
-
-    body.portrait .answer-label{
-      font-size:34px;
-    }
-
-    body.portrait .team-panel{
-      top:150px;
-      width:206px;
-      height:454px;
-      border-radius:32px;
-    }
-
-    body.portrait .team-panel.left{
-      left:14px;
-    }
-
-    body.portrait .team-panel.right{
-      right:14px;
-    }
-
-    body.portrait .team-name{
-      margin-top:28px;
-      font-size:42px;
-    }
-
-    body.portrait .team-score-box{
-      margin-top:28px;
-      width:160px;
-      height:98px;
-      border-radius:28px;
-    }
-
-    body.portrait .team-score{
-      font-size:74px;
-    }
-
-    body.portrait .strikes-label{
-      margin-top:46px;
-      font-size:18px;
-    }
-
-    body.portrait .strikes-row{
-      gap:12px;
-      margin-top:18px;
-    }
-
-    body.portrait .strike{
-      font-size:70px;
-    }
   </style>
 </head>
 <body>
@@ -492,7 +369,7 @@
 
         <div class="round-box">
           <div class="round-label">نقاط الجولة</div>
-          <div id="roundScore" class="round-score">10</div>
+          <div id="roundScore" class="round-score">0</div>
         </div>
 
         <aside class="team-panel left">
@@ -505,7 +382,7 @@
           <div class="strikes-label">الأخطاء</div>
 
           <div id="teamTwoStrikes" class="strikes-row">
-            <div class="strike active">X</div>
+            <div class="strike">X</div>
             <div class="strike">X</div>
             <div class="strike">X</div>
           </div>
@@ -525,9 +402,9 @@
           <div class="strikes-label">الأخطاء</div>
 
           <div id="teamOneStrikes" class="strikes-row">
-            <div class="strike active">X</div>
-            <div class="strike active">X</div>
-            <div class="strike active">X</div>
+            <div class="strike">X</div>
+            <div class="strike">X</div>
+            <div class="strike">X</div>
           </div>
         </aside>
 
@@ -538,10 +415,9 @@
   </main>
 
   <script>
-    const LANDSCAPE_WIDTH = 1600;
-    const LANDSCAPE_HEIGHT = 768;
-    const PORTRAIT_WIDTH = 768;
-    const PORTRAIT_HEIGHT = 1366;
+    const DESIGN_WIDTH = 1600;
+    const DESIGN_HEIGHT = 768;
+    const STORAGE_KEY = "familyfeud_display_state_v1";
 
     const root = document.documentElement;
 
@@ -558,33 +434,102 @@
       team2: document.querySelectorAll("#teamTwoStrikes .strike")
     };
 
-    const QUESTIONS = [
-      {
-        question: "نص السؤال",
-        answers: [
-          { text: "الإجابة الأولى", points: 28 },
-          { text: "الإجابة الثانية", points: 20 },
-          { text: "الإجابة الثالثة", points: 16 },
-          { text: "السيارة", points: 10 },
-          { text: "الإجابة الخامسة", points: 8 },
-          { text: "الإجابة السادسة", points: 6 }
-        ]
-      }
-    ];
-
-    const displayState = {
-      currentQuestionIndex: 0,
-      team1Name: sessionStorage.getItem("familyfeud_team1") || "الأبطال",
-      team2Name: sessionStorage.getItem("familyfeud_team2") || "الأقوياء",
-      team1Score: 0,
-      team2Score: 0,
-      team1Strikes: 3,
-      team2Strikes: 1,
-      revealedAnswers: [false, false, false, true, false, false]
-    };
-
     let stableViewport = { width: window.innerWidth, height: window.innerHeight };
-    let stableOrientationPortrait = window.innerHeight > window.innerWidth;
+    let lastStateSignature = "";
+
+    function readStored(key) {
+      try {
+        const localValue = localStorage.getItem(key);
+        if (localValue) return localValue;
+      } catch (e) {}
+
+      try {
+        const sessionValue = sessionStorage.getItem(key);
+        if (sessionValue) return sessionValue;
+      } catch (e) {}
+
+      return "";
+    }
+
+    function safeParse(json) {
+      try {
+        return JSON.parse(json);
+      } catch (e) {
+        return null;
+      }
+    }
+
+    function getDefaultState() {
+      return {
+        question: "نص السؤال",
+        team1Name: readStored("familyfeud_team1") || "الأبطال",
+        team2Name: readStored("familyfeud_team2") || "الأقوياء",
+        team1Score: 0,
+        team2Score: 0,
+        team1Strikes: 0,
+        team2Strikes: 0,
+        roundPoints: null,
+        answers: [
+          { text: "", points: 0, revealed: false },
+          { text: "", points: 0, revealed: false },
+          { text: "", points: 0, revealed: false },
+          { text: "السيارة", points: 10, revealed: true },
+          { text: "", points: 0, revealed: false },
+          { text: "", points: 0, revealed: false }
+        ]
+      };
+    }
+
+    function normalizeNumber(value, fallback = 0) {
+      const n = Number(value);
+      return Number.isFinite(n) ? n : fallback;
+    }
+
+    function normalizeStrikeCount(value) {
+      return Math.max(0, Math.min(3, normalizeNumber(value, 0)));
+    }
+
+    function normalizeAnswer(answer) {
+      return {
+        text: String(answer?.text || "").trim(),
+        points: Math.max(0, normalizeNumber(answer?.points, 0)),
+        revealed: !!answer?.revealed
+      };
+    }
+
+    function normalizeState(raw) {
+      const defaults = getDefaultState();
+      const answers = Array.isArray(raw?.answers) ? raw.answers : defaults.answers;
+
+      const normalizedAnswers = [];
+      for (let i = 0; i < 6; i++) {
+        normalizedAnswers.push(normalizeAnswer(answers[i] || defaults.answers[i]));
+      }
+
+      return {
+        question: String(raw?.question || defaults.question).trim() || defaults.question,
+        team1Name: String(raw?.team1Name || defaults.team1Name).trim() || defaults.team1Name,
+        team2Name: String(raw?.team2Name || defaults.team2Name).trim() || defaults.team2Name,
+        team1Score: Math.max(0, normalizeNumber(raw?.team1Score, defaults.team1Score)),
+        team2Score: Math.max(0, normalizeNumber(raw?.team2Score, defaults.team2Score)),
+        team1Strikes: normalizeStrikeCount(raw?.team1Strikes),
+        team2Strikes: normalizeStrikeCount(raw?.team2Strikes),
+        roundPoints: raw?.roundPoints === null || raw?.roundPoints === undefined
+          ? null
+          : Math.max(0, normalizeNumber(raw.roundPoints, 0)),
+        answers: normalizedAnswers
+      };
+    }
+
+    function readDisplayState() {
+      const raw = readStored(STORAGE_KEY);
+      if (!raw) return normalizeState(getDefaultState());
+
+      const parsed = safeParse(raw);
+      if (!parsed) return normalizeState(getDefaultState());
+
+      return normalizeState(parsed);
+    }
 
     function getCurrentViewport() {
       const vv = window.visualViewport;
@@ -594,32 +539,14 @@
       };
     }
 
-    function updateStableViewport() {
-      const vp = getCurrentViewport();
-      stableViewport = { width: vp.width, height: vp.height };
-      stableOrientationPortrait = vp.height > vp.width;
-    }
-
-    function applyOrientationClass() {
-      document.body.classList.toggle("portrait", stableOrientationPortrait);
-    }
-
-    function getDesignSize() {
-      if (document.body.classList.contains("portrait")) {
-        return { width: PORTRAIT_WIDTH, height: PORTRAIT_HEIGHT };
-      }
-      return { width: LANDSCAPE_WIDTH, height: LANDSCAPE_HEIGHT };
-    }
-
     function setAppHeight() {
-      updateStableViewport();
+      stableViewport = getCurrentViewport();
       root.style.setProperty("--app-height", stableViewport.height + "px");
     }
 
     function fitGameToViewport() {
-      updateStableViewport();
+      stableViewport = getCurrentViewport();
 
-      const { width, height } = getDesignSize();
       const horizontalPadding = 8;
       const verticalPadding = 8;
 
@@ -627,8 +554,8 @@
       const usableHeight = stableViewport.height - verticalPadding;
 
       const scale = Math.min(
-        usableWidth / width,
-        usableHeight / height
+        usableWidth / DESIGN_WIDTH,
+        usableHeight / DESIGN_HEIGHT
       );
 
       root.style.setProperty("--app-scale", String(scale));
@@ -649,7 +576,6 @@
     }
 
     function updateLayout() {
-      applyOrientationClass();
       setAppHeight();
 
       requestAnimationFrame(() => {
@@ -658,25 +584,21 @@
       });
     }
 
-    function getCurrentQuestion() {
-      return QUESTIONS[displayState.currentQuestionIndex] || QUESTIONS[0];
-    }
-
-    function getRoundPoints() {
-      const question = getCurrentQuestion();
-      return question.answers.reduce((sum, answer, index) => {
-        return displayState.revealedAnswers[index] ? sum + answer.points : sum;
-      }, 0);
-    }
-
     function applyStrikeRow(elements, activeCount) {
       elements.forEach((el, index) => {
         el.classList.toggle("active", index < activeCount);
       });
     }
 
-    function renderAnswers() {
-      const question = getCurrentQuestion();
+    function calculateRoundPoints(state) {
+      if (state.roundPoints !== null) return state.roundPoints;
+
+      return state.answers.reduce((sum, answer) => {
+        return answer.revealed ? sum + answer.points : sum;
+      }, 0);
+    }
+
+    function renderAnswers(state) {
       const positions = [
         { row: 1, col: 2 },
         { row: 1, col: 1 },
@@ -688,9 +610,9 @@
 
       answersGrid.innerHTML = "";
 
-      question.answers.forEach((answer, index) => {
+      state.answers.forEach((answer, index) => {
         const slot = document.createElement("div");
-        const revealed = !!displayState.revealedAnswers[index];
+        const revealed = !!answer.revealed;
 
         slot.className = "answer-slot " + (revealed ? "revealed" : "hidden-state");
         slot.style.gridRow = positions[index].row;
@@ -699,7 +621,7 @@
         if (revealed) {
           slot.innerHTML = `
             <div class="answer-points">${answer.points}</div>
-            <div class="answer-label">${answer.text}</div>
+            <div class="answer-label">${answer.text || ""}</div>
           `;
         } else {
           slot.innerHTML = `<div class="rank-circle">${index + 1}</div>`;
@@ -710,21 +632,25 @@
     }
 
     function renderDisplay() {
-      const question = getCurrentQuestion();
+      const state = readDisplayState();
+      const signature = JSON.stringify(state);
 
-      teamOneNameEl.textContent = displayState.team1Name || "الأبطال";
-      teamTwoNameEl.textContent = displayState.team2Name || "الأقوياء";
+      if (signature === lastStateSignature) return;
+      lastStateSignature = signature;
 
-      teamOneScoreEl.textContent = displayState.team1Score;
-      teamTwoScoreEl.textContent = displayState.team2Score;
+      teamOneNameEl.textContent = state.team1Name;
+      teamTwoNameEl.textContent = state.team2Name;
 
-      questionTextEl.textContent = question.question;
-      roundScoreEl.textContent = getRoundPoints();
+      teamOneScoreEl.textContent = state.team1Score;
+      teamTwoScoreEl.textContent = state.team2Score;
 
-      applyStrikeRow(strikeRows.team1, displayState.team1Strikes);
-      applyStrikeRow(strikeRows.team2, displayState.team2Strikes);
+      questionTextEl.textContent = state.question;
+      roundScoreEl.textContent = calculateRoundPoints(state);
 
-      renderAnswers();
+      applyStrikeRow(strikeRows.team1, state.team1Strikes);
+      applyStrikeRow(strikeRows.team2, state.team2Strikes);
+
+      renderAnswers(state);
     }
 
     const storeLogo = document.getElementById("storeLogo");
@@ -740,7 +666,19 @@
     renderDisplay();
     updateLayout();
 
+    setInterval(renderDisplay, 300);
+
+    window.addEventListener("storage", renderDisplay);
+
+    window.addEventListener("pageshow", () => {
+      renderDisplay();
+      updateLayout();
+    });
+
+    window.addEventListener("focus", renderDisplay);
+
     window.addEventListener("load", () => {
+      renderDisplay();
       setTimeout(updateLayout, 60);
       setTimeout(updateLayout, 220);
     }, { passive: true });
