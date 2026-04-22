@@ -1,600 +1,1379 @@
-export default {
-  async fetch(request, env, ctx) {
-    const url = new URL(request.url);
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Family Feud - Game</title>
 
-    if (request.method === "OPTIONS") {
-      return new Response(null, { status: 204, headers: corsHeaders() });
+  <style>
+    :root{
+      --safe-top: env(safe-area-inset-top, 0px);
+      --safe-right: env(safe-area-inset-right, 0px);
+      --safe-bottom: env(safe-area-inset-bottom, 0px);
+      --safe-left: env(safe-area-inset-left, 0px);
+
+      --gold:#f1d14f;
+      --blue-1:#2633DB;
+      --blue-2:#217DFF;
+      --red:#ef1e2d;
+      --green:#19c63e;
+      --gray-x:#8c8c8c;
+      --panel-border:#1d1d1d;
+      --white:#f4f2ea;
+
+      --app-height: 100vh;
+      --app-scale: 1;
+      --safari-nudge: 34px;
     }
 
-    try {
-      if (url.pathname === "/api/buzz/pusher-config" && request.method === "GET") {
-        const room = normalizeRoom(url.searchParams.get("room"));
-        if (!room) return json({ ok: false, error: "ROOM_REQUIRED" }, 400);
+    *{
+      box-sizing:border-box;
+      -webkit-tap-highlight-color:transparent;
+      user-select:none;
+      margin:0;
+      padding:0;
+    }
 
-        return json({
-          ok: true,
-          key: env.PUSHER_KEY || "",
-          cluster: env.PUSHER_CLUSTER || "",
-          channel: channelNameForRoom(room),
-          authEndpoint: `/api/buzz/pusher/auth?room=${encodeURIComponent(room)}`
+    html{
+      min-height:100%;
+      background:#2f47aa;
+    }
+
+    body{
+      min-height:100%;
+      background:#2f47aa;
+      font-family: Arial, "Helvetica Neue", sans-serif;
+      -webkit-text-size-adjust:100%;
+      text-size-adjust:100%;
+      overflow-x:hidden;
+      overflow-y:auto;
+      -webkit-overflow-scrolling:touch;
+      overscroll-behavior-y:auto;
+    }
+
+    .page{
+      width:100%;
+      min-height:calc(var(--app-height) + var(--safari-nudge));
+      background:
+        radial-gradient(circle, rgba(241,177,33,.95) 0 4px, transparent 4.5px) 0 0 / 48px 48px,
+        linear-gradient(180deg, #3a53b6 0%, #2e47a8 100%);
+    }
+
+    .fit-root{
+      position:relative;
+      width:100%;
+      height:var(--app-height);
+      overflow:hidden;
+    }
+
+    .page-spacer{
+      height:var(--safari-nudge);
+      pointer-events:none;
+    }
+
+    .game-shell{
+      position:absolute;
+      left:50%;
+      top:50%;
+      width:1600px;
+      height:768px;
+      transform:translate(-50%, -50%) scale(var(--app-scale));
+      transform-origin:center center;
+      overflow:hidden;
+      direction:rtl;
+    }
+
+    .team-panel{
+      position:absolute;
+      top:46px;
+      width:300px;
+      height:468px;
+      border-radius:38px;
+      border:9px solid var(--panel-border);
+      background:linear-gradient(90deg, #2c43c4 0%, #071939 100%);
+      box-shadow:
+        inset 0 0 0 2px rgba(255,255,255,.05),
+        0 10px 25px rgba(0,0,0,.15);
+      display:flex;
+      flex-direction:column;
+      align-items:center;
+      cursor:pointer;
+    }
+
+    .team-panel.right{
+      right:28px;
+    }
+
+    .team-panel.left{
+      left:28px;
+    }
+
+    .team-score-box{
+      margin-top:22px;
+      width:212px;
+      height:118px;
+      border-radius:34px;
+      border:5px solid var(--gold);
+      background:#000000;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      box-shadow: inset 0 0 0 1px rgba(255,255,255,.03);
+    }
+
+    .team-score{
+      font-size:92px;
+      line-height:1;
+      font-weight:900;
+      color:var(--gold);
+      transform:translateY(-2px);
+    }
+
+    .team-score.bump{
+      animation: scoreBump .28s ease;
+    }
+
+    @keyframes scoreBump{
+      0%{ transform:translateY(-2px) scale(1); }
+      50%{ transform:translateY(-2px) scale(1.14); }
+      100%{ transform:translateY(-2px) scale(1); }
+    }
+
+    .team-info-box{
+      margin-top:18px;
+      width:212px;
+      height:156px;
+      border-radius:28px;
+      border:3px solid rgba(243,242,234,.92);
+      background:linear-gradient(180deg, rgba(44,67,196,.20) 0%, rgba(8,29,97,.16) 100%);
+      display:flex;
+      flex-direction:column;
+      align-items:center;
+      justify-content:center;
+      padding:14px 10px;
+      text-align:center;
+    }
+
+    .team-name-display{
+      color:#f6f2e8;
+      font-size:31px;
+      font-weight:900;
+      line-height:1.2;
+      width:100%;
+      white-space:nowrap;
+      overflow:hidden;
+      text-overflow:ellipsis;
+    }
+
+    .team-player-display{
+      color:var(--gold);
+      font-size:28px;
+      font-weight:900;
+      line-height:1.2;
+      min-height:36px;
+      margin-top:12px;
+      width:100%;
+      white-space:nowrap;
+      overflow:hidden;
+      text-overflow:ellipsis;
+    }
+
+    .team-player-display.empty{
+      opacity:0;
+    }
+
+    .team-strikes{
+      margin-top:26px;
+      display:flex;
+      gap:18px;
+      align-items:center;
+      justify-content:center;
+      direction:ltr;
+    }
+
+    .strike{
+      font-size:88px;
+      line-height:1;
+      font-weight:900;
+      color:var(--gray-x);
+      opacity:.95;
+      transform:scale(.92);
+      transition:transform .18s ease, color .18s ease, opacity .18s ease;
+      text-shadow:0 2px 0 rgba(0,0,0,.12);
+    }
+
+    .strike.active{
+      color:var(--red);
+      opacity:1;
+      transform:scale(1);
+      text-shadow:0 0 14px rgba(255,0,0,.18);
+    }
+
+    .question-box{
+      position:absolute;
+      top:30px;
+      left:50%;
+      transform:translateX(-50%);
+      width:900px;
+      height:150px;
+      border-radius:36px;
+      border:5px solid var(--gold);
+      background:linear-gradient(180deg, #0b1d4a 0%, #08173c 100%);
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      box-shadow: inset 0 0 0 1px rgba(255,255,255,.03);
+    }
+
+    .question-text{
+      font-size:55px;
+      font-weight:900;
+      text-align:center;
+      line-height:1.15;
+      color:#f4f2e8;
+      padding:0 34px;
+      white-space:nowrap;
+      overflow:hidden;
+      text-overflow:ellipsis;
+    }
+
+    .round-box{
+      position:absolute;
+      top:196px;
+      left:50%;
+      transform:translateX(-50%);
+      width:252px;
+      height:104px;
+      border-radius:32px;
+      border:5px solid var(--gold);
+      background:linear-gradient(180deg, #0b1d4a 0%, #08173c 100%);
+      display:flex;
+      flex-direction:column;
+      align-items:center;
+      justify-content:center;
+      z-index:5;
+      box-shadow:0 8px 18px rgba(0,0,0,.12);
+      cursor:pointer;
+      transition:transform .15s ease, filter .15s ease;
+    }
+
+    .round-box:hover{
+      transform:translateX(-50%) translateY(-1px);
+      filter:brightness(1.04);
+    }
+
+    .round-label{
+      font-size:22px;
+      font-weight:900;
+      line-height:1;
+      color:var(--gold);
+      margin-bottom:8px;
+    }
+
+    .round-score{
+      font-size:56px;
+      line-height:1;
+      font-weight:900;
+      color:#f6f2e8;
+      transform:translateY(-2px);
+    }
+
+    .board{
+      position:absolute;
+      top:280px;
+      left:50%;
+      transform:translateX(-50%);
+      width:900px;
+      height:370px;
+      border-radius:38px;
+      border:6px solid var(--gold);
+      background:#2446AB;
+      box-shadow: inset 0 0 0 1px rgba(255,255,255,.05);
+    }
+
+    .answers-grid{
+      position:absolute;
+      inset:28px 18px 28px 18px;
+      z-index:2;
+      display:grid;
+      grid-template-columns:1fr 1fr;
+      grid-template-rows:repeat(3, 1fr);
+      gap:18px 28px;
+    }
+
+    .answer-slot{
+      border:none;
+      background:none;
+      padding:0;
+      margin:0;
+      cursor:pointer;
+      perspective:1400px;
+      width:100%;
+      height:100%;
+    }
+
+    .answer-flip{
+      position:relative;
+      width:100%;
+      height:100%;
+      transform-style:preserve-3d;
+      transition:transform .6s cubic-bezier(.22,1,.36,1);
+      transform-origin:center center;
+    }
+
+    .answer-slot.revealed .answer-flip{
+      transform:rotateY(180deg);
+    }
+
+    .answer-face{
+      position:absolute;
+      inset:0;
+      width:100%;
+      height:100%;
+      border-radius:34px;
+      border:4px solid rgba(243,242,234,.96);
+      background:linear-gradient(90deg, var(--blue-1) 0%, var(--blue-2) 100%);
+      backface-visibility:hidden;
+      -webkit-backface-visibility:hidden;
+      overflow:hidden;
+    }
+
+    .answer-back{
+      display:flex;
+      align-items:center;
+      justify-content:center;
+    }
+
+    .answer-front{
+      transform:rotateY(180deg);
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      position:relative;
+      padding:0 78px 0 78px;
+    }
+
+    .rank-circle{
+      width:62px;
+      height:62px;
+      border-radius:50%;
+      border:4px solid #D9D9D9;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      color:#f5f2e8;
+      font-size:31px;
+      font-weight:900;
+      background:rgba(22,40,105,.18);
+    }
+
+    .answer-points{
+      position:absolute;
+      left:16px;
+      top:50%;
+      transform:translateY(-50%);
+      width:58px;
+      height:58px;
+      border-radius:50%;
+      background:var(--gold);
+      color:#000;
+      border:4px solid #171717;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      font-size:27px;
+      font-weight:900;
+      line-height:1;
+      box-shadow:0 4px 10px rgba(0,0,0,.16);
+    }
+
+    .answer-label{
+      width:100%;
+      text-align:center;
+      font-size:40px;
+      line-height:1;
+      font-weight:900;
+      color:#f5f2e8;
+      white-space:nowrap;
+      overflow:hidden;
+      text-overflow:ellipsis;
+      padding:0 10px;
+    }
+
+    .nav-btn{
+      position:absolute;
+      bottom:18px;
+      width:200px;
+      height:92px;
+      border-radius:34px;
+      border:5px solid rgba(243,242,234,.96);
+      background:#2446AB;
+      color:#f5f2e8;
+      font-size:40px;
+      font-weight:900;
+      line-height:1;
+      cursor:pointer;
+      transition:transform .15s ease, opacity .15s ease, filter .15s ease;
+    }
+
+    .nav-btn:hover{
+      transform:translateY(-1px);
+      filter:brightness(1.04);
+    }
+
+    .nav-btn:disabled{
+      opacity:.55;
+      cursor:default;
+      transform:none;
+      filter:none;
+    }
+
+    .nav-btn.prev{
+      left:10px;
+    }
+
+    .nav-btn.next{
+      right:18px;
+      width:190px;
+    }
+
+    .buzz-toggle-btn{
+      position:absolute;
+      bottom:18px;
+      right:228px;
+      width:178px;
+      height:92px;
+      border-radius:34px;
+      border:5px solid #111111;
+      color:#ffffff;
+      font-size:38px;
+      font-weight:900;
+      line-height:1;
+      cursor:pointer;
+      transition:transform .15s ease, filter .15s ease, background .15s ease, opacity .15s ease;
+      box-shadow:0 8px 18px rgba(0,0,0,.18);
+    }
+
+    .buzz-toggle-btn:hover{
+      transform:translateY(-1px);
+      filter:brightness(1.04);
+    }
+
+    .buzz-toggle-btn:active{
+      transform:scale(.985);
+    }
+
+    .buzz-toggle-btn:disabled{
+      opacity:.72;
+      cursor:default;
+      transform:none;
+      filter:none;
+    }
+
+    .buzz-toggle-btn.on{
+      background:linear-gradient(180deg, #27db4f 0%, #0aa830 100%);
+    }
+
+    .buzz-toggle-btn.off{
+      background:linear-gradient(180deg, #ff3342 0%, #d81424 100%);
+    }
+
+    .overlay{
+      position:absolute;
+      inset:0;
+      display:flex;
+      flex-direction:column;
+      align-items:center;
+      justify-content:center;
+      pointer-events:none;
+      opacity:0;
+      z-index:999;
+    }
+
+    .overlay.show{
+      opacity:1;
+    }
+
+    .overlay-x{
+      font-size:360px;
+      font-weight:900;
+      line-height:1;
+      color:var(--red);
+      text-shadow:
+        0 0 18px rgba(255,0,0,.22),
+        0 8px 18px rgba(0,0,0,.20);
+      transform:scale(.18);
+      opacity:0;
+    }
+
+    .overlay.show .overlay-x{
+      animation: popX .42s cubic-bezier(.22,1.2,.36,1) forwards;
+    }
+
+    @keyframes popX{
+      0%{
+        transform:scale(.18);
+        opacity:0;
+      }
+      65%{
+        transform:scale(1.08);
+        opacity:1;
+      }
+      100%{
+        transform:scale(1);
+        opacity:1;
+      }
+    }
+
+    .transfer-box{
+      margin-top:10px;
+      min-width:340px;
+      max-width:80vw;
+      min-height:76px;
+      padding:16px 28px;
+      border-radius:28px;
+      border:4px solid var(--gold);
+      background:linear-gradient(180deg, #0b1d4a 0%, #08173c 100%);
+      color:#f5f2e8;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      text-align:center;
+      font-size:30px;
+      font-weight:900;
+      line-height:1.2;
+      opacity:0;
+      transform:translateY(-10px) scale(.9);
+    }
+
+    .overlay.transfer .transfer-box{
+      animation: showTransfer .22s ease .12s forwards;
+    }
+
+    @keyframes showTransfer{
+      to{
+        opacity:1;
+        transform:translateY(0) scale(1);
+      }
+    }
+
+    .award-overlay{
+      position:absolute;
+      inset:0;
+      z-index:1300;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      background:rgba(3, 10, 34, .42);
+      opacity:0;
+      pointer-events:none;
+      transition:opacity .18s ease;
+    }
+
+    .award-overlay.show{
+      opacity:1;
+      pointer-events:auto;
+    }
+
+    .award-modal{
+      width:480px;
+      max-width:90%;
+      border-radius:30px;
+      border:5px solid var(--gold);
+      background:linear-gradient(180deg, #0b1d4a 0%, #08173c 100%);
+      box-shadow:0 20px 40px rgba(0,0,0,.28);
+      padding:24px 22px 22px;
+      color:#f5f2e8;
+      text-align:center;
+    }
+
+    .award-title{
+      font-size:34px;
+      font-weight:900;
+      line-height:1.2;
+      margin-bottom:8px;
+    }
+
+    .award-subtitle{
+      font-size:24px;
+      font-weight:800;
+      color:var(--gold);
+      margin-bottom:18px;
+    }
+
+    .award-actions{
+      display:grid;
+      grid-template-columns:1fr 1fr;
+      gap:14px;
+    }
+
+    .award-team-btn{
+      min-height:76px;
+      border-radius:24px;
+      border:4px solid rgba(243,242,234,.96);
+      background:linear-gradient(90deg, #2b3fc2 0%, #06204f 100%);
+      color:#f5f2e8;
+      font-size:28px;
+      font-weight:900;
+      cursor:pointer;
+      transition:transform .15s ease, filter .15s ease;
+    }
+
+    .award-team-btn:hover{
+      transform:translateY(-1px);
+      filter:brightness(1.05);
+    }
+
+    .award-team-btn:active{
+      transform:scale(.98);
+    }
+  </style>
+</head>
+<body>
+
+  <main class="page">
+    <div class="fit-root">
+      <div class="game-shell" id="gameShell">
+
+        <aside class="team-panel left" id="teamTwoPanel" data-team="1">
+          <div class="team-score-box">
+            <div class="team-score" id="teamTwoScore">0</div>
+          </div>
+
+          <div class="team-info-box">
+            <div class="team-name-display" id="teamTwoNameDisplay">اسم الفريق</div>
+            <div class="team-player-display empty" id="teamTwoPlayerDisplay">—</div>
+          </div>
+
+          <div class="team-strikes" id="teamTwoStrikes">
+            <div class="strike">X</div>
+            <div class="strike">X</div>
+            <div class="strike">X</div>
+          </div>
+        </aside>
+
+        <div class="question-box">
+          <div class="question-text" id="questionText">نص السؤال</div>
+        </div>
+
+        <div class="round-box" id="roundBox" role="button" tabindex="0" aria-label="منح نقاط الجولة">
+          <div class="round-label">نقاط الجولة</div>
+          <div class="round-score" id="roundScore">0</div>
+        </div>
+
+        <div class="board">
+          <div class="answers-grid" id="answersGrid"></div>
+        </div>
+
+        <aside class="team-panel right" id="teamOnePanel" data-team="0">
+          <div class="team-score-box">
+            <div class="team-score" id="teamOneScore">0</div>
+          </div>
+
+          <div class="team-info-box">
+            <div class="team-name-display" id="teamOneNameDisplay">اسم الفريق</div>
+            <div class="team-player-display empty" id="teamOnePlayerDisplay">—</div>
+          </div>
+
+          <div class="team-strikes" id="teamOneStrikes">
+            <div class="strike">X</div>
+            <div class="strike">X</div>
+            <div class="strike">X</div>
+          </div>
+        </aside>
+
+        <button class="nav-btn prev" id="prevBtn" type="button">السابق</button>
+        <button class="buzz-toggle-btn on" id="buzzToggleBtn" type="button">الجرس</button>
+        <button class="nav-btn next" id="nextBtn" type="button">التالي</button>
+
+        <div class="overlay" id="strikeOverlay">
+          <div class="overlay-x">X</div>
+          <div class="transfer-box">السؤال ينتقل للفريق الاخر</div>
+        </div>
+
+        <div class="award-overlay" id="awardOverlay">
+          <div class="award-modal">
+            <div class="award-title">لمن تُمنح نقاط الجولة؟</div>
+            <div class="award-subtitle" id="awardSubtitle">النقاط الحالية: 0</div>
+
+            <div class="award-actions">
+              <button class="award-team-btn" id="awardTeam1Btn" type="button">الفريق الأول</button>
+              <button class="award-team-btn" id="awardTeam2Btn" type="button">الفريق الثاني</button>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <div class="page-spacer" aria-hidden="true"></div>
+  </main>
+
+  <script src="https://js.pusher.com/8.4.0/pusher.min.js"></script>
+  <script>
+    const DESIGN_WIDTH = 1600;
+    const DESIGN_HEIGHT = 768;
+    const API_BASE = "https://family-feud-buzz.sandooq-m.workers.dev";
+    const BUZZ_POLL_MS = 1000;
+
+    const root = document.documentElement;
+
+    const QUESTIONS = [
+      {
+        question: "اذكر شيئًا يستخدمه الناس يوميًا",
+        answers: [
+          { text: "الجوال", points: 32 },
+          { text: "المفاتيح", points: 18 },
+          { text: "الماء", points: 14 },
+          { text: "السيارة", points: 10 },
+          { text: "المحفظة", points: 8 },
+          { text: "النظارة", points: 6 }
+        ]
+      },
+      {
+        question: "اذكر شيئًا تجده في المطبخ",
+        answers: [
+          { text: "الثلاجة", points: 28 },
+          { text: "الفرن", points: 20 },
+          { text: "الصحون", points: 16 },
+          { text: "الملاعق", points: 12 },
+          { text: "الكاسات", points: 9 },
+          { text: "القدر", points: 7 }
+        ]
+      },
+      {
+        question: "اذكر شيئًا يحمله الطالب معه",
+        answers: [
+          { text: "الحقيبة", points: 30 },
+          { text: "القلم", points: 18 },
+          { text: "الدفتر", points: 16 },
+          { text: "الكتب", points: 14 },
+          { text: "المقلمة", points: 8 },
+          { text: "الآيباد", points: 6 }
+        ]
+      }
+    ];
+
+    const questionStates = QUESTIONS.map(q => ({
+      revealed: new Array(q.answers.length).fill(false),
+      strikes: [0, 0],
+      awardedTo: null,
+      awardedPoints: 0
+    }));
+
+    let currentQuestionIndex = 0;
+    let overlayTimer = null;
+
+    let buzzEnabled = true;
+    let currentBuzzState = null;
+    let buzzToggleInFlight = false;
+    let pusher = null;
+    let channel = null;
+    let fallbackPoll = null;
+
+    const roomId = getRoomId();
+
+    const questionText = document.getElementById("questionText");
+    const roundScoreEl = document.getElementById("roundScore");
+    const roundBox = document.getElementById("roundBox");
+    const answersGrid = document.getElementById("answersGrid");
+    const strikeOverlay = document.getElementById("strikeOverlay");
+    const prevBtn = document.getElementById("prevBtn");
+    const nextBtn = document.getElementById("nextBtn");
+    const buzzToggleBtn = document.getElementById("buzzToggleBtn");
+
+    const teamOneScoreEl = document.getElementById("teamOneScore");
+    const teamTwoScoreEl = document.getElementById("teamTwoScore");
+
+    const teamOneNameDisplay = document.getElementById("teamOneNameDisplay");
+    const teamTwoNameDisplay = document.getElementById("teamTwoNameDisplay");
+    const teamOnePlayerDisplay = document.getElementById("teamOnePlayerDisplay");
+    const teamTwoPlayerDisplay = document.getElementById("teamTwoPlayerDisplay");
+
+    const awardOverlay = document.getElementById("awardOverlay");
+    const awardSubtitle = document.getElementById("awardSubtitle");
+    const awardTeam1Btn = document.getElementById("awardTeam1Btn");
+    const awardTeam2Btn = document.getElementById("awardTeam2Btn");
+
+    const strikeRows = [
+      document.querySelectorAll("#teamOneStrikes .strike"),
+      document.querySelectorAll("#teamTwoStrikes .strike")
+    ];
+
+    function setAppHeight() {
+      const h = window.visualViewport && window.visualViewport.height
+        ? window.visualViewport.height
+        : window.innerHeight;
+      root.style.setProperty("--app-height", h + "px");
+    }
+
+    function fitGameToViewport() {
+      const vv = window.visualViewport;
+      const vw = vv ? vv.width : window.innerWidth;
+      const vh = vv ? vv.height : window.innerHeight;
+
+      const horizontalPadding = 8;
+      const verticalPadding = 8;
+
+      const usableWidth = vw - horizontalPadding;
+      const usableHeight = vh - verticalPadding;
+
+      const scale = Math.min(
+        usableWidth / DESIGN_WIDTH,
+        usableHeight / DESIGN_HEIGHT
+      );
+
+      root.style.setProperty("--app-scale", String(scale));
+    }
+
+    function nudgeSafariBar() {
+      const vv = window.visualViewport;
+      const visibleHeight = vv ? vv.height : window.innerHeight;
+      const fullHeight = Math.max(
+        document.body.scrollHeight,
+        document.documentElement.scrollHeight
+      );
+
+      if (fullHeight <= visibleHeight + 8) return;
+
+      window.scrollTo(0, 1);
+      setTimeout(() => window.scrollTo(0, 1), 120);
+      setTimeout(() => window.scrollTo(0, 1), 280);
+    }
+
+    function updateLayout() {
+      setAppHeight();
+      requestAnimationFrame(() => {
+        fitGameToViewport();
+        nudgeSafariBar();
+      });
+    }
+
+    function normalizeRoom(value) {
+      return String(value || "").trim().toLowerCase().replace(/[^a-z0-9_-]/g, "").slice(0, 64);
+    }
+
+    function getRoomId() {
+      const url = new URL(window.location.href);
+      const fromQuery = normalizeRoom(url.searchParams.get("room"));
+      const fromStorage = normalizeRoom(sessionStorage.getItem("familyfeud_room"));
+      const room = fromQuery || fromStorage || "family-feud-demo";
+      sessionStorage.setItem("familyfeud_room", room);
+      return room;
+    }
+
+    function getCurrentQuestion() {
+      return QUESTIONS[currentQuestionIndex];
+    }
+
+    function getCurrentState() {
+      return questionStates[currentQuestionIndex];
+    }
+
+    function getCurrentRoundPoints() {
+      const question = getCurrentQuestion();
+      const state = getCurrentState();
+
+      return question.answers.reduce((sum, answer, index) => {
+        return state.revealed[index] ? sum + answer.points : sum;
+      }, 0);
+    }
+
+    function updateRoundScore() {
+      roundScoreEl.textContent = getCurrentRoundPoints();
+    }
+
+    function updateTeamScores() {
+      const totals = [0, 0];
+
+      questionStates.forEach(state => {
+        if (state.awardedTo !== null) {
+          totals[state.awardedTo] += state.awardedPoints || 0;
+        }
+      });
+
+      teamOneScoreEl.textContent = totals[0];
+      teamTwoScoreEl.textContent = totals[1];
+    }
+
+    function bumpTeamScore(teamIndex) {
+      const target = teamIndex === 0 ? teamOneScoreEl : teamTwoScoreEl;
+      target.classList.remove("bump");
+      void target.offsetWidth;
+      target.classList.add("bump");
+    }
+
+    function updateStrikeRows() {
+      const state = getCurrentState();
+
+      strikeRows.forEach((row, teamIndex) => {
+        row.forEach((strikeEl, index) => {
+          strikeEl.classList.toggle("active", index < state.strikes[teamIndex]);
         });
+      });
+    }
+
+    function updateNavButtons() {
+      prevBtn.disabled = currentQuestionIndex === 0;
+      nextBtn.disabled = currentQuestionIndex === QUESTIONS.length - 1;
+    }
+
+    function applyTeamNamesFromSession() {
+      const team1 = (sessionStorage.getItem("familyfeud_team1") || "").trim();
+      const team2 = (sessionStorage.getItem("familyfeud_team2") || "").trim();
+
+      teamOneNameDisplay.textContent = team1 || "اسم الفريق";
+      teamTwoNameDisplay.textContent = team2 || "اسم الفريق";
+    }
+
+    function clearBuzzWinnerStorage() {
+      sessionStorage.removeItem("familyfeud_buzz_first_team");
+      sessionStorage.removeItem("familyfeud_buzz_first_name");
+    }
+
+    function clearBuzzWinnerDisplays() {
+      teamOnePlayerDisplay.textContent = "";
+      teamTwoPlayerDisplay.textContent = "";
+      teamOnePlayerDisplay.classList.add("empty");
+      teamTwoPlayerDisplay.classList.add("empty");
+    }
+
+    function applyBuzzWinnerFromSession() {
+      clearBuzzWinnerDisplays();
+
+      const firstTeam = (sessionStorage.getItem("familyfeud_buzz_first_team") || "").trim();
+      const firstName = (sessionStorage.getItem("familyfeud_buzz_first_name") || "").trim();
+
+      if (!firstTeam || !firstName) return;
+
+      if (firstTeam === "team1") {
+        teamOnePlayerDisplay.textContent = firstName;
+        teamOnePlayerDisplay.classList.remove("empty");
       }
 
-      if (url.pathname === "/api/buzz/pusher/auth" && request.method === "POST") {
-        const room = normalizeRoom(url.searchParams.get("room"));
-        if (!room) return json({ ok: false, error: "ROOM_REQUIRED" }, 400);
+      if (firstTeam === "team2") {
+        teamTwoPlayerDisplay.textContent = firstName;
+        teamTwoPlayerDisplay.classList.remove("empty");
+      }
+    }
 
-        const contentType = request.headers.get("content-type") || "";
-        let socketId = "";
-        let channelName = "";
+    function applyBuzzState(state) {
+      currentBuzzState = state || null;
+      clearBuzzWinnerDisplays();
 
-        if (contentType.includes("application/json")) {
-          const body = await request.json().catch(() => ({}));
-          socketId = String(body.socket_id || "");
-          channelName = String(body.channel_name || "");
+      if (!currentBuzzState) {
+        updateBuzzButton();
+        return;
+      }
+
+      buzzEnabled = !!currentBuzzState.enabled;
+      sessionStorage.setItem("familyfeud_buzz_enabled_presenter", buzzEnabled ? "1" : "0");
+
+      if (currentBuzzState.firstBuzz && currentBuzzState.firstBuzz.team && currentBuzzState.firstBuzz.name) {
+        const firstTeam = currentBuzzState.firstBuzz.team;
+        const firstName = currentBuzzState.firstBuzz.name;
+
+        sessionStorage.setItem("familyfeud_buzz_first_team", firstTeam);
+        sessionStorage.setItem("familyfeud_buzz_first_name", firstName);
+
+        if (firstTeam === "team1") {
+          teamOnePlayerDisplay.textContent = firstName;
+          teamOnePlayerDisplay.classList.remove("empty");
+        }
+
+        if (firstTeam === "team2") {
+          teamTwoPlayerDisplay.textContent = firstName;
+          teamTwoPlayerDisplay.classList.remove("empty");
+        }
+      } else {
+        clearBuzzWinnerStorage();
+      }
+
+      updateBuzzButton();
+    }
+
+    function updateBuzzButton() {
+      buzzToggleBtn.classList.toggle("on", buzzEnabled);
+      buzzToggleBtn.classList.toggle("off", !buzzEnabled);
+      buzzToggleBtn.textContent = "الجرس";
+      buzzToggleBtn.disabled = buzzToggleInFlight;
+    }
+
+    function syncAwardedPointsWithCurrentQuestion() {
+      const state = getCurrentState();
+      if (state.awardedTo !== null) {
+        state.awardedPoints = getCurrentRoundPoints();
+        updateTeamScores();
+      }
+    }
+
+    function renderQuestion() {
+      const question = getCurrentQuestion();
+      questionText.textContent = question.question;
+      renderAnswers();
+      updateStrikeRows();
+      updateRoundScore();
+      updateNavButtons();
+      closeAwardModal();
+    }
+
+    function renderAnswers() {
+      const question = getCurrentQuestion();
+      const state = getCurrentState();
+
+      answersGrid.innerHTML = "";
+
+      question.answers.forEach((answer, index) => {
+        const slot = document.createElement("button");
+        slot.type = "button";
+        slot.className = "answer-slot" + (state.revealed[index] ? " revealed" : "");
+        slot.dataset.index = index;
+
+        slot.innerHTML = `
+          <div class="answer-flip">
+            <div class="answer-face answer-back">
+              <div class="rank-circle">${index + 1}</div>
+            </div>
+            <div class="answer-face answer-front">
+              <div class="answer-points">${answer.points}</div>
+              <div class="answer-label">${answer.text}</div>
+            </div>
+          </div>
+        `;
+
+        slot.addEventListener("click", () => {
+          revealSpecific(index);
+        });
+
+        answersGrid.appendChild(slot);
+      });
+
+      updateRoundScore();
+    }
+
+    function revealSpecific(index) {
+      const state = getCurrentState();
+      if (state.revealed[index]) return;
+
+      state.revealed[index] = true;
+      renderAnswers();
+      syncAwardedPointsWithCurrentQuestion();
+    }
+
+    function goToQuestion(index) {
+      if (index < 0 || index >= QUESTIONS.length) return;
+      currentQuestionIndex = index;
+      renderQuestion();
+    }
+
+    function goNextQuestion() {
+      if (currentQuestionIndex >= QUESTIONS.length - 1) return;
+      goToQuestion(currentQuestionIndex + 1);
+    }
+
+    function goPrevQuestion() {
+      if (currentQuestionIndex <= 0) return;
+      goToQuestion(currentQuestionIndex - 1);
+    }
+
+    function showStrikeOverlay(isThirdStrike) {
+      clearTimeout(overlayTimer);
+
+      strikeOverlay.classList.remove("show", "transfer");
+      void strikeOverlay.offsetWidth;
+
+      strikeOverlay.classList.add("show");
+      if (isThirdStrike) {
+        strikeOverlay.classList.add("transfer");
+      }
+
+      overlayTimer = setTimeout(() => {
+        strikeOverlay.classList.remove("show", "transfer");
+      }, isThirdStrike ? 1500 : 900);
+    }
+
+    function addOrResetStrike(teamIndex) {
+      const state = getCurrentState();
+
+      if (state.strikes[teamIndex] >= 3) {
+        state.strikes[teamIndex] = 0;
+        updateStrikeRows();
+        return;
+      }
+
+      state.strikes[teamIndex] += 1;
+      updateStrikeRows();
+
+      const isThirdStrike = state.strikes[teamIndex] === 3;
+      showStrikeOverlay(isThirdStrike);
+    }
+
+    function openAwardModal() {
+      const points = getCurrentRoundPoints();
+      awardSubtitle.textContent = `النقاط الحالية: ${points}`;
+      awardTeam1Btn.textContent = teamOneNameDisplay.textContent.trim() || "الفريق الأول";
+      awardTeam2Btn.textContent = teamTwoNameDisplay.textContent.trim() || "الفريق الثاني";
+      awardOverlay.classList.add("show");
+    }
+
+    function closeAwardModal() {
+      awardOverlay.classList.remove("show");
+    }
+
+    function awardRoundToTeam(teamIndex) {
+      const state = getCurrentState();
+      state.awardedTo = teamIndex;
+      state.awardedPoints = getCurrentRoundPoints();
+      updateTeamScores();
+      bumpTeamScore(teamIndex);
+      closeAwardModal();
+    }
+
+    async function apiGet(path) {
+      const response = await fetch(`${API_BASE}${path}`, {
+        method: "GET",
+        cache: "no-store",
+        headers: {
+          "Accept": "application/json",
+          "Cache-Control": "no-cache"
+        }
+      });
+
+      const data = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        throw new Error(data.error || "GET_REQUEST_FAILED");
+      }
+
+      return data;
+    }
+
+    async function apiPost(path, payload) {
+      const response = await fetch(`${API_BASE}${path}`, {
+        method: "POST",
+        cache: "no-store",
+        headers: {
+          "Content-Type": "application/json",
+          "Accept": "application/json",
+          "Cache-Control": "no-cache"
+        },
+        body: JSON.stringify(payload || {})
+      });
+
+      const data = await response.json().catch(() => ({}));
+      return { ok: response.ok, status: response.status, data };
+    }
+
+    async function fetchBuzzState() {
+      try {
+        const res = await apiGet(`/api/buzz/state?room=${encodeURIComponent(roomId)}`);
+        applyBuzzState(res.state);
+      } catch (error) {
+        updateBuzzButton();
+      }
+    }
+
+    async function toggleBuzzRemote() {
+      if (buzzToggleInFlight) return;
+
+      const desiredEnabled = !buzzEnabled;
+
+      buzzToggleInFlight = true;
+      updateBuzzButton();
+
+      try {
+        const res = await apiPost(`/api/buzz/toggle?room=${encodeURIComponent(roomId)}`, {
+          enabled: desiredEnabled
+        });
+
+        if (res.ok && res.data && res.data.state) {
+          applyBuzzState(res.data.state);
         } else {
-          const form = await request.formData().catch(() => null);
-          socketId = String(form?.get("socket_id") || "");
-          channelName = String(form?.get("channel_name") || "");
+          await fetchBuzzState();
+        }
+      } catch (error) {
+        await fetchBuzzState();
+      } finally {
+        buzzToggleInFlight = false;
+        updateBuzzButton();
+      }
+    }
+
+    function startFallbackPolling() {
+      stopFallbackPolling();
+      fallbackPoll = setInterval(() => {
+        fetchBuzzState();
+      }, BUZZ_POLL_MS);
+    }
+
+    function stopFallbackPolling() {
+      if (fallbackPoll) {
+        clearInterval(fallbackPoll);
+        fallbackPoll = null;
+      }
+    }
+
+    async function initPusher() {
+      try {
+        const cfgRes = await apiGet(`/api/buzz/pusher-config?room=${encodeURIComponent(roomId)}`);
+
+        if (!cfgRes.ok || !cfgRes.key || !cfgRes.cluster || !cfgRes.channel || !window.Pusher) {
+          startFallbackPolling();
+          return;
         }
 
-        if (!socketId || !channelName) {
-          return json({ ok: false, error: "INVALID_PUSHER_AUTH_PAYLOAD" }, 400);
-        }
+        const authEndpoint = String(cfgRes.authEndpoint || "").startsWith("http")
+          ? cfgRes.authEndpoint
+          : `${API_BASE}${cfgRes.authEndpoint}`;
 
-        const expectedChannel = channelNameForRoom(room);
-        if (channelName !== expectedChannel) {
-          return json({ ok: false, error: "CHANNEL_ROOM_MISMATCH" }, 400);
-        }
+        window.Pusher.logToConsole = false;
 
-        const auth = await buildPusherChannelAuth(
-          env.PUSHER_KEY,
-          env.PUSHER_SECRET,
-          socketId,
-          channelName
-        );
+        pusher = new window.Pusher(cfgRes.key, {
+          cluster: cfgRes.cluster,
+          authEndpoint,
+          authTransport: "ajax",
+          channelAuthorization: {
+            endpoint: authEndpoint,
+            transport: "ajax"
+          }
+        });
 
-        return json({ auth });
-      }
+        channel = pusher.subscribe(cfgRes.channel);
 
-      if (!url.pathname.startsWith("/api/buzz/")) {
-        return json({ ok: false, error: "NOT_FOUND" }, 404);
-      }
+        channel.bind("pusher:subscription_succeeded", () => {
+          fetchBuzzState();
+        });
 
-      const room = normalizeRoom(url.searchParams.get("room"));
-      if (!room) return json({ ok: false, error: "ROOM_REQUIRED" }, 400);
+        channel.bind("buzz-updated", (payload) => {
+          applyBuzzState(payload);
+        });
 
-      const id = env.BUZZ_ROOMS.idFromName(`buzz:${room}`);
-      const stub = env.BUZZ_ROOMS.get(id);
+        channel.bind("pusher:subscription_error", () => {
+          startFallbackPolling();
+        });
 
-      const doUrl = new URL(request.url);
-      doUrl.searchParams.set("room", room);
+        pusher.connection.bind("error", () => {
+          startFallbackPolling();
+        });
 
-      return await stub.fetch(new Request(doUrl.toString(), request));
-    } catch (error) {
-      return json(
-        {
-          ok: false,
-          error: "SERVER_ERROR",
-          details: error instanceof Error ? error.message : String(error)
-        },
-        500
-      );
-    }
-  }
-};
-
-export class BuzzRoomDO {
-  constructor(state, env) {
-    this.state = state;
-    this.env = env;
-    this.cache = null;
-  }
-
-  async fetch(request) {
-    const url = new URL(request.url);
-
-    if (request.method === "OPTIONS") {
-      return new Response(null, { status: 204, headers: corsHeaders() });
-    }
-
-    try {
-      if (request.method === "GET" && url.pathname === "/api/buzz/state") {
-        const state = await this.loadState(url.searchParams.get("room"));
-        this.cleanupPlayers(state);
-        await this.saveState(state, false);
-        return json({ ok: true, state: publicState(state) });
-      }
-
-      if (request.method === "POST" && url.pathname === "/api/buzz/join") {
-        const room = normalizeRoom(url.searchParams.get("room"));
-        const body = await safeJson(request);
-
-        const playerId = normalizeId(body.playerId);
-        const name = normalizePlayerName(body.name);
-        const team = normalizeTeam(body.team);
-
-        if (!playerId) return json({ ok: false, error: "PLAYER_ID_REQUIRED" }, 400);
-        if (!name) return json({ ok: false, error: "PLAYER_NAME_REQUIRED" }, 400);
-        if (!team) return json({ ok: false, error: "TEAM_REQUIRED" }, 400);
-
-        const state = await this.loadState(room);
-        this.cleanupPlayers(state);
-
-        state.players[playerId] = {
-          id: playerId,
-          name,
-          team,
-          lastSeenAt: Date.now()
-        };
-
-        state.updatedAt = Date.now();
-        state.version += 1;
-
-        await this.saveState(state, true);
-        return json({ ok: true, state: publicState(state) });
-      }
-
-      if (request.method === "POST" && url.pathname === "/api/buzz/press") {
-        const room = normalizeRoom(url.searchParams.get("room"));
-        const body = await safeJson(request);
-
-        const playerId = normalizeId(body.playerId);
-        const name = normalizePlayerName(body.name);
-        const team = normalizeTeam(body.team);
-
-        if (!playerId) return json({ ok: false, error: "PLAYER_ID_REQUIRED" }, 400);
-        if (!name) return json({ ok: false, error: "PLAYER_NAME_REQUIRED" }, 400);
-        if (!team) return json({ ok: false, error: "TEAM_REQUIRED" }, 400);
-
-        const state = await this.loadState(room);
-        this.cleanupPlayers(state);
-
-        state.players[playerId] = {
-          id: playerId,
-          name,
-          team,
-          lastSeenAt: Date.now()
-        };
-
-        if (!state.enabled) {
-          return json({
-            ok: false,
-            error: "BUZZ_DISABLED",
-            state: publicState(state)
-          }, 409);
-        }
-
-        if (state.firstBuzz) {
-          return json({
-            ok: false,
-            error: "ALREADY_BUZZED",
-            state: publicState(state)
-          }, 409);
-        }
-
-        state.firstBuzz = {
-          playerId,
-          name,
-          team,
-          at: Date.now()
-        };
-
-        state.updatedAt = Date.now();
-        state.version += 1;
-
-        await this.saveState(state, true);
-        return json({ ok: true, accepted: true, state: publicState(state) });
-      }
-
-      if (request.method === "POST" && url.pathname === "/api/buzz/toggle") {
-        const room = normalizeRoom(url.searchParams.get("room"));
-        const body = await safeJson(request);
-
-        if (typeof body.enabled !== "boolean") {
-          return json({ ok: false, error: "ENABLED_BOOLEAN_REQUIRED" }, 400);
-        }
-
-        const state = await this.loadState(room);
-        this.cleanupPlayers(state);
-
-        state.enabled = body.enabled;
-
-        // حسب الاتفاق:
-        // الأحمر = تجميد + تصفير
-        // الأخضر = فتح جرس جديد نظيف
-        state.firstBuzz = null;
-
-        state.updatedAt = Date.now();
-        state.version += 1;
-
-        await this.saveState(state, true);
-        return json({ ok: true, state: publicState(state) });
-      }
-
-      if (request.method === "POST" && url.pathname === "/api/buzz/reset") {
-        const room = normalizeRoom(url.searchParams.get("room"));
-        const state = await this.loadState(room);
-        this.cleanupPlayers(state);
-
-        state.firstBuzz = null;
-        state.updatedAt = Date.now();
-        state.version += 1;
-
-        await this.saveState(state, true);
-        return json({ ok: true, state: publicState(state) });
-      }
-
-      return json({ ok: false, error: "NOT_FOUND" }, 404);
-    } catch (error) {
-      return json(
-        {
-          ok: false,
-          error: "DO_SERVER_ERROR",
-          details: error instanceof Error ? error.message : String(error)
-        },
-        500
-      );
-    }
-  }
-
-  async loadState(room) {
-    if (this.cache) return this.cache;
-
-    const stored = await this.state.storage.get("state");
-    if (stored) {
-      this.cache = stored;
-      return this.cache;
-    }
-
-    this.cache = {
-      room: normalizeRoom(room) || "default",
-      enabled: true,
-      firstBuzz: null,
-      players: {},
-      updatedAt: Date.now(),
-      version: 1
-    };
-
-    await this.state.storage.put("state", this.cache);
-    return this.cache;
-  }
-
-  cleanupPlayers(state) {
-    const now = Date.now();
-    const maxIdleMs = 1000 * 60 * 60 * 12; // 12 hours
-
-    for (const [playerId, player] of Object.entries(state.players)) {
-      if (!player?.lastSeenAt || now - player.lastSeenAt > maxIdleMs) {
-        delete state.players[playerId];
+        pusher.connection.bind("disconnected", () => {
+          startFallbackPolling();
+        });
+      } catch (error) {
+        startFallbackPolling();
       }
     }
-  }
 
-  async saveState(state, shouldBroadcast) {
-    this.cache = state;
-    await this.state.storage.put("state", state);
+    function destroyPusher() {
+      stopFallbackPolling();
 
-    if (shouldBroadcast) {
-      await this.broadcastState(state);
+      if (channel) {
+        try { channel.unbind_all(); } catch (e) {}
+        try { pusher.unsubscribe(channel.name); } catch (e) {}
+        channel = null;
+      }
+
+      if (pusher) {
+        try { pusher.disconnect(); } catch (e) {}
+        pusher = null;
+      }
     }
-  }
 
-  async broadcastState(state) {
-    if (!this.env.PUSHER_APP_ID || !this.env.PUSHER_KEY || !this.env.PUSHER_SECRET || !this.env.PUSHER_CLUSTER) {
-      return;
+    document.getElementById("teamOnePanel").addEventListener("click", () => {
+      addOrResetStrike(0);
+    });
+
+    document.getElementById("teamTwoPanel").addEventListener("click", () => {
+      addOrResetStrike(1);
+    });
+
+    prevBtn.addEventListener("click", goPrevQuestion);
+    nextBtn.addEventListener("click", goNextQuestion);
+    buzzToggleBtn.addEventListener("click", toggleBuzzRemote);
+
+    roundBox.addEventListener("click", openAwardModal);
+    roundBox.addEventListener("keydown", (event) => {
+      if (event.key === "Enter" || event.key === " ") {
+        event.preventDefault();
+        openAwardModal();
+      }
+    });
+
+    awardTeam1Btn.addEventListener("click", () => {
+      awardRoundToTeam(0);
+    });
+
+    awardTeam2Btn.addEventListener("click", () => {
+      awardRoundToTeam(1);
+    });
+
+    awardOverlay.addEventListener("click", (event) => {
+      if (event.target === awardOverlay) {
+        closeAwardModal();
+      }
+    });
+
+    document.addEventListener("keydown", (event) => {
+      if (event.key === "Escape") {
+        closeAwardModal();
+      }
+    });
+
+    window.addEventListener("beforeunload", destroyPusher);
+
+    applyTeamNamesFromSession();
+    applyBuzzWinnerFromSession();
+
+    const storedBuzzEnabled = sessionStorage.getItem("familyfeud_buzz_enabled_presenter");
+    if (storedBuzzEnabled === "0") {
+      buzzEnabled = false;
+    } else {
+      buzzEnabled = true;
     }
 
-    const channel = channelNameForRoom(state.room);
-    const eventName = "buzz-updated";
-    const payload = publicState(state);
+    updateBuzzButton();
+    updateLayout();
+    updateTeamScores();
+    renderQuestion();
 
-    try {
-      await triggerPusherEvent(this.env, channel, eventName, payload);
-    } catch (error) {
-      console.error("PUSHER_TRIGGER_FAILED", error);
+    startFallbackPolling();
+    initPusher();
+    fetchBuzzState();
+
+    window.addEventListener("pageshow", () => {
+      applyTeamNamesFromSession();
+      applyBuzzWinnerFromSession();
+      fetchBuzzState();
+    });
+
+    window.addEventListener("focus", () => {
+      applyTeamNamesFromSession();
+      applyBuzzWinnerFromSession();
+      fetchBuzzState();
+    });
+
+    window.addEventListener("load", () => {
+      applyTeamNamesFromSession();
+      applyBuzzWinnerFromSession();
+      fetchBuzzState();
+      setTimeout(updateLayout, 60);
+      setTimeout(updateLayout, 220);
+    }, { passive: true });
+
+    window.addEventListener("resize", updateLayout, { passive: true });
+    window.addEventListener("orientationchange", () => {
+      setTimeout(updateLayout, 80);
+      setTimeout(updateLayout, 250);
+      setTimeout(updateLayout, 500);
+    }, { passive: true });
+
+    if (window.visualViewport) {
+      window.visualViewport.addEventListener("resize", updateLayout, { passive: true });
+      window.visualViewport.addEventListener("scroll", updateLayout, { passive: true });
     }
-  }
-}
 
-/* =========================
-   Helpers
-========================= */
-
-function corsHeaders() {
-  return {
-    "Access-Control-Allow-Origin": "*",
-    "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
-    "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Requested-With"
-  };
-}
-
-function json(data, status = 200) {
-  return new Response(JSON.stringify(data), {
-    status,
-    headers: {
-      "content-type": "application/json; charset=utf-8",
-      ...corsHeaders()
-    }
-  });
-}
-
-async function safeJson(request) {
-  try {
-    return await request.json();
-  } catch {
-    return {};
-  }
-}
-
-function normalizeRoom(value) {
-  const v = String(value || "").trim().toLowerCase();
-  if (!v) return "";
-  return v.replace(/[^a-z0-9_-]/g, "").slice(0, 64);
-}
-
-function normalizeId(value) {
-  const v = String(value || "").trim();
-  if (!v) return "";
-  return v.replace(/[^\w-]/g, "").slice(0, 80);
-}
-
-function normalizePlayerName(value) {
-  const v = String(value || "").trim();
-  if (!v) return "";
-  return v.slice(0, 60);
-}
-
-function normalizeTeam(value) {
-  const v = String(value || "").trim().toLowerCase();
-  if (v === "team1" || v === "team2") return v;
-  return "";
-}
-
-function publicState(state) {
-  return {
-    room: state.room,
-    enabled: !!state.enabled,
-    firstBuzz: state.firstBuzz
-      ? {
-          playerId: state.firstBuzz.playerId,
-          name: state.firstBuzz.name,
-          team: state.firstBuzz.team,
-          at: state.firstBuzz.at
-        }
-      : null,
-    players: Object.values(state.players || {}).map((p) => ({
-      id: p.id,
-      name: p.name,
-      team: p.team
-    })),
-    updatedAt: state.updatedAt,
-    version: state.version
-  };
-}
-
-function channelNameForRoom(room) {
-  return `private-buzz-${room}`;
-}
-
-/* =========================
-   Pusher Auth + Trigger
-========================= */
-
-async function buildPusherChannelAuth(key, secret, socketId, channelName) {
-  const stringToSign = `${socketId}:${channelName}`;
-  const signature = await hmacSha256Hex(secret, stringToSign);
-  return `${key}:${signature}`;
-}
-
-async function triggerPusherEvent(env, channel, eventName, payload) {
-  const path = `/apps/${env.PUSHER_APP_ID}/events`;
-  const bodyObject = {
-    name: eventName,
-    channel,
-    data: JSON.stringify(payload)
-  };
-
-  const body = JSON.stringify(bodyObject);
-  const bodyMd5 = md5Hex(body);
-
-  const params = {
-    auth_key: env.PUSHER_KEY,
-    auth_timestamp: Math.floor(Date.now() / 1000).toString(),
-    auth_version: "1.0",
-    body_md5: bodyMd5
-  };
-
-  const sortedQuery = Object.keys(params)
-    .sort()
-    .map((key) => `${encodeURIComponent(key)}=${encodeURIComponent(params[key])}`)
-    .join("&");
-
-  const stringToSign = `POST\n${path}\n${sortedQuery}`;
-  const signature = await hmacSha256Hex(env.PUSHER_SECRET, stringToSign);
-
-  const url = new URL(`https://api-${env.PUSHER_CLUSTER}.pusher.com${path}`);
-  Object.entries(params).forEach(([k, v]) => url.searchParams.set(k, v));
-  url.searchParams.set("auth_signature", signature);
-
-  const res = await fetch(url.toString(), {
-    method: "POST",
-    headers: {
-      "content-type": "application/json"
-    },
-    body
-  });
-
-  if (!res.ok) {
-    const text = await res.text();
-    throw new Error(`Pusher trigger failed: ${res.status} ${text}`);
-  }
-}
-
-async function hmacSha256Hex(secret, text) {
-  const enc = new TextEncoder();
-  const key = await crypto.subtle.importKey(
-    "raw",
-    enc.encode(secret),
-    { name: "HMAC", hash: "SHA-256" },
-    false,
-    ["sign"]
-  );
-
-  const sig = await crypto.subtle.sign("HMAC", key, enc.encode(text));
-  return bytesToHex(new Uint8Array(sig));
-}
-
-function bytesToHex(bytes) {
-  let out = "";
-  for (let i = 0; i < bytes.length; i++) {
-    out += bytes[i].toString(16).padStart(2, "0");
-  }
-  return out;
-}
-
-/* =========================
-   MD5 (for Pusher REST auth)
-========================= */
-
-function md5Hex(str) {
-  return binl2hex(core_md5(str2binl(unescape(encodeURIComponent(str))), str.length * 8));
-}
-
-function core_md5(x, len) {
-  x[len >> 5] |= 0x80 << (len % 32);
-  x[(((len + 64) >>> 9) << 4) + 14] = len;
-
-  let a = 1732584193;
-  let b = -271733879;
-  let c = -1732584194;
-  let d = 271733878;
-
-  for (let i = 0; i < x.length; i += 16) {
-    const olda = a;
-    const oldb = b;
-    const oldc = c;
-    const oldd = d;
-
-    a = md5_ff(a, b, c, d, x[i + 0], 7, -680876936);
-    d = md5_ff(d, a, b, c, x[i + 1], 12, -389564586);
-    c = md5_ff(c, d, a, b, x[i + 2], 17, 606105819);
-    b = md5_ff(b, c, d, a, x[i + 3], 22, -1044525330);
-    a = md5_ff(a, b, c, d, x[i + 4], 7, -176418897);
-    d = md5_ff(d, a, b, c, x[i + 5], 12, 1200080426);
-    c = md5_ff(c, d, a, b, x[i + 6], 17, -1473231341);
-    b = md5_ff(b, c, d, a, x[i + 7], 22, -45705983);
-    a = md5_ff(a, b, c, d, x[i + 8], 7, 1770035416);
-    d = md5_ff(d, a, b, c, x[i + 9], 12, -1958414417);
-    c = md5_ff(c, d, a, b, x[i + 10], 17, -42063);
-    b = md5_ff(b, c, d, a, x[i + 11], 22, -1990404162);
-    a = md5_ff(a, b, c, d, x[i + 12], 7, 1804603682);
-    d = md5_ff(d, a, b, c, x[i + 13], 12, -40341101);
-    c = md5_ff(c, d, a, b, x[i + 14], 17, -1502002290);
-    b = md5_ff(b, c, d, a, x[i + 15], 22, 1236535329);
-
-    a = md5_gg(a, b, c, d, x[i + 1], 5, -165796510);
-    d = md5_gg(d, a, b, c, x[i + 6], 9, -1069501632);
-    c = md5_gg(c, d, a, b, x[i + 11], 14, 643717713);
-    b = md5_gg(b, c, d, a, x[i + 0], 20, -373897302);
-    a = md5_gg(a, b, c, d, x[i + 5], 5, -701558691);
-    d = md5_gg(d, a, b, c, x[i + 10], 9, 38016083);
-    c = md5_gg(c, d, a, b, x[i + 15], 14, -660478335);
-    b = md5_gg(b, c, d, a, x[i + 4], 20, -405537848);
-    a = md5_gg(a, b, c, d, x[i + 9], 5, 568446438);
-    d = md5_gg(d, a, b, c, x[i + 14], 9, -1019803690);
-    c = md5_gg(c, d, a, b, x[i + 3], 14, -187363961);
-    b = md5_gg(b, c, d, a, x[i + 8], 20, 1163531501);
-    a = md5_gg(a, b, c, d, x[i + 13], 5, -1444681467);
-    d = md5_gg(d, a, b, c, x[i + 2], 9, -51403784);
-    c = md5_gg(c, d, a, b, x[i + 7], 14, 1735328473);
-    b = md5_gg(b, c, d, a, x[i + 12], 20, -1926607734);
-
-    a = md5_hh(a, b, c, d, x[i + 5], 4, -378558);
-    d = md5_hh(d, a, b, c, x[i + 8], 11, -2022574463);
-    c = md5_hh(c, d, a, b, x[i + 11], 16, 1839030562);
-    b = md5_hh(b, c, d, a, x[i + 14], 23, -35309556);
-    a = md5_hh(a, b, c, d, x[i + 1], 4, -1530992060);
-    d = md5_hh(d, a, b, c, x[i + 4], 11, 1272893353);
-    c = md5_hh(c, d, a, b, x[i + 7], 16, -155497632);
-    b = md5_hh(b, c, d, a, x[i + 10], 23, -1094730640);
-    a = md5_hh(a, b, c, d, x[i + 13], 4, 681279174);
-    d = md5_hh(d, a, b, c, x[i + 0], 11, -358537222);
-    c = md5_hh(c, d, a, b, x[i + 3], 16, -722521979);
-    b = md5_hh(b, c, d, a, x[i + 6], 23, 76029189);
-    a = md5_hh(a, b, c, d, x[i + 9], 4, -640364487);
-    d = md5_hh(d, a, b, c, x[i + 12], 11, -421815835);
-    c = md5_hh(c, d, a, b, x[i + 15], 16, 530742520);
-    b = md5_hh(b, c, d, a, x[i + 2], 23, -995338651);
-
-    a = md5_ii(a, b, c, d, x[i + 0], 6, -198630844);
-    d = md5_ii(d, a, b, c, x[i + 7], 10, 1126891415);
-    c = md5_ii(c, d, a, b, x[i + 14], 15, -1416354905);
-    b = md5_ii(b, c, d, a, x[i + 5], 21, -57434055);
-    a = md5_ii(a, b, c, d, x[i + 12], 6, 1700485571);
-    d = md5_ii(d, a, b, c, x[i + 3], 10, -1894986606);
-    c = md5_ii(c, d, a, b, x[i + 10], 15, -1051523);
-    b = md5_ii(b, c, d, a, x[i + 1], 21, -2054922799);
-    a = md5_ii(a, b, c, d, x[i + 8], 6, 1873313359);
-    d = md5_ii(d, a, b, c, x[i + 15], 10, -30611744);
-    c = md5_ii(c, d, a, b, x[i + 6], 15, -1560198380);
-    b = md5_ii(b, c, d, a, x[i + 13], 21, 1309151649);
-    a = md5_ii(a, b, c, d, x[i + 4], 6, -145523070);
-    d = md5_ii(d, a, b, c, x[i + 11], 10, -1120210379);
-    c = md5_ii(c, d, a, b, x[i + 2], 15, 718787259);
-    b = md5_ii(b, c, d, a, x[i + 9], 21, -343485551);
-
-    a = safe_add(a, olda);
-    b = safe_add(b, oldb);
-    c = safe_add(c, oldc);
-    d = safe_add(d, oldd);
-  }
-
-  return [a, b, c, d];
-}
-
-function md5_cmn(q, a, b, x, s, t) {
-  return safe_add(bit_rol(safe_add(safe_add(a, q), safe_add(x, t)), s), b);
-}
-function md5_ff(a, b, c, d, x, s, t) {
-  return md5_cmn((b & c) | ((~b) & d), a, b, x, s, t);
-}
-function md5_gg(a, b, c, d, x, s, t) {
-  return md5_cmn((b & d) | (c & (~d)), a, b, x, s, t);
-}
-function md5_hh(a, b, c, d, x, s, t) {
-  return md5_cmn(b ^ c ^ d, a, b, x, s, t);
-}
-function md5_ii(a, b, c, d, x, s, t) {
-  return md5_cmn(c ^ (b | (~d)), a, b, x, s, t);
-}
-
-function safe_add(x, y) {
-  const lsw = (x & 0xffff) + (y & 0xffff);
-  const msw = (x >> 16) + (y >> 16) + (lsw >> 16);
-  return (msw << 16) | (lsw & 0xffff);
-}
-
-function bit_rol(num, cnt) {
-  return (num << cnt) | (num >>> (32 - cnt));
-}
-
-function str2binl(str) {
-  const bin = [];
-  const mask = 255;
-  for (let i = 0; i < str.length * 8; i += 8) {
-    bin[i >> 5] |= (str.charCodeAt(i / 8) & mask) << (i % 32);
-  }
-  return bin;
-}
-
-function binl2hex(binarray) {
-  const hex_tab = "0123456789abcdef";
-  let str = "";
-  for (let i = 0; i < binarray.length * 4; i++) {
-    str +=
-      hex_tab.charAt((binarray[i >> 2] >> ((i % 4) * 8 + 4)) & 0x0f) +
-      hex_tab.charAt((binarray[i >> 2] >> ((i % 4) * 8)) & 0x0f);
-  }
-  return str;
-}
+    document.addEventListener("touchstart", nudgeSafariBar, { passive: true });
+    document.addEventListener("touchend", nudgeSafariBar, { passive: true });
+  </script>
+</body>
+</html>
