@@ -459,7 +459,6 @@
         </div>
 
         <section class="card">
-
           <div id="joinScreen" class="screen">
             <div class="screen-title">الانضمام إلى الجرس</div>
             <div id="joinSubtitle" class="screen-subtitle">اختر الفريق ثم اكتب اسمك للانتقال إلى شاشة الجرس</div>
@@ -488,7 +487,6 @@
 
             <button id="backBtn" class="secondary-btn" type="button">تغيير الفريق</button>
           </div>
-
         </section>
 
       </div>
@@ -503,6 +501,7 @@
     const LANDSCAPE_HEIGHT = 768;
     const PORTRAIT_WIDTH = 640;
     const PORTRAIT_HEIGHT = 1280;
+    const LIVE_POLL_MS = 500;
 
     let API_BASE = "";
     let pusher = null;
@@ -511,6 +510,15 @@
     let currentState = null;
     let joinInFlight = false;
     let pressInFlight = false;
+    let syncStarted = false;
+
+    const STORAGE = {
+      apiBase: "familyfeud_api_base",
+      room: "familyfeud_room",
+      team: "familyfeud_buzz_team",
+      name: "familyfeud_buzz_name",
+      playerId: "familyfeud_buzz_player_id"
+    };
 
     const root = document.documentElement;
 
@@ -529,25 +537,46 @@
     const buzzStatus = document.getElementById("buzzStatus");
     const backBtn = document.getElementById("backBtn");
 
-    let selectedTeam = sessionStorage.getItem("familyfeud_buzz_team") || "";
+    let selectedTeam = readStored(STORAGE.team) || "";
     let stableViewport = { width: window.innerWidth, height: window.innerHeight };
     let stableOrientationPortrait = window.innerHeight > window.innerWidth;
 
     const roomId = getRoomId();
     const playerId = getOrCreatePlayerId();
 
+    function writeStored(key, value) {
+      try { localStorage.setItem(key, value); } catch (e) {}
+      try { sessionStorage.setItem(key, value); } catch (e) {}
+    }
+
+    function removeStored(key) {
+      try { localStorage.removeItem(key); } catch (e) {}
+      try { sessionStorage.removeItem(key); } catch (e) {}
+    }
+
+    function readStored(key) {
+      try {
+        const localValue = localStorage.getItem(key);
+        if (localValue) return localValue;
+      } catch (e) {}
+      try {
+        const sessionValue = sessionStorage.getItem(key);
+        if (sessionValue) return sessionValue;
+      } catch (e) {}
+      return "";
+    }
+
     function buildApiCandidates() {
       const params = new URLSearchParams(window.location.search);
       const saved = [
-        sessionStorage.getItem("familyfeud_api_base"),
-        localStorage.getItem("familyfeud_api_base"),
+        readStored(STORAGE.apiBase),
         params.get("api")
       ].filter(Boolean);
 
       const candidates = [
         ...saved,
-        "https://family-feud-buzz.sandooq-m.workers.dev",
-        "https://z.sandooq-m.workers.dev"
+        "https://z.sandooq-m.workers.dev",
+        "https://family-feud-buzz.sandooq-m.workers.dev"
       ];
 
       if (window.location.hostname.endsWith(".workers.dev")) {
@@ -575,8 +604,7 @@
           if (!response.ok || !data || !data.state) continue;
 
           API_BASE = candidate;
-          sessionStorage.setItem("familyfeud_api_base", candidate);
-          localStorage.setItem("familyfeud_api_base", candidate);
+          writeStored(STORAGE.apiBase, candidate);
           return true;
         } catch (error) {}
       }
@@ -674,21 +702,21 @@
       });
     }
 
-    function getRoomId() {
-      const url = new URL(window.location.href);
-      const fromQuery = normalizeRoom(url.searchParams.get("room"));
-      const fromStorage = normalizeRoom(sessionStorage.getItem("familyfeud_room"));
-      const room = fromQuery || fromStorage || "family-feud-demo";
-      sessionStorage.setItem("familyfeud_room", room);
-      return room;
-    }
-
     function normalizeRoom(value) {
       return String(value || "").trim().toLowerCase().replace(/[^a-z0-9_-]/g, "").slice(0, 64);
     }
 
+    function getRoomId() {
+      const url = new URL(window.location.href);
+      const fromQuery = normalizeRoom(url.searchParams.get("room"));
+      const fromStorage = normalizeRoom(readStored(STORAGE.room));
+      const room = fromQuery || fromStorage || "family-feud-demo";
+      writeStored(STORAGE.room, room);
+      return room;
+    }
+
     function getOrCreatePlayerId() {
-      let id = sessionStorage.getItem("familyfeud_buzz_player_id");
+      let id = readStored(STORAGE.playerId);
       if (id) return id;
 
       if (window.crypto && crypto.randomUUID) {
@@ -698,7 +726,7 @@
       }
 
       id = id.replace(/[^\w-]/g, "").slice(0, 80);
-      sessionStorage.setItem("familyfeud_buzz_player_id", id);
+      writeStored(STORAGE.playerId, id);
       return id;
     }
 
@@ -707,8 +735,8 @@
       const team1FromQuery = (url.searchParams.get("team1") || "").trim();
       const team2FromQuery = (url.searchParams.get("team2") || "").trim();
 
-      const team1 = team1FromQuery || (sessionStorage.getItem("familyfeud_team1") || "").trim() || "الفريق الأول";
-      const team2 = team2FromQuery || (sessionStorage.getItem("familyfeud_team2") || "").trim() || "الفريق الثاني";
+      const team1 = team1FromQuery || (readStored("familyfeud_team1") || "").trim() || "الفريق الأول";
+      const team2 = team2FromQuery || (readStored("familyfeud_team2") || "").trim() || "الفريق الثاني";
 
       return { team1, team2 };
     }
@@ -736,8 +764,12 @@
     }
 
     function saveLocalData() {
-      sessionStorage.setItem("familyfeud_buzz_team", selectedTeam);
-      sessionStorage.setItem("familyfeud_buzz_name", currentPlayerName());
+      writeStored(STORAGE.team, selectedTeam);
+      writeStored(STORAGE.name, currentPlayerName());
+    }
+
+    function clearWinnerLocalOnly() {
+      setBuzzStatus("اضغط الجرس عندما تبدأ الجولة");
     }
 
     function getTeamLabel() {
@@ -751,12 +783,14 @@
       playerNameLabel.textContent = currentPlayerName();
       joinScreen.classList.add("hidden");
       buzzScreen.classList.remove("hidden");
+      startLiveSync();
       updateLayout(true);
     }
 
     function showJoinScreen() {
       joinScreen.classList.remove("hidden");
       buzzScreen.classList.add("hidden");
+      stopLiveSync();
       updateJoinState();
       updateLayout(true);
     }
@@ -781,6 +815,7 @@
 
       if (!enabled) {
         buzzBtn.disabled = true;
+        clearWinnerLocalOnly();
         setBuzzStatus("الجرس مقفل الآن.");
         return;
       }
@@ -800,10 +835,16 @@
       if (someoneElsePressed) {
         buzzBtn.disabled = true;
         setBuzzStatus("تم تسجيل ضغطة لاعب آخر.");
+        return;
       }
     }
 
     async function apiGet(path) {
+      if (!API_BASE) {
+        const ok = await detectApiBase();
+        if (!ok) throw new Error("API_BASE_NOT_FOUND");
+      }
+
       const response = await fetch(`${API_BASE}${path}`, {
         method: "GET",
         cache: "no-store",
@@ -823,6 +864,11 @@
     }
 
     async function apiPost(path, payload) {
+      if (!API_BASE) {
+        const ok = await detectApiBase();
+        if (!ok) throw new Error("API_BASE_NOT_FOUND");
+      }
+
       const response = await fetch(`${API_BASE}${path}`, {
         method: "POST",
         cache: "no-store",
@@ -839,8 +885,6 @@
     }
 
     async function fetchState() {
-      if (!API_BASE) return;
-
       try {
         const res = await apiGet(`/api/buzz/state?room=${encodeURIComponent(roomId)}`);
         applyState(res.state);
@@ -852,9 +896,9 @@
 
     async function joinRoom() {
       if (joinInFlight) return true;
-      if (!API_BASE) return false;
 
       joinInFlight = true;
+      setJoinStatus("جارٍ الانضمام...", false);
 
       try {
         const res = await apiPost(`/api/buzz/join?room=${encodeURIComponent(roomId)}`, {
@@ -869,6 +913,7 @@
         }
 
         applyState(res.data.state);
+        setJoinStatus("تم الانضمام بنجاح.", false);
         return true;
       } catch (error) {
         setJoinStatus("تعذر الاتصال بالباكند.", true);
@@ -879,7 +924,7 @@
     }
 
     async function sendBuzz() {
-      if (pressInFlight || !API_BASE) return;
+      if (pressInFlight) return;
 
       pressInFlight = true;
       buzzBtn.disabled = true;
@@ -922,14 +967,21 @@
       }
     }
 
-    function startFallbackPolling() {
-      stopFallbackPolling();
+    function startLiveSync() {
+      if (syncStarted) return;
+      syncStarted = true;
+
+      stopLiveSync();
       fallbackPoll = setInterval(() => {
         fetchState();
-      }, 1000);
+      }, LIVE_POLL_MS);
+
+      fetchState();
     }
 
-    function stopFallbackPolling() {
+    function stopLiveSync() {
+      syncStarted = false;
+
       if (fallbackPoll) {
         clearInterval(fallbackPoll);
         fallbackPoll = null;
@@ -937,17 +989,9 @@
     }
 
     async function initPusher() {
-      if (!API_BASE) return;
-
       try {
         const cfgRes = await apiGet(`/api/buzz/pusher-config?room=${encodeURIComponent(roomId)}`);
-        if (!cfgRes.ok || !cfgRes.key || !cfgRes.cluster || !cfgRes.channel) {
-          startFallbackPolling();
-          return;
-        }
-
-        if (!window.Pusher) {
-          startFallbackPolling();
+        if (!cfgRes.ok || !cfgRes.key || !cfgRes.cluster || !cfgRes.channel || !window.Pusher) {
           return;
         }
 
@@ -976,25 +1020,11 @@
         channel.bind("buzz-updated", (payload) => {
           applyState(payload);
         });
-
-        channel.bind("pusher:subscription_error", () => {
-          startFallbackPolling();
-        });
-
-        pusher.connection.bind("error", () => {
-          startFallbackPolling();
-        });
-
-        pusher.connection.bind("disconnected", () => {
-          startFallbackPolling();
-        });
-      } catch (error) {
-        startFallbackPolling();
-      }
+      } catch (error) {}
     }
 
     function destroyPusher() {
-      stopFallbackPolling();
+      stopLiveSync();
 
       if (channel) {
         try { channel.unbind_all(); } catch (e) {}
@@ -1019,19 +1049,17 @@
     });
 
     playerNameInput.addEventListener("input", () => {
-      sessionStorage.setItem("familyfeud_buzz_name", playerNameInput.value);
+      writeStored(STORAGE.name, playerNameInput.value);
       updateJoinState();
     });
 
     continueBtn.addEventListener("click", async () => {
       if (continueBtn.disabled) return;
 
-      if (!API_BASE) {
-        const ok = await detectApiBase();
-        if (!ok) {
-          setJoinStatus("تعذر العثور على رابط الباكند الصحيح.", true);
-          return;
-        }
+      const ok = await detectApiBase();
+      if (!ok) {
+        setJoinStatus("تعذر العثور على رابط الباكند الصحيح.", true);
+        return;
       }
 
       const joined = await joinRoom();
@@ -1050,7 +1078,7 @@
       showJoinScreen();
     });
 
-    playerNameInput.value = sessionStorage.getItem("familyfeud_buzz_name") || "";
+    playerNameInput.value = readStored(STORAGE.name) || "";
 
     const familyLogo = document.getElementById("familyLogo");
     const familyLogoFallback = document.getElementById("familyLogoFallback");
@@ -1090,7 +1118,6 @@
       }
 
       await initPusher();
-      await fetchState();
 
       if (selectedTeam && playerNameInput.value.trim()) {
         const joined = await joinRoom();
@@ -1106,6 +1133,28 @@
     }
 
     bootstrapBuzz();
+
+    window.addEventListener("pageshow", async () => {
+      if (!API_BASE) {
+        await detectApiBase();
+      }
+
+      if (!joinScreen.classList.contains("hidden")) return;
+
+      await joinRoom();
+      fetchState();
+    });
+
+    window.addEventListener("focus", async () => {
+      if (!API_BASE) {
+        await detectApiBase();
+      }
+
+      if (!joinScreen.classList.contains("hidden")) return;
+
+      await joinRoom();
+      fetchState();
+    });
 
     window.addEventListener("load", () => {
       setTimeout(() => updateLayout(true), 60);
