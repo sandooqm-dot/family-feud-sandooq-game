@@ -156,6 +156,11 @@
       font-weight:700;
       line-height:1.5;
       margin-bottom:24px;
+      min-height:66px;
+    }
+
+    .screen-subtitle.error{
+      color:#ffd3d3;
     }
 
     .teams-grid{
@@ -384,6 +389,7 @@
     body.portrait .screen-subtitle{
       font-size:22px;
       margin-bottom:22px;
+      min-height:72px;
     }
 
     body.portrait .teams-grid{
@@ -456,7 +462,7 @@
 
           <div id="joinScreen" class="screen">
             <div class="screen-title">الانضمام إلى الجرس</div>
-            <div class="screen-subtitle">اختر الفريق ثم اكتب اسمك للانتقال إلى شاشة الجرس</div>
+            <div id="joinSubtitle" class="screen-subtitle">اختر الفريق ثم اكتب اسمك للانتقال إلى شاشة الجرس</div>
 
             <div class="teams-grid">
               <button id="teamOneBtn" class="team-choice" type="button">الفريق الأول</button>
@@ -491,11 +497,20 @@
     <div class="page-spacer" aria-hidden="true"></div>
   </main>
 
+  <script src="https://js.pusher.com/8.4.0/pusher.min.js"></script>
   <script>
     const LANDSCAPE_WIDTH = 1600;
     const LANDSCAPE_HEIGHT = 768;
     const PORTRAIT_WIDTH = 640;
     const PORTRAIT_HEIGHT = 1280;
+
+    let API_BASE = "";
+    let pusher = null;
+    let channel = null;
+    let fallbackPoll = null;
+    let currentState = null;
+    let joinInFlight = false;
+    let pressInFlight = false;
 
     const root = document.documentElement;
 
@@ -506,6 +521,7 @@
     const teamTwoBtn = document.getElementById("teamTwoBtn");
     const playerNameInput = document.getElementById("playerNameInput");
     const continueBtn = document.getElementById("continueBtn");
+    const joinSubtitle = document.getElementById("joinSubtitle");
 
     const teamBadge = document.getElementById("teamBadge");
     const playerNameLabel = document.getElementById("playerNameLabel");
@@ -516,7 +532,58 @@
     let selectedTeam = sessionStorage.getItem("familyfeud_buzz_team") || "";
     let stableViewport = { width: window.innerWidth, height: window.innerHeight };
     let stableOrientationPortrait = window.innerHeight > window.innerWidth;
-    let localBuzzSent = false;
+
+    const roomId = getRoomId();
+    const playerId = getOrCreatePlayerId();
+
+    function buildApiCandidates() {
+      const params = new URLSearchParams(window.location.search);
+      const saved = [
+        sessionStorage.getItem("familyfeud_api_base"),
+        localStorage.getItem("familyfeud_api_base"),
+        params.get("api")
+      ].filter(Boolean);
+
+      const candidates = [
+        ...saved,
+        "https://family-feud-buzz.sandooq-m.workers.dev",
+        "https://z.sandooq-m.workers.dev"
+      ];
+
+      if (window.location.hostname.endsWith(".workers.dev")) {
+        candidates.unshift(window.location.origin);
+      }
+
+      return [...new Set(candidates.map(v => String(v || "").trim()).filter(Boolean))];
+    }
+
+    async function detectApiBase() {
+      const candidates = buildApiCandidates();
+
+      for (const candidate of candidates) {
+        try {
+          const response = await fetch(`${candidate}/api/buzz/state?room=${encodeURIComponent(roomId)}`, {
+            method: "GET",
+            cache: "no-store",
+            headers: {
+              "Accept": "application/json",
+              "Cache-Control": "no-cache"
+            }
+          });
+
+          const data = await response.json().catch(() => null);
+          if (!response.ok || !data || !data.state) continue;
+
+          API_BASE = candidate;
+          sessionStorage.setItem("familyfeud_api_base", candidate);
+          localStorage.setItem("familyfeud_api_base", candidate);
+          return true;
+        } catch (error) {}
+      }
+
+      API_BASE = "";
+      return false;
+    }
 
     function getCurrentViewport() {
       const vv = window.visualViewport;
@@ -607,31 +674,81 @@
       });
     }
 
+    function getRoomId() {
+      const url = new URL(window.location.href);
+      const fromQuery = normalizeRoom(url.searchParams.get("room"));
+      const fromStorage = normalizeRoom(sessionStorage.getItem("familyfeud_room"));
+      const room = fromQuery || fromStorage || "family-feud-demo";
+      sessionStorage.setItem("familyfeud_room", room);
+      return room;
+    }
+
+    function normalizeRoom(value) {
+      return String(value || "").trim().toLowerCase().replace(/[^a-z0-9_-]/g, "").slice(0, 64);
+    }
+
+    function getOrCreatePlayerId() {
+      let id = sessionStorage.getItem("familyfeud_buzz_player_id");
+      if (id) return id;
+
+      if (window.crypto && crypto.randomUUID) {
+        id = crypto.randomUUID();
+      } else {
+        id = "p_" + Math.random().toString(36).slice(2) + Date.now().toString(36);
+      }
+
+      id = id.replace(/[^\w-]/g, "").slice(0, 80);
+      sessionStorage.setItem("familyfeud_buzz_player_id", id);
+      return id;
+    }
+
+    function getTeamLabels() {
+      const url = new URL(window.location.href);
+      const team1FromQuery = (url.searchParams.get("team1") || "").trim();
+      const team2FromQuery = (url.searchParams.get("team2") || "").trim();
+
+      const team1 = team1FromQuery || (sessionStorage.getItem("familyfeud_team1") || "").trim() || "الفريق الأول";
+      const team2 = team2FromQuery || (sessionStorage.getItem("familyfeud_team2") || "").trim() || "الفريق الثاني";
+
+      return { team1, team2 };
+    }
+
+    function currentPlayerName() {
+      return playerNameInput.value.trim();
+    }
+
+    function setJoinStatus(text, isError = false) {
+      joinSubtitle.textContent = text;
+      joinSubtitle.classList.toggle("error", !!isError);
+    }
+
     function updateJoinState() {
+      const { team1, team2 } = getTeamLabels();
+
+      teamOneBtn.textContent = team1;
+      teamTwoBtn.textContent = team2;
+
       teamOneBtn.classList.toggle("selected", selectedTeam === "team1");
       teamTwoBtn.classList.toggle("selected", selectedTeam === "team2");
 
-      const ready = selectedTeam && playerNameInput.value.trim().length > 0;
+      const ready = !!selectedTeam && currentPlayerName().length > 0;
       continueBtn.disabled = !ready;
     }
 
     function saveLocalData() {
       sessionStorage.setItem("familyfeud_buzz_team", selectedTeam);
-      sessionStorage.setItem("familyfeud_buzz_name", playerNameInput.value.trim());
+      sessionStorage.setItem("familyfeud_buzz_name", currentPlayerName());
     }
 
     function getTeamLabel() {
-      if (selectedTeam === "team2") return "الفريق الثاني";
-      return "الفريق الأول";
+      const labels = getTeamLabels();
+      return selectedTeam === "team2" ? labels.team2 : labels.team1;
     }
 
     function showBuzzScreen() {
       saveLocalData();
-      localBuzzSent = false;
-      buzzBtn.disabled = false;
-      buzzStatus.textContent = "اضغط الجرس عندما تبدأ الجولة";
       teamBadge.textContent = getTeamLabel();
-      playerNameLabel.textContent = playerNameInput.value.trim();
+      playerNameLabel.textContent = currentPlayerName();
       joinScreen.classList.add("hidden");
       buzzScreen.classList.remove("hidden");
       updateLayout(true);
@@ -642,6 +759,253 @@
       buzzScreen.classList.add("hidden");
       updateJoinState();
       updateLayout(true);
+    }
+
+    function setBuzzStatus(text) {
+      buzzStatus.textContent = text;
+    }
+
+    function applyState(state) {
+      currentState = state || null;
+
+      if (!currentState) {
+        buzzBtn.disabled = true;
+        setBuzzStatus("تعذر قراءة حالة الجرس.");
+        return;
+      }
+
+      const firstBuzz = currentState.firstBuzz;
+      const enabled = !!currentState.enabled;
+      const mePressedFirst = !!firstBuzz && firstBuzz.playerId === playerId;
+      const someoneElsePressed = !!firstBuzz && firstBuzz.playerId !== playerId;
+
+      if (!enabled) {
+        buzzBtn.disabled = true;
+        setBuzzStatus("الجرس مقفل الآن.");
+        return;
+      }
+
+      if (!firstBuzz) {
+        buzzBtn.disabled = false;
+        setBuzzStatus("اضغط الجرس عندما تبدأ الجولة");
+        return;
+      }
+
+      if (mePressedFirst) {
+        buzzBtn.disabled = true;
+        setBuzzStatus("تم تسجيل ضغطتك أولًا.");
+        return;
+      }
+
+      if (someoneElsePressed) {
+        buzzBtn.disabled = true;
+        setBuzzStatus("تم تسجيل ضغطة لاعب آخر.");
+      }
+    }
+
+    async function apiGet(path) {
+      const response = await fetch(`${API_BASE}${path}`, {
+        method: "GET",
+        cache: "no-store",
+        headers: {
+          "Accept": "application/json",
+          "Cache-Control": "no-cache"
+        }
+      });
+
+      const data = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        throw new Error(data.error || "GET_REQUEST_FAILED");
+      }
+
+      return data;
+    }
+
+    async function apiPost(path, payload) {
+      const response = await fetch(`${API_BASE}${path}`, {
+        method: "POST",
+        cache: "no-store",
+        headers: {
+          "Content-Type": "application/json",
+          "Accept": "application/json",
+          "Cache-Control": "no-cache"
+        },
+        body: JSON.stringify(payload || {})
+      });
+
+      const data = await response.json().catch(() => ({}));
+      return { ok: response.ok, status: response.status, data };
+    }
+
+    async function fetchState() {
+      if (!API_BASE) return;
+
+      try {
+        const res = await apiGet(`/api/buzz/state?room=${encodeURIComponent(roomId)}`);
+        applyState(res.state);
+      } catch (error) {
+        buzzBtn.disabled = true;
+        setBuzzStatus("تعذر الاتصال بالجرس الآن.");
+      }
+    }
+
+    async function joinRoom() {
+      if (joinInFlight) return true;
+      if (!API_BASE) return false;
+
+      joinInFlight = true;
+
+      try {
+        const res = await apiPost(`/api/buzz/join?room=${encodeURIComponent(roomId)}`, {
+          playerId,
+          name: currentPlayerName(),
+          team: selectedTeam
+        });
+
+        if (!res.ok) {
+          setJoinStatus("تعذر الانضمام إلى الغرفة.", true);
+          return false;
+        }
+
+        applyState(res.data.state);
+        return true;
+      } catch (error) {
+        setJoinStatus("تعذر الاتصال بالباكند.", true);
+        return false;
+      } finally {
+        joinInFlight = false;
+      }
+    }
+
+    async function sendBuzz() {
+      if (pressInFlight || !API_BASE) return;
+
+      pressInFlight = true;
+      buzzBtn.disabled = true;
+      setBuzzStatus("جارٍ إرسال الضغط...");
+
+      try {
+        const res = await apiPost(`/api/buzz/press?room=${encodeURIComponent(roomId)}`, {
+          playerId,
+          name: currentPlayerName(),
+          team: selectedTeam
+        });
+
+        if (res.ok && res.data && res.data.state) {
+          applyState(res.data.state);
+          return;
+        }
+
+        if (res.data && res.data.state) {
+          applyState(res.data.state);
+        } else {
+          await fetchState();
+        }
+
+        if (res.data?.error === "BUZZ_DISABLED") {
+          setBuzzStatus("الجرس مقفل الآن.");
+          return;
+        }
+
+        if (res.data?.error === "ALREADY_BUZZED") {
+          setBuzzStatus("تم تسجيل ضغطة لاعب آخر.");
+          return;
+        }
+
+        setBuzzStatus("لم يتم قبول الضغط.");
+      } catch (error) {
+        buzzBtn.disabled = false;
+        setBuzzStatus("تعذر إرسال الضغط. حاول مرة أخرى.");
+      } finally {
+        pressInFlight = false;
+      }
+    }
+
+    function startFallbackPolling() {
+      stopFallbackPolling();
+      fallbackPoll = setInterval(() => {
+        fetchState();
+      }, 1000);
+    }
+
+    function stopFallbackPolling() {
+      if (fallbackPoll) {
+        clearInterval(fallbackPoll);
+        fallbackPoll = null;
+      }
+    }
+
+    async function initPusher() {
+      if (!API_BASE) return;
+
+      try {
+        const cfgRes = await apiGet(`/api/buzz/pusher-config?room=${encodeURIComponent(roomId)}`);
+        if (!cfgRes.ok || !cfgRes.key || !cfgRes.cluster || !cfgRes.channel) {
+          startFallbackPolling();
+          return;
+        }
+
+        if (!window.Pusher) {
+          startFallbackPolling();
+          return;
+        }
+
+        const authEndpoint = String(cfgRes.authEndpoint || "").startsWith("http")
+          ? cfgRes.authEndpoint
+          : `${API_BASE}${cfgRes.authEndpoint}`;
+
+        window.Pusher.logToConsole = false;
+
+        pusher = new window.Pusher(cfgRes.key, {
+          cluster: cfgRes.cluster,
+          authEndpoint,
+          authTransport: "ajax",
+          channelAuthorization: {
+            endpoint: authEndpoint,
+            transport: "ajax"
+          }
+        });
+
+        channel = pusher.subscribe(cfgRes.channel);
+
+        channel.bind("pusher:subscription_succeeded", () => {
+          fetchState();
+        });
+
+        channel.bind("buzz-updated", (payload) => {
+          applyState(payload);
+        });
+
+        channel.bind("pusher:subscription_error", () => {
+          startFallbackPolling();
+        });
+
+        pusher.connection.bind("error", () => {
+          startFallbackPolling();
+        });
+
+        pusher.connection.bind("disconnected", () => {
+          startFallbackPolling();
+        });
+      } catch (error) {
+        startFallbackPolling();
+      }
+    }
+
+    function destroyPusher() {
+      stopFallbackPolling();
+
+      if (channel) {
+        try { channel.unbind_all(); } catch (e) {}
+        try { pusher.unsubscribe(channel.name); } catch (e) {}
+        channel = null;
+      }
+
+      if (pusher) {
+        try { pusher.disconnect(); } catch (e) {}
+        pusher = null;
+      }
     }
 
     teamOneBtn.addEventListener("click", () => {
@@ -659,16 +1023,27 @@
       updateJoinState();
     });
 
-    continueBtn.addEventListener("click", () => {
+    continueBtn.addEventListener("click", async () => {
       if (continueBtn.disabled) return;
+
+      if (!API_BASE) {
+        const ok = await detectApiBase();
+        if (!ok) {
+          setJoinStatus("تعذر العثور على رابط الباكند الصحيح.", true);
+          return;
+        }
+      }
+
+      const joined = await joinRoom();
+      if (!joined) return;
+
       showBuzzScreen();
+      fetchState();
     });
 
-    buzzBtn.addEventListener("click", () => {
-      if (localBuzzSent) return;
-      localBuzzSent = true;
-      buzzBtn.disabled = true;
-      buzzStatus.textContent = "تم إرسال الضغط. سنربطه بالمقدم في الخطوة القادمة.";
+    buzzBtn.addEventListener("click", async () => {
+      if (buzzBtn.disabled) return;
+      await sendBuzz();
     });
 
     backBtn.addEventListener("click", () => {
@@ -676,13 +1051,6 @@
     });
 
     playerNameInput.value = sessionStorage.getItem("familyfeud_buzz_name") || "";
-    updateJoinState();
-
-    if (selectedTeam && playerNameInput.value.trim()) {
-      showBuzzScreen();
-    } else {
-      showJoinScreen();
-    }
 
     const familyLogo = document.getElementById("familyLogo");
     const familyLogoFallback = document.getElementById("familyLogoFallback");
@@ -708,7 +1076,36 @@
       }, 80);
     });
 
-    updateLayout(true);
+    window.addEventListener("beforeunload", destroyPusher);
+
+    async function bootstrapBuzz() {
+      updateJoinState();
+      updateLayout(true);
+
+      const apiReady = await detectApiBase();
+      if (!apiReady) {
+        setJoinStatus("تعذر الوصول إلى الباكند. تأكد من رابط الـ Worker.", true);
+        showJoinScreen();
+        return;
+      }
+
+      await initPusher();
+      await fetchState();
+
+      if (selectedTeam && playerNameInput.value.trim()) {
+        const joined = await joinRoom();
+        if (joined) {
+          showBuzzScreen();
+          fetchState();
+        } else {
+          showJoinScreen();
+        }
+      } else {
+        showJoinScreen();
+      }
+    }
+
+    bootstrapBuzz();
 
     window.addEventListener("load", () => {
       setTimeout(() => updateLayout(true), 60);
