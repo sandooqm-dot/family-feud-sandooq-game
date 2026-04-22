@@ -3,46 +3,48 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-  <title>Family Feud - Game</title>
+  <title>Family Feud - Game Display</title>
 
   <style>
     :root{
-      --safe-top: env(safe-area-inset-top, 0px);
-      --safe-right: env(safe-area-inset-right, 0px);
-      --safe-bottom: env(safe-area-inset-bottom, 0px);
-      --safe-left: env(safe-area-inset-left, 0px);
+      --app-height:100vh;
+      --app-scale:1;
+      --safari-nudge:34px;
+
+      --bg-1:#2347a5;
+      --bg-2:#2d43a2;
+      --dot:#96aae7;
 
       --gold:#f1d14f;
-      --blue-1:#2633DB;
-      --blue-2:#217DFF;
-      --red:#ef1e2d;
-      --green:#19c63e;
-      --gray-x:#8c8c8c;
-      --panel-border:#1d1d1d;
-      --white:#f4f2ea;
+      --panel-border:#111111;
+      --white:#f6f2e8;
+      --dark:#07173e;
+      --score-black:#000000;
 
-      --app-height: 100vh;
-      --app-scale: 1;
-      --safari-nudge: 34px;
+      --answer-a:#2633DB;
+      --answer-b:#217DFF;
+
+      --strike-off:#8d8d8d;
+      --strike-on:#ff2c3f;
     }
 
     *{
       box-sizing:border-box;
-      -webkit-tap-highlight-color:transparent;
-      user-select:none;
       margin:0;
       padding:0;
+      -webkit-tap-highlight-color:transparent;
+      user-select:none;
     }
 
     html{
       min-height:100%;
-      background:#2f47aa;
+      background:var(--bg-2);
     }
 
     body{
       min-height:100%;
-      background:#2f47aa;
-      font-family: Arial, "Helvetica Neue", sans-serif;
+      background:var(--bg-2);
+      font-family:Arial, "Helvetica Neue", sans-serif;
       -webkit-text-size-adjust:100%;
       text-size-adjust:100%;
       overflow-x:hidden;
@@ -55,8 +57,8 @@
       width:100%;
       min-height:calc(var(--app-height) + var(--safari-nudge));
       background:
-        radial-gradient(circle, rgba(241,177,33,.95) 0 4px, transparent 4.5px) 0 0 / 48px 48px,
-        linear-gradient(180deg, #3a53b6 0%, #2e47a8 100%);
+        radial-gradient(circle, rgba(150,170,231,.95) 0 4px, transparent 4.6px) 0 0 / 48px 48px,
+        linear-gradient(180deg, var(--bg-1) 0%, var(--bg-2) 100%);
     }
 
     .fit-root{
@@ -83,38 +85,228 @@
       direction:rtl;
     }
 
-    .team-panel{
+    .store-logo{
       position:absolute;
-      top:46px;
-      width:300px;
-      height:468px;
-      border-radius:38px;
-      border:9px solid var(--panel-border);
-      background:linear-gradient(90deg, #2c43c4 0%, #071939 100%);
+      top:10px;
+      left:16px;
+      width:138px;
+      height:94px;
+      object-fit:contain;
+      z-index:5;
+    }
+
+    .game-logo{
+      position:absolute;
+      top:8px;
+      right:14px;
+      width:146px;
+      height:86px;
+      object-fit:contain;
+      z-index:5;
+    }
+
+    .question-box{
+      position:absolute;
+      top:34px;
+      left:50%;
+      transform:translateX(-50%);
+      width:840px;
+      height:184px;
+      border-radius:34px;
+      border:6px solid var(--gold);
+      background:linear-gradient(180deg, #0a1d56 0%, #08173d 100%);
+      display:flex;
+      align-items:center;
+      justify-content:center;
       box-shadow:
-        inset 0 0 0 2px rgba(255,255,255,.05),
-        0 10px 25px rgba(0,0,0,.15);
+        inset 0 0 0 1px rgba(255,255,255,.04),
+        0 10px 20px rgba(0,0,0,.08);
+    }
+
+    .question-text{
+      width:100%;
+      padding:0 36px;
+      text-align:center;
+      color:var(--white);
+      font-size:72px;
+      line-height:1.1;
+      font-weight:900;
+      white-space:nowrap;
+      overflow:hidden;
+      text-overflow:ellipsis;
+    }
+
+    .round-box{
+      position:absolute;
+      top:224px;
+      left:50%;
+      transform:translateX(-50%);
+      width:292px;
+      height:118px;
+      border-radius:32px;
+      border:6px solid var(--gold);
+      background:linear-gradient(180deg, #0a1d56 0%, #08173d 100%);
       display:flex;
       flex-direction:column;
       align-items:center;
-      cursor:pointer;
+      justify-content:center;
+      z-index:4;
+      box-shadow:0 8px 16px rgba(0,0,0,.08);
     }
 
-    .team-panel.right{
-      right:28px;
+    .round-label{
+      color:var(--white);
+      font-size:26px;
+      line-height:1;
+      font-weight:900;
+      margin-bottom:8px;
+    }
+
+    .round-score{
+      color:var(--gold);
+      font-size:66px;
+      line-height:1;
+      font-weight:900;
+    }
+
+    .board{
+      position:absolute;
+      top:282px;
+      left:50%;
+      transform:translateX(-50%);
+      width:900px;
+      height:390px;
+      border-radius:38px;
+      border:7px solid var(--gold);
+      background:#2b47ad;
+      box-shadow: inset 0 0 0 1px rgba(255,255,255,.04);
+    }
+
+    .answers-grid{
+      position:absolute;
+      inset:28px 22px 28px 22px;
+      display:grid;
+      grid-template-columns:1fr 1fr;
+      grid-template-rows:repeat(3, 1fr);
+      gap:18px 26px;
+    }
+
+    .answer-slot{
+      position:relative;
+      width:100%;
+      height:100%;
+      border-radius:34px;
+      border:4px solid rgba(246,242,232,.96);
+      background:linear-gradient(180deg, var(--answer-b) 0%, var(--answer-a) 100%);
+      overflow:hidden;
+      box-shadow: inset 0 0 0 1px rgba(255,255,255,.04);
+    }
+
+    .answer-slot.hidden-state{
+      display:flex;
+      align-items:center;
+      justify-content:center;
+    }
+
+    .answer-slot.revealed{
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      padding:0 86px 0 84px;
+    }
+
+    .rank-circle{
+      width:64px;
+      height:64px;
+      border-radius:50%;
+      border:4px solid #d9d9d9;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      color:var(--white);
+      font-size:31px;
+      font-weight:900;
+      background:rgba(7,23,62,.14);
+      box-shadow: inset 0 0 0 1px rgba(255,255,255,.03);
+    }
+
+    .answer-points{
+      position:absolute;
+      left:14px;
+      top:50%;
+      transform:translateY(-50%);
+      width:60px;
+      height:60px;
+      border-radius:50%;
+      border:4px solid #171717;
+      background:var(--gold);
+      color:#000;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      font-size:29px;
+      font-weight:900;
+      line-height:1;
+    }
+
+    .answer-label{
+      width:100%;
+      text-align:center;
+      color:var(--white);
+      font-size:40px;
+      line-height:1;
+      font-weight:900;
+      white-space:nowrap;
+      overflow:hidden;
+      text-overflow:ellipsis;
+      padding:0 10px;
+    }
+
+    .team-panel{
+      position:absolute;
+      top:132px;
+      width:310px;
+      height:492px;
+      border-radius:38px;
+      border:8px solid var(--panel-border);
+      background:linear-gradient(180deg, #0b2270 0%, #091f64 100%);
+      box-shadow:
+        inset 0 0 0 1px rgba(255,255,255,.04),
+        0 10px 22px rgba(0,0,0,.10);
+      display:flex;
+      flex-direction:column;
+      align-items:center;
     }
 
     .team-panel.left{
-      left:28px;
+      left:26px;
+    }
+
+    .team-panel.right{
+      right:26px;
+    }
+
+    .team-name{
+      margin-top:36px;
+      width:100%;
+      padding:0 18px;
+      text-align:center;
+      color:var(--white);
+      font-size:58px;
+      line-height:1.05;
+      font-weight:900;
+      white-space:nowrap;
+      overflow:hidden;
+      text-overflow:ellipsis;
     }
 
     .team-score-box{
-      margin-top:22px;
+      margin-top:34px;
       width:212px;
       height:118px;
       border-radius:34px;
       border:5px solid var(--gold);
-      background:#000000;
+      background:var(--score-black);
       display:flex;
       align-items:center;
       justify-content:center;
@@ -122,68 +314,24 @@
     }
 
     .team-score{
+      color:var(--gold);
       font-size:92px;
       line-height:1;
       font-weight:900;
-      color:var(--gold);
       transform:translateY(-2px);
     }
 
-    .team-score.bump{
-      animation: scoreBump .28s ease;
-    }
-
-    @keyframes scoreBump{
-      0%{ transform:translateY(-2px) scale(1); }
-      50%{ transform:translateY(-2px) scale(1.14); }
-      100%{ transform:translateY(-2px) scale(1); }
-    }
-
-    .team-info-box{
-      margin-top:18px;
-      width:212px;
-      height:156px;
-      border-radius:28px;
-      border:3px solid rgba(243,242,234,.92);
-      background:linear-gradient(180deg, rgba(44,67,196,.20) 0%, rgba(8,29,97,.16) 100%);
-      display:flex;
-      flex-direction:column;
-      align-items:center;
-      justify-content:center;
-      padding:14px 10px;
-      text-align:center;
-    }
-
-    .team-name-display{
-      color:#f6f2e8;
-      font-size:31px;
+    .strikes-label{
+      margin-top:56px;
+      color:var(--white);
+      font-size:22px;
+      line-height:1;
       font-weight:900;
-      line-height:1.2;
-      width:100%;
-      white-space:nowrap;
-      overflow:hidden;
-      text-overflow:ellipsis;
+      opacity:.95;
     }
 
-    .team-player-display{
-      color:var(--gold);
-      font-size:28px;
-      font-weight:900;
-      line-height:1.2;
-      min-height:36px;
-      margin-top:12px;
-      width:100%;
-      white-space:nowrap;
-      overflow:hidden;
-      text-overflow:ellipsis;
-    }
-
-    .team-player-display.empty{
-      opacity:0;
-    }
-
-    .team-strikes{
-      margin-top:26px;
+    .strikes-row{
+      margin-top:20px;
       display:flex;
       gap:18px;
       align-items:center;
@@ -195,437 +343,137 @@
       font-size:88px;
       line-height:1;
       font-weight:900;
-      color:var(--gray-x);
-      opacity:.95;
-      transform:scale(.92);
-      transition:transform .18s ease, color .18s ease, opacity .18s ease;
-      text-shadow:0 2px 0 rgba(0,0,0,.12);
+      color:var(--strike-off);
+      transform:scale(.95);
+      text-shadow:0 2px 0 rgba(0,0,0,.10);
     }
 
     .strike.active{
-      color:var(--red);
-      opacity:1;
-      transform:scale(1);
-      text-shadow:0 0 14px rgba(255,0,0,.18);
+      color:var(--strike-on);
     }
 
-    .question-box{
-      position:absolute;
-      top:30px;
-      left:50%;
-      transform:translateX(-50%);
-      width:900px;
-      height:150px;
-      border-radius:36px;
-      border:5px solid var(--gold);
-      background:linear-gradient(180deg, #0b1d4a 0%, #08173c 100%);
-      display:flex;
-      align-items:center;
-      justify-content:center;
-      box-shadow: inset 0 0 0 1px rgba(255,255,255,.03);
+    body.portrait .game-shell{
+      width:768px;
+      height:1366px;
     }
 
-    .question-text{
-      font-size:55px;
-      font-weight:900;
-      text-align:center;
-      line-height:1.15;
-      color:#f4f2e8;
-      padding:0 34px;
-      white-space:nowrap;
-      overflow:hidden;
-      text-overflow:ellipsis;
+    body.portrait .store-logo{
+      top:12px;
+      left:14px;
+      width:120px;
+      height:86px;
     }
 
-    .round-box{
-      position:absolute;
-      top:196px;
-      left:50%;
-      transform:translateX(-50%);
-      width:252px;
-      height:104px;
-      border-radius:32px;
-      border:5px solid var(--gold);
-      background:linear-gradient(180deg, #0b1d4a 0%, #08173c 100%);
-      display:flex;
-      flex-direction:column;
-      align-items:center;
-      justify-content:center;
-      z-index:5;
-      box-shadow:0 8px 18px rgba(0,0,0,.12);
-      cursor:pointer;
-      transition:transform .15s ease, filter .15s ease;
+    body.portrait .game-logo{
+      top:10px;
+      right:14px;
+      width:132px;
+      height:80px;
     }
 
-    .round-box:hover{
-      transform:translateX(-50%) translateY(-1px);
-      filter:brightness(1.04);
+    body.portrait .question-box{
+      top:108px;
+      width:700px;
+      height:170px;
     }
 
-    .round-label{
-      font-size:22px;
-      font-weight:900;
-      line-height:1;
-      color:var(--gold);
-      margin-bottom:8px;
-    }
-
-    .round-score{
+    body.portrait .question-text{
       font-size:56px;
-      line-height:1;
-      font-weight:900;
-      color:#f6f2e8;
-      transform:translateY(-2px);
     }
 
-    .board{
-      position:absolute;
-      top:280px;
-      left:50%;
-      transform:translateX(-50%);
-      width:900px;
-      height:370px;
-      border-radius:38px;
-      border:6px solid var(--gold);
-      background:#2446AB;
-      box-shadow: inset 0 0 0 1px rgba(255,255,255,.05);
+    body.portrait .round-box{
+      top:274px;
+      width:248px;
+      height:106px;
     }
 
-    .answers-grid{
-      position:absolute;
-      inset:28px 18px 28px 18px;
-      z-index:2;
-      display:grid;
-      grid-template-columns:1fr 1fr;
-      grid-template-rows:repeat(3, 1fr);
-      gap:18px 28px;
+    body.portrait .round-label{
+      font-size:22px;
     }
 
-    .answer-slot{
-      border:none;
-      background:none;
-      padding:0;
-      margin:0;
-      cursor:pointer;
-      perspective:1400px;
-      width:100%;
-      height:100%;
+    body.portrait .round-score{
+      font-size:58px;
     }
 
-    .answer-flip{
-      position:relative;
-      width:100%;
-      height:100%;
-      transform-style:preserve-3d;
-      transition:transform .6s cubic-bezier(.22,1,.36,1);
-      transform-origin:center center;
+    body.portrait .board{
+      top:342px;
+      width:700px;
+      height:418px;
     }
 
-    .answer-slot.revealed .answer-flip{
-      transform:rotateY(180deg);
+    body.portrait .answers-grid{
+      inset:24px 18px 24px 18px;
+      gap:16px 20px;
     }
 
-    .answer-face{
-      position:absolute;
-      inset:0;
-      width:100%;
-      height:100%;
-      border-radius:34px;
-      border:4px solid rgba(243,242,234,.96);
-      background:linear-gradient(90deg, var(--blue-1) 0%, var(--blue-2) 100%);
-      backface-visibility:hidden;
-      -webkit-backface-visibility:hidden;
-      overflow:hidden;
-    }
-
-    .answer-back{
-      display:flex;
-      align-items:center;
-      justify-content:center;
-    }
-
-    .answer-front{
-      transform:rotateY(180deg);
-      display:flex;
-      align-items:center;
-      justify-content:center;
-      position:relative;
-      padding:0 78px 0 78px;
-    }
-
-    .rank-circle{
-      width:62px;
-      height:62px;
-      border-radius:50%;
-      border:4px solid #D9D9D9;
-      display:flex;
-      align-items:center;
-      justify-content:center;
-      color:#f5f2e8;
-      font-size:31px;
-      font-weight:900;
-      background:rgba(22,40,105,.18);
-    }
-
-    .answer-points{
-      position:absolute;
-      left:16px;
-      top:50%;
-      transform:translateY(-50%);
-      width:58px;
-      height:58px;
-      border-radius:50%;
-      background:var(--gold);
-      color:#000;
-      border:4px solid #171717;
-      display:flex;
-      align-items:center;
-      justify-content:center;
-      font-size:27px;
-      font-weight:900;
-      line-height:1;
-      box-shadow:0 4px 10px rgba(0,0,0,.16);
-    }
-
-    .answer-label{
-      width:100%;
-      text-align:center;
-      font-size:40px;
-      line-height:1;
-      font-weight:900;
-      color:#f5f2e8;
-      white-space:nowrap;
-      overflow:hidden;
-      text-overflow:ellipsis;
-      padding:0 10px;
-    }
-
-    .nav-btn{
-      position:absolute;
-      bottom:18px;
-      width:200px;
-      height:92px;
-      border-radius:34px;
-      border:5px solid rgba(243,242,234,.96);
-      background:#2446AB;
-      color:#f5f2e8;
-      font-size:40px;
-      font-weight:900;
-      line-height:1;
-      cursor:pointer;
-      transition:transform .15s ease, opacity .15s ease, filter .15s ease;
-    }
-
-    .nav-btn:hover{
-      transform:translateY(-1px);
-      filter:brightness(1.04);
-    }
-
-    .nav-btn:disabled{
-      opacity:.55;
-      cursor:default;
-      transform:none;
-      filter:none;
-    }
-
-    .nav-btn.prev{
-      left:10px;
-    }
-
-    .nav-btn.next{
-      right:18px;
-      width:190px;
-    }
-
-    .buzz-toggle-btn{
-      position:absolute;
-      bottom:18px;
-      right:228px;
-      width:178px;
-      height:92px;
-      border-radius:34px;
-      border:5px solid #111111;
-      color:#ffffff;
-      font-size:38px;
-      font-weight:900;
-      line-height:1;
-      cursor:pointer;
-      transition:transform .15s ease, filter .15s ease, background .15s ease, opacity .15s ease;
-      box-shadow:0 8px 18px rgba(0,0,0,.18);
-    }
-
-    .buzz-toggle-btn:hover{
-      transform:translateY(-1px);
-      filter:brightness(1.04);
-    }
-
-    .buzz-toggle-btn:active{
-      transform:scale(.985);
-    }
-
-    .buzz-toggle-btn:disabled{
-      opacity:.72;
-      cursor:default;
-      transform:none;
-      filter:none;
-    }
-
-    .buzz-toggle-btn.on{
-      background:linear-gradient(180deg, #27db4f 0%, #0aa830 100%);
-    }
-
-    .buzz-toggle-btn.off{
-      background:linear-gradient(180deg, #ff3342 0%, #d81424 100%);
-    }
-
-    .overlay{
-      position:absolute;
-      inset:0;
-      display:flex;
-      flex-direction:column;
-      align-items:center;
-      justify-content:center;
-      pointer-events:none;
-      opacity:0;
-      z-index:999;
-    }
-
-    .overlay.show{
-      opacity:1;
-    }
-
-    .overlay-x{
-      font-size:360px;
-      font-weight:900;
-      line-height:1;
-      color:var(--red);
-      text-shadow:
-        0 0 18px rgba(255,0,0,.22),
-        0 8px 18px rgba(0,0,0,.20);
-      transform:scale(.18);
-      opacity:0;
-    }
-
-    .overlay.show .overlay-x{
-      animation: popX .42s cubic-bezier(.22,1.2,.36,1) forwards;
-    }
-
-    @keyframes popX{
-      0%{
-        transform:scale(.18);
-        opacity:0;
-      }
-      65%{
-        transform:scale(1.08);
-        opacity:1;
-      }
-      100%{
-        transform:scale(1);
-        opacity:1;
-      }
-    }
-
-    .transfer-box{
-      margin-top:10px;
-      min-width:340px;
-      max-width:80vw;
-      min-height:76px;
-      padding:16px 28px;
+    body.portrait .answer-slot{
       border-radius:28px;
-      border:4px solid var(--gold);
-      background:linear-gradient(180deg, #0b1d4a 0%, #08173c 100%);
-      color:#f5f2e8;
-      display:flex;
-      align-items:center;
-      justify-content:center;
-      text-align:center;
-      font-size:30px;
-      font-weight:900;
-      line-height:1.2;
-      opacity:0;
-      transform:translateY(-10px) scale(.9);
     }
 
-    .overlay.transfer .transfer-box{
-      animation: showTransfer .22s ease .12s forwards;
+    body.portrait .answer-slot.revealed{
+      padding:0 74px 0 72px;
     }
 
-    @keyframes showTransfer{
-      to{
-        opacity:1;
-        transform:translateY(0) scale(1);
-      }
-    }
-
-    .award-overlay{
-      position:absolute;
-      inset:0;
-      z-index:1300;
-      display:flex;
-      align-items:center;
-      justify-content:center;
-      background:rgba(3, 10, 34, .42);
-      opacity:0;
-      pointer-events:none;
-      transition:opacity .18s ease;
-    }
-
-    .award-overlay.show{
-      opacity:1;
-      pointer-events:auto;
-    }
-
-    .award-modal{
-      width:480px;
-      max-width:90%;
-      border-radius:30px;
-      border:5px solid var(--gold);
-      background:linear-gradient(180deg, #0b1d4a 0%, #08173c 100%);
-      box-shadow:0 20px 40px rgba(0,0,0,.28);
-      padding:24px 22px 22px;
-      color:#f5f2e8;
-      text-align:center;
-    }
-
-    .award-title{
-      font-size:34px;
-      font-weight:900;
-      line-height:1.2;
-      margin-bottom:8px;
-    }
-
-    .award-subtitle{
-      font-size:24px;
-      font-weight:800;
-      color:var(--gold);
-      margin-bottom:18px;
-    }
-
-    .award-actions{
-      display:grid;
-      grid-template-columns:1fr 1fr;
-      gap:14px;
-    }
-
-    .award-team-btn{
-      min-height:76px;
-      border-radius:24px;
-      border:4px solid rgba(243,242,234,.96);
-      background:linear-gradient(90deg, #2b3fc2 0%, #06204f 100%);
-      color:#f5f2e8;
+    body.portrait .rank-circle{
+      width:56px;
+      height:56px;
       font-size:28px;
-      font-weight:900;
-      cursor:pointer;
-      transition:transform .15s ease, filter .15s ease;
     }
 
-    .award-team-btn:hover{
-      transform:translateY(-1px);
-      filter:brightness(1.05);
+    body.portrait .answer-points{
+      width:54px;
+      height:54px;
+      font-size:25px;
+      left:12px;
     }
 
-    .award-team-btn:active{
-      transform:scale(.98);
+    body.portrait .answer-label{
+      font-size:34px;
+    }
+
+    body.portrait .team-panel{
+      top:150px;
+      width:206px;
+      height:454px;
+      border-radius:32px;
+    }
+
+    body.portrait .team-panel.left{
+      left:14px;
+    }
+
+    body.portrait .team-panel.right{
+      right:14px;
+    }
+
+    body.portrait .team-name{
+      margin-top:28px;
+      font-size:42px;
+    }
+
+    body.portrait .team-score-box{
+      margin-top:28px;
+      width:160px;
+      height:98px;
+      border-radius:28px;
+    }
+
+    body.portrait .team-score{
+      font-size:74px;
+    }
+
+    body.portrait .strikes-label{
+      margin-top:46px;
+      font-size:18px;
+    }
+
+    body.portrait .strikes-row{
+      gap:12px;
+      margin-top:18px;
+    }
+
+    body.portrait .strike{
+      font-size:70px;
     }
   </style>
 </head>
@@ -633,75 +481,55 @@
 
   <main class="page">
     <div class="fit-root">
-      <div class="game-shell" id="gameShell">
+      <div class="game-shell">
 
-        <aside class="team-panel left" id="teamTwoPanel" data-team="1">
-          <div class="team-score-box">
-            <div class="team-score" id="teamTwoScore">0</div>
-          </div>
-
-          <div class="team-info-box">
-            <div class="team-name-display" id="teamTwoNameDisplay">اسم الفريق</div>
-            <div class="team-player-display empty" id="teamTwoPlayerDisplay">—</div>
-          </div>
-
-          <div class="team-strikes" id="teamTwoStrikes">
-            <div class="strike">X</div>
-            <div class="strike">X</div>
-            <div class="strike">X</div>
-          </div>
-        </aside>
+        <img id="storeLogo" class="store-logo" src="logo.PNG" alt="صندوق المسابقات">
+        <img id="gameLogo" class="game-logo" src="logo-family-feud.PNG" alt="فاميلي فيود">
 
         <div class="question-box">
-          <div class="question-text" id="questionText">نص السؤال</div>
+          <div id="questionText" class="question-text">نص السؤال</div>
         </div>
 
-        <div class="round-box" id="roundBox" role="button" tabindex="0" aria-label="منح نقاط الجولة">
+        <div class="round-box">
           <div class="round-label">نقاط الجولة</div>
-          <div class="round-score" id="roundScore">0</div>
+          <div id="roundScore" class="round-score">10</div>
         </div>
 
-        <div class="board">
-          <div class="answers-grid" id="answersGrid"></div>
-        </div>
+        <aside class="team-panel left">
+          <div id="teamTwoName" class="team-name">الأقوياء</div>
 
-        <aside class="team-panel right" id="teamOnePanel" data-team="0">
           <div class="team-score-box">
-            <div class="team-score" id="teamOneScore">0</div>
+            <div id="teamTwoScore" class="team-score">0</div>
           </div>
 
-          <div class="team-info-box">
-            <div class="team-name-display" id="teamOneNameDisplay">اسم الفريق</div>
-            <div class="team-player-display empty" id="teamOnePlayerDisplay">—</div>
-          </div>
+          <div class="strikes-label">الأخطاء</div>
 
-          <div class="team-strikes" id="teamOneStrikes">
-            <div class="strike">X</div>
+          <div id="teamTwoStrikes" class="strikes-row">
+            <div class="strike active">X</div>
             <div class="strike">X</div>
             <div class="strike">X</div>
           </div>
         </aside>
 
-        <button class="nav-btn prev" id="prevBtn" type="button">السابق</button>
-        <button class="buzz-toggle-btn on" id="buzzToggleBtn" type="button">الجرس</button>
-        <button class="nav-btn next" id="nextBtn" type="button">التالي</button>
-
-        <div class="overlay" id="strikeOverlay">
-          <div class="overlay-x">X</div>
-          <div class="transfer-box">السؤال ينتقل للفريق الاخر</div>
+        <div class="board">
+          <div id="answersGrid" class="answers-grid"></div>
         </div>
 
-        <div class="award-overlay" id="awardOverlay">
-          <div class="award-modal">
-            <div class="award-title">لمن تُمنح نقاط الجولة؟</div>
-            <div class="award-subtitle" id="awardSubtitle">النقاط الحالية: 0</div>
+        <aside class="team-panel right">
+          <div id="teamOneName" class="team-name">الأبطال</div>
 
-            <div class="award-actions">
-              <button class="award-team-btn" id="awardTeam1Btn" type="button">الفريق الأول</button>
-              <button class="award-team-btn" id="awardTeam2Btn" type="button">الفريق الثاني</button>
-            </div>
+          <div class="team-score-box">
+            <div id="teamOneScore" class="team-score">0</div>
           </div>
-        </div>
+
+          <div class="strikes-label">الأخطاء</div>
+
+          <div id="teamOneStrikes" class="strikes-row">
+            <div class="strike active">X</div>
+            <div class="strike active">X</div>
+            <div class="strike active">X</div>
+          </div>
+        </aside>
 
       </div>
     </div>
@@ -709,174 +537,105 @@
     <div class="page-spacer" aria-hidden="true"></div>
   </main>
 
-  <script src="https://js.pusher.com/8.4.0/pusher.min.js"></script>
   <script>
-    const DESIGN_WIDTH = 1600;
-    const DESIGN_HEIGHT = 768;
-    const BUZZ_POLL_MS = 500;
-
-    let API_BASE = "";
-    let currentBuzzState = null;
-    let buzzToggleInFlight = false;
-    let pusher = null;
-    let channel = null;
-    let fallbackPoll = null;
+    const LANDSCAPE_WIDTH = 1600;
+    const LANDSCAPE_HEIGHT = 768;
+    const PORTRAIT_WIDTH = 768;
+    const PORTRAIT_HEIGHT = 1366;
 
     const root = document.documentElement;
-    const roomId = getRoomId();
+
+    const teamOneNameEl = document.getElementById("teamOneName");
+    const teamTwoNameEl = document.getElementById("teamTwoName");
+    const teamOneScoreEl = document.getElementById("teamOneScore");
+    const teamTwoScoreEl = document.getElementById("teamTwoScore");
+    const roundScoreEl = document.getElementById("roundScore");
+    const questionTextEl = document.getElementById("questionText");
+    const answersGrid = document.getElementById("answersGrid");
+
+    const strikeRows = {
+      team1: document.querySelectorAll("#teamOneStrikes .strike"),
+      team2: document.querySelectorAll("#teamTwoStrikes .strike")
+    };
 
     const QUESTIONS = [
       {
-        question: "اذكر شيئًا يستخدمه الناس يوميًا",
+        question: "نص السؤال",
         answers: [
-          { text: "الجوال", points: 32 },
-          { text: "المفاتيح", points: 18 },
-          { text: "الماء", points: 14 },
+          { text: "الإجابة الأولى", points: 28 },
+          { text: "الإجابة الثانية", points: 20 },
+          { text: "الإجابة الثالثة", points: 16 },
           { text: "السيارة", points: 10 },
-          { text: "المحفظة", points: 8 },
-          { text: "النظارة", points: 6 }
-        ]
-      },
-      {
-        question: "اذكر شيئًا تجده في المطبخ",
-        answers: [
-          { text: "الثلاجة", points: 28 },
-          { text: "الفرن", points: 20 },
-          { text: "الصحون", points: 16 },
-          { text: "الملاعق", points: 12 },
-          { text: "الكاسات", points: 9 },
-          { text: "القدر", points: 7 }
-        ]
-      },
-      {
-        question: "اذكر شيئًا يحمله الطالب معه",
-        answers: [
-          { text: "الحقيبة", points: 30 },
-          { text: "القلم", points: 18 },
-          { text: "الدفتر", points: 16 },
-          { text: "الكتب", points: 14 },
-          { text: "المقلمة", points: 8 },
-          { text: "الآيباد", points: 6 }
+          { text: "الإجابة الخامسة", points: 8 },
+          { text: "الإجابة السادسة", points: 6 }
         ]
       }
     ];
 
-    const questionStates = QUESTIONS.map(q => ({
-      revealed: new Array(q.answers.length).fill(false),
-      strikes: [0, 0],
-      awardedTo: null,
-      awardedPoints: 0
-    }));
+    const displayState = {
+      currentQuestionIndex: 0,
+      team1Name: sessionStorage.getItem("familyfeud_team1") || "الأبطال",
+      team2Name: sessionStorage.getItem("familyfeud_team2") || "الأقوياء",
+      team1Score: 0,
+      team2Score: 0,
+      team1Strikes: 3,
+      team2Strikes: 1,
+      revealedAnswers: [false, false, false, true, false, false]
+    };
 
-    let currentQuestionIndex = 0;
-    let overlayTimer = null;
-    let buzzEnabled = true;
+    let stableViewport = { width: window.innerWidth, height: window.innerHeight };
+    let stableOrientationPortrait = window.innerHeight > window.innerWidth;
 
-    const questionText = document.getElementById("questionText");
-    const roundScoreEl = document.getElementById("roundScore");
-    const roundBox = document.getElementById("roundBox");
-    const answersGrid = document.getElementById("answersGrid");
-    const strikeOverlay = document.getElementById("strikeOverlay");
-    const prevBtn = document.getElementById("prevBtn");
-    const nextBtn = document.getElementById("nextBtn");
-    const buzzToggleBtn = document.getElementById("buzzToggleBtn");
-
-    const teamOneScoreEl = document.getElementById("teamOneScore");
-    const teamTwoScoreEl = document.getElementById("teamTwoScore");
-
-    const teamOneNameDisplay = document.getElementById("teamOneNameDisplay");
-    const teamTwoNameDisplay = document.getElementById("teamTwoNameDisplay");
-    const teamOnePlayerDisplay = document.getElementById("teamOnePlayerDisplay");
-    const teamTwoPlayerDisplay = document.getElementById("teamTwoPlayerDisplay");
-
-    const awardOverlay = document.getElementById("awardOverlay");
-    const awardSubtitle = document.getElementById("awardSubtitle");
-    const awardTeam1Btn = document.getElementById("awardTeam1Btn");
-    const awardTeam2Btn = document.getElementById("awardTeam2Btn");
-
-    const strikeRows = [
-      document.querySelectorAll("#teamOneStrikes .strike"),
-      document.querySelectorAll("#teamTwoStrikes .strike")
-    ];
-
-    function buildApiCandidates() {
-      const params = new URLSearchParams(window.location.search);
-      const saved = [
-        sessionStorage.getItem("familyfeud_api_base"),
-        localStorage.getItem("familyfeud_api_base"),
-        params.get("api")
-      ].filter(Boolean);
-
-      const candidates = [
-        ...saved,
-        "https://z.sandooq-m.workers.dev",
-        "https://family-feud-buzz.sandooq-m.workers.dev"
-      ];
-
-      if (window.location.hostname.endsWith(".workers.dev")) {
-        candidates.unshift(window.location.origin);
-      }
-
-      return [...new Set(candidates.map(v => String(v || "").trim()).filter(Boolean))];
+    function getCurrentViewport() {
+      const vv = window.visualViewport;
+      return {
+        width: vv ? vv.width : window.innerWidth,
+        height: vv ? vv.height : window.innerHeight
+      };
     }
 
-    async function detectApiBase() {
-      const candidates = buildApiCandidates();
+    function updateStableViewport() {
+      const vp = getCurrentViewport();
+      stableViewport = { width: vp.width, height: vp.height };
+      stableOrientationPortrait = vp.height > vp.width;
+    }
 
-      for (const candidate of candidates) {
-        try {
-          const response = await fetch(`${candidate}/api/buzz/state?room=${encodeURIComponent(roomId)}`, {
-            method: "GET",
-            cache: "no-store",
-            headers: {
-              "Accept": "application/json",
-              "Cache-Control": "no-cache"
-            }
-          });
+    function applyOrientationClass() {
+      document.body.classList.toggle("portrait", stableOrientationPortrait);
+    }
 
-          const data = await response.json().catch(() => null);
-          if (!response.ok || !data || !data.state) continue;
-
-          API_BASE = candidate;
-          sessionStorage.setItem("familyfeud_api_base", candidate);
-          localStorage.setItem("familyfeud_api_base", candidate);
-          return true;
-        } catch (error) {}
+    function getDesignSize() {
+      if (document.body.classList.contains("portrait")) {
+        return { width: PORTRAIT_WIDTH, height: PORTRAIT_HEIGHT };
       }
-
-      API_BASE = "";
-      return false;
+      return { width: LANDSCAPE_WIDTH, height: LANDSCAPE_HEIGHT };
     }
 
     function setAppHeight() {
-      const h = window.visualViewport && window.visualViewport.height
-        ? window.visualViewport.height
-        : window.innerHeight;
-      root.style.setProperty("--app-height", h + "px");
+      updateStableViewport();
+      root.style.setProperty("--app-height", stableViewport.height + "px");
     }
 
     function fitGameToViewport() {
-      const vv = window.visualViewport;
-      const vw = vv ? vv.width : window.innerWidth;
-      const vh = vv ? vv.height : window.innerHeight;
+      updateStableViewport();
 
+      const { width, height } = getDesignSize();
       const horizontalPadding = 8;
       const verticalPadding = 8;
 
-      const usableWidth = vw - horizontalPadding;
-      const usableHeight = vh - verticalPadding;
+      const usableWidth = stableViewport.width - horizontalPadding;
+      const usableHeight = stableViewport.height - verticalPadding;
 
       const scale = Math.min(
-        usableWidth / DESIGN_WIDTH,
-        usableHeight / DESIGN_HEIGHT
+        usableWidth / width,
+        usableHeight / height
       );
 
       root.style.setProperty("--app-scale", String(scale));
     }
 
     function nudgeSafariBar() {
-      const vv = window.visualViewport;
-      const visibleHeight = vv ? vv.height : window.innerHeight;
+      const visibleHeight = stableViewport.height;
       const fullHeight = Math.max(
         document.body.scrollHeight,
         document.documentElement.scrollHeight
@@ -890,525 +649,104 @@
     }
 
     function updateLayout() {
+      applyOrientationClass();
       setAppHeight();
+
       requestAnimationFrame(() => {
         fitGameToViewport();
         nudgeSafariBar();
       });
     }
 
-    function normalizeRoom(value) {
-      return String(value || "").trim().toLowerCase().replace(/[^a-z0-9_-]/g, "").slice(0, 64);
-    }
-
-    function getRoomId() {
-      const url = new URL(window.location.href);
-      const fromQuery = normalizeRoom(url.searchParams.get("room"));
-      const fromStorage = normalizeRoom(sessionStorage.getItem("familyfeud_room"));
-      const room = fromQuery || fromStorage || "family-feud-demo";
-      sessionStorage.setItem("familyfeud_room", room);
-      return room;
-    }
-
     function getCurrentQuestion() {
-      return QUESTIONS[currentQuestionIndex];
+      return QUESTIONS[displayState.currentQuestionIndex] || QUESTIONS[0];
     }
 
-    function getCurrentState() {
-      return questionStates[currentQuestionIndex];
-    }
-
-    function getCurrentRoundPoints() {
+    function getRoundPoints() {
       const question = getCurrentQuestion();
-      const state = getCurrentState();
-
       return question.answers.reduce((sum, answer, index) => {
-        return state.revealed[index] ? sum + answer.points : sum;
+        return displayState.revealedAnswers[index] ? sum + answer.points : sum;
       }, 0);
     }
 
-    function updateRoundScore() {
-      roundScoreEl.textContent = getCurrentRoundPoints();
-    }
-
-    function updateTeamScores() {
-      const totals = [0, 0];
-
-      questionStates.forEach(state => {
-        if (state.awardedTo !== null) {
-          totals[state.awardedTo] += state.awardedPoints || 0;
-        }
+    function applyStrikeRow(elements, activeCount) {
+      elements.forEach((el, index) => {
+        el.classList.toggle("active", index < activeCount);
       });
-
-      teamOneScoreEl.textContent = totals[0];
-      teamTwoScoreEl.textContent = totals[1];
-    }
-
-    function bumpTeamScore(teamIndex) {
-      const target = teamIndex === 0 ? teamOneScoreEl : teamTwoScoreEl;
-      target.classList.remove("bump");
-      void target.offsetWidth;
-      target.classList.add("bump");
-    }
-
-    function updateStrikeRows() {
-      const state = getCurrentState();
-
-      strikeRows.forEach((row, teamIndex) => {
-        row.forEach((strikeEl, index) => {
-          strikeEl.classList.toggle("active", index < state.strikes[teamIndex]);
-        });
-      });
-    }
-
-    function updateNavButtons() {
-      prevBtn.disabled = currentQuestionIndex === 0;
-      nextBtn.disabled = currentQuestionIndex === QUESTIONS.length - 1;
-    }
-
-    function applyTeamNamesFromSession() {
-      const team1 = (sessionStorage.getItem("familyfeud_team1") || "").trim();
-      const team2 = (sessionStorage.getItem("familyfeud_team2") || "").trim();
-
-      teamOneNameDisplay.textContent = team1 || "اسم الفريق";
-      teamTwoNameDisplay.textContent = team2 || "اسم الفريق";
-    }
-
-    function clearBuzzWinnerStorage() {
-      sessionStorage.removeItem("familyfeud_buzz_first_team");
-      sessionStorage.removeItem("familyfeud_buzz_first_name");
-    }
-
-    function clearBuzzWinnerDisplays() {
-      teamOnePlayerDisplay.textContent = "";
-      teamTwoPlayerDisplay.textContent = "";
-      teamOnePlayerDisplay.classList.add("empty");
-      teamTwoPlayerDisplay.classList.add("empty");
-    }
-
-    function applyBuzzWinnerFromSession() {
-      clearBuzzWinnerDisplays();
-
-      const firstTeam = (sessionStorage.getItem("familyfeud_buzz_first_team") || "").trim();
-      const firstName = (sessionStorage.getItem("familyfeud_buzz_first_name") || "").trim();
-
-      if (!firstTeam || !firstName) return;
-
-      if (firstTeam === "team1") {
-        teamOnePlayerDisplay.textContent = firstName;
-        teamOnePlayerDisplay.classList.remove("empty");
-      }
-
-      if (firstTeam === "team2") {
-        teamTwoPlayerDisplay.textContent = firstName;
-        teamTwoPlayerDisplay.classList.remove("empty");
-      }
-    }
-
-    function applyBuzzState(state) {
-      currentBuzzState = state || null;
-      clearBuzzWinnerDisplays();
-
-      if (!currentBuzzState) {
-        updateBuzzButton();
-        return;
-      }
-
-      buzzEnabled = !!currentBuzzState.enabled;
-      sessionStorage.setItem("familyfeud_buzz_enabled_presenter", buzzEnabled ? "1" : "0");
-
-      if (currentBuzzState.firstBuzz && currentBuzzState.firstBuzz.team && currentBuzzState.firstBuzz.name) {
-        const firstTeam = currentBuzzState.firstBuzz.team;
-        const firstName = currentBuzzState.firstBuzz.name;
-
-        sessionStorage.setItem("familyfeud_buzz_first_team", firstTeam);
-        sessionStorage.setItem("familyfeud_buzz_first_name", firstName);
-
-        if (firstTeam === "team1") {
-          teamOnePlayerDisplay.textContent = firstName;
-          teamOnePlayerDisplay.classList.remove("empty");
-        }
-
-        if (firstTeam === "team2") {
-          teamTwoPlayerDisplay.textContent = firstName;
-          teamTwoPlayerDisplay.classList.remove("empty");
-        }
-      } else {
-        clearBuzzWinnerStorage();
-      }
-
-      updateBuzzButton();
-    }
-
-    function updateBuzzButton() {
-      buzzToggleBtn.classList.toggle("on", buzzEnabled);
-      buzzToggleBtn.classList.toggle("off", !buzzEnabled);
-      buzzToggleBtn.textContent = "الجرس";
-      buzzToggleBtn.disabled = buzzToggleInFlight;
-    }
-
-    function syncAwardedPointsWithCurrentQuestion() {
-      const state = getCurrentState();
-      if (state.awardedTo !== null) {
-        state.awardedPoints = getCurrentRoundPoints();
-        updateTeamScores();
-      }
-    }
-
-    function renderQuestion() {
-      const question = getCurrentQuestion();
-      questionText.textContent = question.question;
-      renderAnswers();
-      updateStrikeRows();
-      updateRoundScore();
-      updateNavButtons();
-      closeAwardModal();
     }
 
     function renderAnswers() {
       const question = getCurrentQuestion();
-      const state = getCurrentState();
+      const positions = [
+        { row: 1, col: 2 },
+        { row: 1, col: 1 },
+        { row: 2, col: 2 },
+        { row: 2, col: 1 },
+        { row: 3, col: 2 },
+        { row: 3, col: 1 }
+      ];
 
       answersGrid.innerHTML = "";
 
       question.answers.forEach((answer, index) => {
-        const slot = document.createElement("button");
-        slot.type = "button";
-        slot.className = "answer-slot" + (state.revealed[index] ? " revealed" : "");
-        slot.dataset.index = index;
+        const slot = document.createElement("div");
+        const revealed = !!displayState.revealedAnswers[index];
 
-        slot.innerHTML = `
-          <div class="answer-flip">
-            <div class="answer-face answer-back">
-              <div class="rank-circle">${index + 1}</div>
-            </div>
-            <div class="answer-face answer-front">
-              <div class="answer-points">${answer.points}</div>
-              <div class="answer-label">${answer.text}</div>
-            </div>
-          </div>
-        `;
+        slot.className = "answer-slot " + (revealed ? "revealed" : "hidden-state");
+        slot.style.gridRow = positions[index].row;
+        slot.style.gridColumn = positions[index].col;
 
-        slot.addEventListener("click", () => {
-          revealSpecific(index);
-        });
+        if (revealed) {
+          slot.innerHTML = `
+            <div class="answer-points">${answer.points}</div>
+            <div class="answer-label">${answer.text}</div>
+          `;
+        } else {
+          slot.innerHTML = `<div class="rank-circle">${index + 1}</div>`;
+        }
 
         answersGrid.appendChild(slot);
       });
-
-      updateRoundScore();
     }
 
-    function revealSpecific(index) {
-      const state = getCurrentState();
-      if (state.revealed[index]) return;
+    function renderDisplay() {
+      const question = getCurrentQuestion();
 
-      state.revealed[index] = true;
+      teamOneNameEl.textContent = displayState.team1Name || "الأبطال";
+      teamTwoNameEl.textContent = displayState.team2Name || "الأقوياء";
+
+      teamOneScoreEl.textContent = displayState.team1Score;
+      teamTwoScoreEl.textContent = displayState.team2Score;
+
+      questionTextEl.textContent = question.question;
+      roundScoreEl.textContent = getRoundPoints();
+
+      applyStrikeRow(strikeRows.team1, displayState.team1Strikes);
+      applyStrikeRow(strikeRows.team2, displayState.team2Strikes);
+
       renderAnswers();
-      syncAwardedPointsWithCurrentQuestion();
     }
 
-    function goToQuestion(index) {
-      if (index < 0 || index >= QUESTIONS.length) return;
-      currentQuestionIndex = index;
-      renderQuestion();
-    }
-
-    function goNextQuestion() {
-      if (currentQuestionIndex >= QUESTIONS.length - 1) return;
-      goToQuestion(currentQuestionIndex + 1);
-    }
-
-    function goPrevQuestion() {
-      if (currentQuestionIndex <= 0) return;
-      goToQuestion(currentQuestionIndex - 1);
-    }
-
-    function showStrikeOverlay(isThirdStrike) {
-      clearTimeout(overlayTimer);
-
-      strikeOverlay.classList.remove("show", "transfer");
-      void strikeOverlay.offsetWidth;
-
-      strikeOverlay.classList.add("show");
-      if (isThirdStrike) {
-        strikeOverlay.classList.add("transfer");
-      }
-
-      overlayTimer = setTimeout(() => {
-        strikeOverlay.classList.remove("show", "transfer");
-      }, isThirdStrike ? 1500 : 900);
-    }
-
-    function addOrResetStrike(teamIndex) {
-      const state = getCurrentState();
-
-      if (state.strikes[teamIndex] >= 3) {
-        state.strikes[teamIndex] = 0;
-        updateStrikeRows();
-        return;
-      }
-
-      state.strikes[teamIndex] += 1;
-      updateStrikeRows();
-
-      const isThirdStrike = state.strikes[teamIndex] === 3;
-      showStrikeOverlay(isThirdStrike);
-    }
-
-    function openAwardModal() {
-      const points = getCurrentRoundPoints();
-      awardSubtitle.textContent = `النقاط الحالية: ${points}`;
-      awardTeam1Btn.textContent = teamOneNameDisplay.textContent.trim() || "الفريق الأول";
-      awardTeam2Btn.textContent = teamTwoNameDisplay.textContent.trim() || "الفريق الثاني";
-      awardOverlay.classList.add("show");
-    }
-
-    function closeAwardModal() {
-      awardOverlay.classList.remove("show");
-    }
-
-    function awardRoundToTeam(teamIndex) {
-      const state = getCurrentState();
-      state.awardedTo = teamIndex;
-      state.awardedPoints = getCurrentRoundPoints();
-      updateTeamScores();
-      bumpTeamScore(teamIndex);
-      closeAwardModal();
-    }
-
-    async function apiGet(path) {
-      if (!API_BASE) {
-        const ok = await detectApiBase();
-        if (!ok) throw new Error("API_BASE_NOT_FOUND");
-      }
-
-      const response = await fetch(`${API_BASE}${path}`, {
-        method: "GET",
-        cache: "no-store",
-        headers: {
-          "Accept": "application/json",
-          "Cache-Control": "no-cache"
-        }
-      });
-
-      const data = await response.json().catch(() => ({}));
-
-      if (!response.ok) {
-        throw new Error(data.error || "GET_REQUEST_FAILED");
-      }
-
-      return data;
-    }
-
-    async function apiPost(path, payload) {
-      if (!API_BASE) {
-        const ok = await detectApiBase();
-        if (!ok) throw new Error("API_BASE_NOT_FOUND");
-      }
-
-      const response = await fetch(`${API_BASE}${path}`, {
-        method: "POST",
-        cache: "no-store",
-        headers: {
-          "Content-Type": "application/json",
-          "Accept": "application/json",
-          "Cache-Control": "no-cache"
-        },
-        body: JSON.stringify(payload || {})
-      });
-
-      const data = await response.json().catch(() => ({}));
-      return { ok: response.ok, status: response.status, data };
-    }
-
-    async function fetchBuzzState() {
-      try {
-        const res = await apiGet(`/api/buzz/state?room=${encodeURIComponent(roomId)}`);
-        applyBuzzState(res.state);
-      } catch (error) {
-        updateBuzzButton();
-      }
-    }
-
-    async function toggleBuzzRemote() {
-      if (buzzToggleInFlight) return;
-
-      const desiredEnabled = !buzzEnabled;
-
-      buzzToggleInFlight = true;
-      updateBuzzButton();
-
-      try {
-        const res = await apiPost(`/api/buzz/toggle?room=${encodeURIComponent(roomId)}`, {
-          enabled: desiredEnabled
-        });
-
-        if (res.ok && res.data && res.data.state) {
-          applyBuzzState(res.data.state);
-        } else {
-          await fetchBuzzState();
-        }
-      } catch (error) {
-        await fetchBuzzState();
-      } finally {
-        buzzToggleInFlight = false;
-        updateBuzzButton();
-      }
-    }
-
-    function startFallbackPolling() {
-      stopFallbackPolling();
-      fallbackPoll = setInterval(() => {
-        fetchBuzzState();
-      }, BUZZ_POLL_MS);
-    }
-
-    function stopFallbackPolling() {
-      if (fallbackPoll) {
-        clearInterval(fallbackPoll);
-        fallbackPoll = null;
-      }
-    }
-
-    async function initPusher() {
-      try {
-        const cfgRes = await apiGet(`/api/buzz/pusher-config?room=${encodeURIComponent(roomId)}`);
-
-        if (!cfgRes.ok || !cfgRes.key || !cfgRes.cluster || !cfgRes.channel || !window.Pusher) {
-          return;
-        }
-
-        const authEndpoint = String(cfgRes.authEndpoint || "").startsWith("http")
-          ? cfgRes.authEndpoint
-          : `${API_BASE}${cfgRes.authEndpoint}`;
-
-        window.Pusher.logToConsole = false;
-
-        pusher = new window.Pusher(cfgRes.key, {
-          cluster: cfgRes.cluster,
-          authEndpoint,
-          authTransport: "ajax",
-          channelAuthorization: {
-            endpoint: authEndpoint,
-            transport: "ajax"
-          }
-        });
-
-        channel = pusher.subscribe(cfgRes.channel);
-
-        channel.bind("pusher:subscription_succeeded", () => {
-          fetchBuzzState();
-        });
-
-        channel.bind("buzz-updated", (payload) => {
-          applyBuzzState(payload);
-        });
-
-        channel.bind("pusher:subscription_error", () => {});
-        pusher.connection.bind("error", () => {});
-        pusher.connection.bind("disconnected", () => {});
-      } catch (error) {}
-    }
-
-    function destroyPusher() {
-      stopFallbackPolling();
-
-      if (channel) {
-        try { channel.unbind_all(); } catch (e) {}
-        try { pusher.unsubscribe(channel.name); } catch (e) {}
-        channel = null;
-      }
-
-      if (pusher) {
-        try { pusher.disconnect(); } catch (e) {}
-        pusher = null;
-      }
-    }
-
-    document.getElementById("teamOnePanel").addEventListener("click", () => {
-      addOrResetStrike(0);
+    const storeLogo = document.getElementById("storeLogo");
+    storeLogo.addEventListener("error", () => {
+      storeLogo.style.display = "none";
     });
 
-    document.getElementById("teamTwoPanel").addEventListener("click", () => {
-      addOrResetStrike(1);
+    const gameLogo = document.getElementById("gameLogo");
+    gameLogo.addEventListener("error", () => {
+      gameLogo.style.display = "none";
     });
 
-    prevBtn.addEventListener("click", goPrevQuestion);
-    nextBtn.addEventListener("click", goNextQuestion);
-    buzzToggleBtn.addEventListener("click", toggleBuzzRemote);
-
-    roundBox.addEventListener("click", openAwardModal);
-    roundBox.addEventListener("keydown", (event) => {
-      if (event.key === "Enter" || event.key === " ") {
-        event.preventDefault();
-        openAwardModal();
-      }
-    });
-
-    awardTeam1Btn.addEventListener("click", () => {
-      awardRoundToTeam(0);
-    });
-
-    awardTeam2Btn.addEventListener("click", () => {
-      awardRoundToTeam(1);
-    });
-
-    awardOverlay.addEventListener("click", (event) => {
-      if (event.target === awardOverlay) {
-        closeAwardModal();
-      }
-    });
-
-    document.addEventListener("keydown", (event) => {
-      if (event.key === "Escape") {
-        closeAwardModal();
-      }
-    });
-
-    window.addEventListener("beforeunload", destroyPusher);
-
-    async function bootstrapGame() {
-      applyTeamNamesFromSession();
-      applyBuzzWinnerFromSession();
-
-      const storedBuzzEnabled = sessionStorage.getItem("familyfeud_buzz_enabled_presenter");
-      buzzEnabled = storedBuzzEnabled === "0" ? false : true;
-
-      updateBuzzButton();
-      updateLayout();
-      updateTeamScores();
-      renderQuestion();
-
-      await detectApiBase();
-      startFallbackPolling();
-      fetchBuzzState();
-      initPusher();
-    }
-
-    bootstrapGame();
-
-    window.addEventListener("pageshow", () => {
-      applyTeamNamesFromSession();
-      applyBuzzWinnerFromSession();
-      fetchBuzzState();
-    });
-
-    window.addEventListener("focus", () => {
-      applyTeamNamesFromSession();
-      applyBuzzWinnerFromSession();
-      fetchBuzzState();
-    });
+    renderDisplay();
+    updateLayout();
 
     window.addEventListener("load", () => {
-      applyTeamNamesFromSession();
-      applyBuzzWinnerFromSession();
-      fetchBuzzState();
       setTimeout(updateLayout, 60);
       setTimeout(updateLayout, 220);
     }, { passive: true });
 
     window.addEventListener("resize", updateLayout, { passive: true });
+
     window.addEventListener("orientationchange", () => {
       setTimeout(updateLayout, 80);
       setTimeout(updateLayout, 250);
