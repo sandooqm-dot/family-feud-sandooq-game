@@ -465,8 +465,8 @@
           </div>
 
           <div class="actions-grid">
-            <button id="answersBtn" class="action-btn" type="button">باركود الإجابات</button>
-            <button id="buzzBtn" class="action-btn" type="button">باركود الأجراس</button>
+            <button id="answersBtn" class="action-btn" type="button">لوحة المضيف</button>
+            <button id="buzzBtn" class="action-btn" type="button">زر الجرس</button>
             <button id="guideBtn" class="action-btn" type="button">التعليمات</button>
             <button class="action-btn" type="button" disabled>الرئيسية</button>
           </div>
@@ -477,9 +477,9 @@
             <div class="modal-title">التعليمات</div>
             <div class="modal-text">
               اكتب اسم كل فريق في الخانة الخاصة به.<br>
-              ثم اضغط ابدأ للدخول إلى صفحة اللعب.<br>
-              استخدم باركود الإجابات لعرض صفحة الإجابات.<br>
-              واستخدم باركود الأجراس لإدخال اللاعبين إلى صفحة الجرس.
+              ثم اضغط ابدأ للدخول إلى صفحة العرض.<br>
+              استخدم لوحة المضيف لفتح صفحة التحكم الكاملة.<br>
+              واستخدم زر الجرس لإدخال اللاعبين إلى صفحة الجرس.
             </div>
             <button class="close-btn" type="button" data-close="guideOverlay">إغلاق</button>
           </div>
@@ -487,7 +487,7 @@
 
         <div id="answersOverlay" class="overlay">
           <div class="modal">
-            <div class="modal-title">باركود الإجابات</div>
+            <div class="modal-title">لوحة المضيف</div>
 
             <div class="answers-card">
               <div class="qr-box">
@@ -506,7 +506,7 @@
 
         <div id="buzzOverlay" class="overlay">
           <div class="modal">
-            <div class="modal-title">باركود الأجراس</div>
+            <div class="modal-title">زر الجرس</div>
 
             <div class="answers-card">
               <div class="qr-box">
@@ -651,16 +651,16 @@
       });
     }
 
-    function buildAnswersLink() {
+    function buildControlLink() {
       const url = new URL(window.location.href);
       const path = url.pathname;
 
       if (/index\.html?$/i.test(path)) {
-        url.pathname = path.replace(/index\.html?$/i, "answers.html");
+        url.pathname = path.replace(/index\.html?$/i, "control.html");
       } else if (path.endsWith("/")) {
-        url.pathname = path + "answers.html";
+        url.pathname = path + "control.html";
       } else {
-        url.pathname = path.replace(/\/[^/]*$/, "/answers.html");
+        url.pathname = path.replace(/\/[^/]*$/, "/control.html");
       }
 
       url.search = "";
@@ -685,12 +685,12 @@
       return url.toString();
     }
 
-    const ANSWERS_LINK = buildAnswersLink();
+    const CONTROL_LINK = buildControlLink();
     const BUZZ_LINK = buildBuzzLink();
 
     function updateAnswersBox() {
-      answersLinkInput.value = ANSWERS_LINK;
-      qrImage.src = "https://api.qrserver.com/v1/create-qr-code/?size=260x260&data=" + encodeURIComponent(ANSWERS_LINK);
+      answersLinkInput.value = CONTROL_LINK;
+      qrImage.src = "https://api.qrserver.com/v1/create-qr-code/?size=260x260&data=" + encodeURIComponent(CONTROL_LINK);
     }
 
     function updateBuzzBox() {
