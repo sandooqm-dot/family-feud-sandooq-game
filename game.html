@@ -16,6 +16,7 @@
       --dot:#96aae7;
 
       --gold:#f1d14f;
+      --board-gold:#e5c13f;
       --panel-border:#111111;
       --white:#f6f2e8;
       --dark:#07173e;
@@ -121,15 +122,20 @@
       box-shadow:
         inset 0 0 0 1px rgba(255,255,255,.04),
         0 10px 20px rgba(0,0,0,.08);
+      overflow:hidden;
     }
 
     .question-text{
       width:100%;
-      padding:0 34px;
+      height:100%;
+      padding:8px 34px 0;
+      display:flex;
+      align-items:center;
+      justify-content:center;
       text-align:center;
       color:var(--white);
       font-size:64px;
-      line-height:1.08;
+      line-height:1.18;
       font-weight:900;
       white-space:nowrap;
       overflow:hidden;
@@ -157,9 +163,9 @@
     .round-label{
       color:var(--white);
       font-size:22px;
-      line-height:1;
+      line-height:1.15;
       font-weight:900;
-      margin-bottom:8px;
+      margin-bottom:6px;
     }
 
     .round-score{
@@ -177,7 +183,7 @@
       width:888px;
       height:364px;
       border-radius:36px;
-      border:7px solid var(--gold);
+      border:7px solid var(--board-gold);
       background:#2b47ad;
       box-shadow: inset 0 0 0 1px rgba(255,255,255,.04);
     }
@@ -229,6 +235,7 @@
       font-weight:900;
       background:rgba(7,23,62,.14);
       box-shadow: inset 0 0 0 1px rgba(255,255,255,.03);
+      line-height:1;
     }
 
     .answer-points{
@@ -252,15 +259,19 @@
 
     .answer-label{
       width:100%;
+      height:100%;
+      display:flex;
+      align-items:center;
+      justify-content:center;
       text-align:center;
       color:var(--white);
       font-size:38px;
-      line-height:1;
+      line-height:1.18;
       font-weight:900;
       white-space:nowrap;
       overflow:hidden;
       text-overflow:ellipsis;
-      padding:0 10px;
+      padding:6px 10px 0;
     }
 
     .team-panel{
@@ -290,11 +301,15 @@
     .team-name{
       margin-top:40px;
       width:100%;
-      padding:0 18px;
+      min-height:66px;
+      padding:6px 18px 0;
+      display:flex;
+      align-items:center;
+      justify-content:center;
       text-align:center;
       color:var(--white);
       font-size:52px;
-      line-height:1.05;
+      line-height:1.18;
       font-weight:900;
       white-space:nowrap;
       overflow:hidden;
@@ -326,7 +341,7 @@
       margin-top:54px;
       color:var(--white);
       font-size:22px;
-      line-height:1;
+      line-height:1.18;
       font-weight:900;
       opacity:.95;
     }
@@ -364,7 +379,7 @@
         <img id="gameLogo" class="game-logo" src="logo-family-feud.PNG" alt="فاميلي فيود">
 
         <div class="question-box">
-          <div id="questionText" class="question-text">نص السؤال</div>
+          <div id="questionText" class="question-text"></div>
         </div>
 
         <div class="round-box">
@@ -461,7 +476,8 @@
 
     function getDefaultState() {
       return {
-        question: "نص السؤال",
+        showQuestion: false,
+        question: "اذكر شيئًا يستخدمه الناس يوميًا",
         team1Name: readStored("familyfeud_team1") || "الأبطال",
         team2Name: readStored("familyfeud_team2") || "الأقوياء",
         team1Score: 0,
@@ -470,12 +486,12 @@
         team2Strikes: 0,
         roundPoints: null,
         answers: [
-          { text: "", points: 0, revealed: false },
-          { text: "", points: 0, revealed: false },
-          { text: "", points: 0, revealed: false },
-          { text: "السيارة", points: 10, revealed: true },
-          { text: "", points: 0, revealed: false },
-          { text: "", points: 0, revealed: false }
+          { text: "الجوال", points: 32, revealed: false },
+          { text: "المفاتيح", points: 18, revealed: false },
+          { text: "الماء", points: 14, revealed: false },
+          { text: "السيارة", points: 10, revealed: false },
+          { text: "المحفظة", points: 8, revealed: false },
+          { text: "النظارة", points: 6, revealed: false }
         ]
       };
     }
@@ -507,6 +523,7 @@
       }
 
       return {
+        showQuestion: typeof raw?.showQuestion === "boolean" ? raw.showQuestion : defaults.showQuestion,
         question: String(raw?.question || defaults.question).trim() || defaults.question,
         team1Name: String(raw?.team1Name || defaults.team1Name).trim() || defaults.team1Name,
         team2Name: String(raw?.team2Name || defaults.team2Name).trim() || defaults.team2Name,
@@ -600,12 +617,12 @@
 
     function renderAnswers(state) {
       const positions = [
-        { row: 1, col: 1 },
-        { row: 1, col: 2 },
-        { row: 2, col: 1 },
-        { row: 2, col: 2 },
-        { row: 3, col: 1 },
-        { row: 3, col: 2 }
+        { row: 1, col: 2 }, // 1 يمين
+        { row: 1, col: 1 }, // 2 يسار
+        { row: 2, col: 2 }, // 3 يمين
+        { row: 2, col: 1 }, // 4 يسار
+        { row: 3, col: 2 }, // 5 يمين
+        { row: 3, col: 1 }  // 6 يسار
       ];
 
       answersGrid.innerHTML = "";
@@ -644,7 +661,7 @@
       teamOneScoreEl.textContent = state.team1Score;
       teamTwoScoreEl.textContent = state.team2Score;
 
-      questionTextEl.textContent = state.question;
+      questionTextEl.textContent = state.showQuestion ? state.question : "";
       roundScoreEl.textContent = calculateRoundPoints(state);
 
       applyStrikeRow(strikeRows.team1, state.team1Strikes);
