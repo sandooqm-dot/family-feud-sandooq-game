@@ -713,9 +713,17 @@
   <script>
     const DESIGN_WIDTH = 1600;
     const DESIGN_HEIGHT = 768;
-    const API_BASE = "https://family-feud-buzz.sandooq-m.workers.dev";
+    const BUZZ_POLL_MS = 500;
+
+    let API_BASE = "";
+    let currentBuzzState = null;
+    let buzzToggleInFlight = false;
+    let pusher = null;
+    let channel = null;
+    let fallbackPoll = null;
 
     const root = document.documentElement;
+    const roomId = getRoomId();
 
     const QUESTIONS = [
       {
@@ -762,15 +770,7 @@
 
     let currentQuestionIndex = 0;
     let overlayTimer = null;
-
     let buzzEnabled = true;
-    let currentBuzzState = null;
-    let buzzToggleInFlight = false;
-    let pusher = null;
-    let channel = null;
-    let fallbackPoll = null;
-
-    const roomId = getRoomId();
 
     const questionText = document.getElementById("questionText");
     const roundScoreEl = document.getElementById("roundScore");
@@ -798,6 +798,55 @@
       document.querySelectorAll("#teamOneStrikes .strike"),
       document.querySelectorAll("#teamTwoStrikes .strike")
     ];
+
+    function buildApiCandidates() {
+      const params = new URLSearchParams(window.location.search);
+      const saved = [
+        sessionStorage.getItem("familyfeud_api_base"),
+        localStorage.getItem("familyfeud_api_base"),
+        params.get("api")
+      ].filter(Boolean);
+
+      const candidates = [
+        ...saved,
+        "https://z.sandooq-m.workers.dev",
+        "https://family-feud-buzz.sandooq-m.workers.dev"
+      ];
+
+      if (window.location.hostname.endsWith(".workers.dev")) {
+        candidates.unshift(window.location.origin);
+      }
+
+      return [...new Set(candidates.map(v => String(v || "").trim()).filter(Boolean))];
+    }
+
+    async function detectApiBase() {
+      const candidates = buildApiCandidates();
+
+      for (const candidate of candidates) {
+        try {
+          const response = await fetch(`${candidate}/api/buzz/state?room=${encodeURIComponent(roomId)}`, {
+            method: "GET",
+            cache: "no-store",
+            headers: {
+              "Accept": "application/json",
+              "Cache-Control": "no-cache"
+            }
+          });
+
+          const data = await response.json().catch(() => null);
+          if (!response.ok || !data || !data.state) continue;
+
+          API_BASE = candidate;
+          sessionStorage.setItem("familyfeud_api_base", candidate);
+          localStorage.setItem("familyfeud_api_base", candidate);
+          return true;
+        } catch (error) {}
+      }
+
+      API_BASE = "";
+      return false;
+    }
 
     function setAppHeight() {
       const h = window.visualViewport && window.visualViewport.height
@@ -958,12 +1007,9 @@
 
     function applyBuzzState(state) {
       currentBuzzState = state || null;
-
       clearBuzzWinnerDisplays();
 
       if (!currentBuzzState) {
-        buzzEnabled = false;
-        sessionStorage.setItem("familyfeud_buzz_enabled_presenter", "0");
         updateBuzzButton();
         return;
       }
@@ -1132,10 +1178,17 @@
     }
 
     async function apiGet(path) {
+      if (!API_BASE) {
+        const ok = await detectApiBase();
+        if (!ok) throw new Error("API_BASE_NOT_FOUND");
+      }
+
       const response = await fetch(`${API_BASE}${path}`, {
         method: "GET",
+        cache: "no-store",
         headers: {
-          "Accept": "application/json"
+          "Accept": "application/json",
+          "Cache-Control": "no-cache"
         }
       });
 
@@ -1149,11 +1202,18 @@
     }
 
     async function apiPost(path, payload) {
+      if (!API_BASE) {
+        const ok = await detectApiBase();
+        if (!ok) throw new Error("API_BASE_NOT_FOUND");
+      }
+
       const response = await fetch(`${API_BASE}${path}`, {
         method: "POST",
+        cache: "no-store",
         headers: {
           "Content-Type": "application/json",
-          "Accept": "application/json"
+          "Accept": "application/json",
+          "Cache-Control": "no-cache"
         },
         body: JSON.stringify(payload || {})
       });
@@ -1167,17 +1227,12 @@
         const res = await apiGet(`/api/buzz/state?room=${encodeURIComponent(roomId)}`);
         applyBuzzState(res.state);
       } catch (error) {
-        buzzEnabled = false;
         updateBuzzButton();
       }
     }
 
     async function toggleBuzzRemote() {
       if (buzzToggleInFlight) return;
-
-      if (currentBuzzState === null) {
-        await fetchBuzzState();
-      }
 
       const desiredEnabled = !buzzEnabled;
 
@@ -1191,10 +1246,9 @@
 
         if (res.ok && res.data && res.data.state) {
           applyBuzzState(res.data.state);
-          return;
+        } else {
+          await fetchBuzzState();
         }
-
-        await fetchBuzzState();
       } catch (error) {
         await fetchBuzzState();
       } finally {
@@ -1207,7 +1261,7 @@
       stopFallbackPolling();
       fallbackPoll = setInterval(() => {
         fetchBuzzState();
-      }, 4000);
+      }, BUZZ_POLL_MS);
     }
 
     function stopFallbackPolling() {
@@ -1222,7 +1276,6 @@
         const cfgRes = await apiGet(`/api/buzz/pusher-config?room=${encodeURIComponent(roomId)}`);
 
         if (!cfgRes.ok || !cfgRes.key || !cfgRes.cluster || !cfgRes.channel || !window.Pusher) {
-          startFallbackPolling();
           return;
         }
 
@@ -1245,7 +1298,6 @@
         channel = pusher.subscribe(cfgRes.channel);
 
         channel.bind("pusher:subscription_succeeded", () => {
-          stopFallbackPolling();
           fetchBuzzState();
         });
 
@@ -1253,24 +1305,10 @@
           applyBuzzState(payload);
         });
 
-        channel.bind("pusher:subscription_error", () => {
-          startFallbackPolling();
-        });
-
-        pusher.connection.bind("error", () => {
-          startFallbackPolling();
-        });
-
-        pusher.connection.bind("disconnected", () => {
-          startFallbackPolling();
-        });
-
-        pusher.connection.bind("connected", () => {
-          stopFallbackPolling();
-        });
-      } catch (error) {
-        startFallbackPolling();
-      }
+        channel.bind("pusher:subscription_error", () => {});
+        pusher.connection.bind("error", () => {});
+        pusher.connection.bind("disconnected", () => {});
+      } catch (error) {}
     }
 
     function destroyPusher() {
@@ -1330,22 +1368,25 @@
 
     window.addEventListener("beforeunload", destroyPusher);
 
-    applyTeamNamesFromSession();
-    applyBuzzWinnerFromSession();
+    async function bootstrapGame() {
+      applyTeamNamesFromSession();
+      applyBuzzWinnerFromSession();
 
-    const storedBuzzEnabled = sessionStorage.getItem("familyfeud_buzz_enabled_presenter");
-    if (storedBuzzEnabled === "0") {
-      buzzEnabled = false;
-    } else {
-      buzzEnabled = true;
+      const storedBuzzEnabled = sessionStorage.getItem("familyfeud_buzz_enabled_presenter");
+      buzzEnabled = storedBuzzEnabled === "0" ? false : true;
+
+      updateBuzzButton();
+      updateLayout();
+      updateTeamScores();
+      renderQuestion();
+
+      await detectApiBase();
+      startFallbackPolling();
+      fetchBuzzState();
+      initPusher();
     }
 
-    updateBuzzButton();
-    updateLayout();
-    updateTeamScores();
-    renderQuestion();
-    initPusher();
-    fetchBuzzState();
+    bootstrapGame();
 
     window.addEventListener("pageshow", () => {
       applyTeamNamesFromSession();
