@@ -429,6 +429,7 @@
     <div class="page-spacer" aria-hidden="true"></div>
   </main>
 
+  <script src="https://js.pusher.com/8.4.0/pusher.min.js"></script>
   <script>
     const DESIGN_WIDTH = 1600;
     const DESIGN_HEIGHT = 768;
@@ -441,6 +442,7 @@
     const DISPLAY_CHANNEL = "familyfeud_display_channel_v1";
 
     const DEFAULT_ROOM = "family-feud-demo";
+    const FALLBACK_POLL_MS = 700;
 
     const root = document.documentElement;
 
@@ -461,6 +463,12 @@
     let lastStateSignature = "";
     let roomId = resolveRoomId();
     let channel = null;
+
+    let apiBase = normalizeBase(readStored(API_BASE_KEY) || readStored(BUZZ_API_BASE_KEY));
+    let pusher = null;
+    let gameChannel = null;
+    let fallbackPoll = null;
+    let syncStarted = false;
 
     try {
       channel = new BroadcastChannel(DISPLAY_CHANNEL);
@@ -514,6 +522,7 @@
 
     document.addEventListener("touchstart", nudgeSafariBar, { passive: true });
     document.addEventListener("touchend", nudgeSafariBar, { passive: true });
+    window.addEventListener("beforeunload", destroyLiveSync);
 
     function readStored(key) {
       try {
@@ -574,6 +583,7 @@
       const result = [];
 
       const candidates = [
+        apiBase,
         readStored(API_BASE_KEY),
         readStored(BUZZ_API_BASE_KEY),
         window.location.origin.includes("workers.dev") ? window.location.origin : "",
@@ -662,8 +672,121 @@
     }
 
     async function startRemoteSync() {
-      await fetchRemoteGameState();
-      setInterval(fetchRemoteGameState, 700);
+      if (syncStarted) return;
+      syncStarted = true;
+
+      const ok = await detectApiBase();
+      if (ok) {
+        await fetchRemoteGameState();
+        await initPusher();
+      }
+
+      startFallbackPoll();
+    }
+
+    function startFallbackPoll() {
+      if (fallbackPoll) clearInterval(fallbackPoll);
+
+      fallbackPoll = setInterval(async () => {
+        await fetchRemoteGameState();
+      }, FALLBACK_POLL_MS);
+    }
+
+    function destroyLiveSync() {
+      if (fallbackPoll) {
+        clearInterval(fallbackPoll);
+        fallbackPoll = null;
+      }
+
+      if (gameChannel && pusher) {
+        try { gameChannel.unbind_all(); } catch (e) {}
+        try { pusher.unsubscribe(gameChannel.name); } catch (e) {}
+      }
+
+      gameChannel = null;
+
+      if (pusher) {
+        try { pusher.disconnect(); } catch (e) {}
+      }
+
+      pusher = null;
+      syncStarted = false;
+    }
+
+    async function detectApiBase() {
+      const bases = getApiBases();
+
+      for (const base of bases) {
+        try {
+          const res = await fetch(`${base}/api/game/state?room=${encodeURIComponent(roomId)}`, {
+            method: "GET",
+            cache: "no-store",
+            headers: {
+              "Cache-Control": "no-cache",
+              "Pragma": "no-cache"
+            }
+          });
+
+          const data = await res.json().catch(() => null);
+          if (!res.ok || !data || !data.ok || !data.state || !data.state.display) continue;
+
+          apiBase = base;
+          writeStored(API_BASE_KEY, base);
+          writeStored(BUZZ_API_BASE_KEY, base);
+          applyRemoteGameState(data.state);
+          renderDisplay();
+          return true;
+        } catch (error) {}
+      }
+
+      return false;
+    }
+
+    async function initPusher() {
+      if (!window.Pusher) return;
+      if (!apiBase) return;
+      if (pusher || gameChannel) return;
+
+      try {
+        const res = await fetch(`${apiBase}/api/game/pusher-config?room=${encodeURIComponent(roomId)}`, {
+          method: "GET",
+          cache: "no-store",
+          headers: {
+            "Cache-Control": "no-cache",
+            "Pragma": "no-cache"
+          }
+        });
+
+        const data = await res.json().catch(() => null);
+        if (!res.ok || !data || !data.ok || !data.key || !data.cluster || !data.channel) return;
+
+        const authEndpoint = String(data.authEndpoint || "").startsWith("http")
+          ? data.authEndpoint
+          : `${apiBase}${data.authEndpoint}`;
+
+        window.Pusher.logToConsole = false;
+
+        pusher = new window.Pusher(data.key, {
+          cluster: data.cluster,
+          authEndpoint,
+          authTransport: "ajax",
+          channelAuthorization: {
+            endpoint: authEndpoint,
+            transport: "ajax"
+          }
+        });
+
+        gameChannel = pusher.subscribe(data.channel);
+
+        gameChannel.bind("pusher:subscription_succeeded", async () => {
+          await fetchRemoteGameState();
+        });
+
+        gameChannel.bind("game-updated", (payload) => {
+          applyRemoteGameState(payload);
+          renderDisplay();
+        });
+      } catch (error) {}
     }
 
     async function fetchRemoteGameState() {
@@ -685,15 +808,24 @@
           const data = await res.json().catch(() => null);
           if (!data || !data.ok || !data.state || !data.state.display) continue;
 
-          const nextState = normalizeState(data.state.display);
-          writeStored(DISPLAY_KEY, nextState);
+          apiBase = base;
           writeStored(API_BASE_KEY, base);
           writeStored(BUZZ_API_BASE_KEY, base);
+
+          applyRemoteGameState(data.state);
+          renderDisplay();
           return true;
         } catch (error) {}
       }
 
       return false;
+    }
+
+    function applyRemoteGameState(remoteState) {
+      if (!remoteState || !remoteState.display) return;
+
+      const nextState = normalizeState(remoteState.display);
+      writeStored(DISPLAY_KEY, nextState);
     }
 
     function getCurrentViewport() {
