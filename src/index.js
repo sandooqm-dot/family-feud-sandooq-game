@@ -270,6 +270,7 @@ export class BuzzRoomDO {
         state.game.currentTurnTeam = "";
         state.game.confrontationWinner = "";
         state.game.stealingTeam = "";
+        state.game.needsDuelChoice = false;
         state.game.questionText = snapshot.questionText;
         state.game.answers = snapshot.answers;
         state.game.roundPoints = 0;
@@ -468,8 +469,14 @@ function applyGameAction(state, action, body) {
       if (typeof body.visible !== "boolean") {
         return { ok: false, error: "VISIBLE_BOOLEAN_REQUIRED" };
       }
+
       state.enabled = body.visible;
       state.firstBuzz = null;
+
+      if (!body.visible) {
+        state.game.phase = state.game.phase || "idle";
+      }
+
       return { ok: true };
     }
 
@@ -495,6 +502,7 @@ function applyGameAction(state, action, body) {
       if (body.questionIndex === undefined || body.questionIndex === null) {
         return { ok: false, error: "QUESTION_INDEX_REQUIRED" };
       }
+
       const index = normalizeQuestionIndex(body.questionIndex);
       loadQuestionIntoRound(state, index, { preserveScores: true, preserveNames: true });
       return { ok: true };
@@ -506,8 +514,13 @@ function applyGameAction(state, action, body) {
         return { ok: false, error: "ANSWER_INDEX_INVALID" };
       }
 
-      if (!state.game.answers[answerIndex].revealed) {
-        state.game.answers[answerIndex].revealed = true;
+      const answer = state.game.answers[answerIndex];
+      if (!answer) {
+        return { ok: false, error: "ANSWER_NOT_FOUND" };
+      }
+
+      if (!answer.revealed) {
+        answer.revealed = true;
         updateRoundPoints(state);
       }
 
@@ -516,19 +529,33 @@ function applyGameAction(state, action, body) {
         if (!stealTeam) {
           return { ok: false, error: "STEALING_TEAM_NOT_SET" };
         }
+
         awardRoundToTeam(state, stealTeam);
         return { ok: true };
       }
 
-      if (!normalizeTeam(state.game.currentTurnTeam) && state.firstBuzz) {
-        if (answerIndex === 0) {
+      const currentTurnTeam = normalizeTeam(state.game.currentTurnTeam);
+      const hasFirstBuzz = !!state.firstBuzz && !!normalizeTeam(state.firstBuzz.team);
+
+      if (!currentTurnTeam) {
+        if (state.game.needsDuelChoice) {
+          state.game.phase = "duel_select";
+          return { ok: true };
+        }
+
+        if (hasFirstBuzz && answerIndex === 0) {
           state.game.confrontationWinner = state.firstBuzz.team;
           state.game.phase = "play_or_pass";
-        } else {
-          state.game.phase = "duel_select";
+          return { ok: true };
         }
-      } else if (normalizeTeam(state.game.currentTurnTeam) && allAnswersRevealed(state.game)) {
-        awardRoundToTeam(state, state.game.currentTurnTeam);
+
+        state.game.needsDuelChoice = true;
+        state.game.phase = "duel_select";
+        return { ok: true };
+      }
+
+      if (allAnswersRevealed(state.game)) {
+        awardRoundToTeam(state, currentTurnTeam);
       }
 
       return { ok: true };
@@ -539,6 +566,7 @@ function applyGameAction(state, action, body) {
       if (answerIndex === -1) {
         return { ok: false, error: "ANSWER_INDEX_INVALID" };
       }
+
       state.game.answers[answerIndex].revealed = false;
       updateRoundPoints(state);
       return { ok: true };
@@ -549,7 +577,9 @@ function applyGameAction(state, action, body) {
       if (!team) {
         return { ok: false, error: "TEAM_REQUIRED" };
       }
+
       state.game.confrontationWinner = team;
+      state.game.needsDuelChoice = false;
       state.game.phase = "play_or_pass";
       return { ok: true };
     }
@@ -558,9 +588,20 @@ function applyGameAction(state, action, body) {
     case "cancel_context": {
       if (state.game.phase === "play_or_pass") {
         state.game.phase = "duel_select";
+      } else if (state.game.phase === "duel_select") {
+        state.game.phase = "idle";
+        state.game.needsDuelChoice = true;
       } else {
         state.game.phase = "idle";
       }
+
+      return { ok: true };
+    }
+
+    case "clear_duel": {
+      state.game.phase = "idle";
+      state.game.needsDuelChoice = false;
+      state.game.confrontationWinner = "";
       return { ok: true };
     }
 
@@ -578,20 +619,24 @@ function applyGameAction(state, action, body) {
 
       state.game.currentTurnTeam = decision === "play" ? winner : getOtherTeam(winner);
       state.game.phase = "main";
+      state.game.needsDuelChoice = false;
       return { ok: true };
     }
 
     case "register_error": {
       let team = normalizeTeam(body.team);
+
       if (!team) {
         team = normalizeTeam(state.game.currentTurnTeam);
       }
+
       if (!team) {
         return { ok: false, error: "CURRENT_TURN_TEAM_REQUIRED" };
       }
 
       if (team === "team1") {
         state.game.team1Strikes = Math.min(3, state.game.team1Strikes + 1);
+
         if (state.game.team1Strikes >= 3) {
           state.game.stealingTeam = "team2";
           state.game.phase = "steal_result";
@@ -600,6 +645,7 @@ function applyGameAction(state, action, body) {
         }
       } else {
         state.game.team2Strikes = Math.min(3, state.game.team2Strikes + 1);
+
         if (state.game.team2Strikes >= 3) {
           state.game.stealingTeam = "team1";
           state.game.phase = "steal_result";
@@ -620,11 +666,18 @@ function applyGameAction(state, action, body) {
 
       if (result === "fail") {
         const originalTeam = normalizeTeam(state.game.currentTurnTeam);
+
         if (!originalTeam) {
           return { ok: false, error: "CURRENT_TURN_TEAM_REQUIRED" };
         }
+
         awardRoundToTeam(state, originalTeam);
         return { ok: true };
+      }
+
+      const stealingTeam = normalizeTeam(state.game.stealingTeam);
+      if (!stealingTeam) {
+        return { ok: false, error: "STEALING_TEAM_NOT_SET" };
       }
 
       state.game.phase = "steal_pick";
@@ -651,6 +704,16 @@ function applyGameAction(state, action, body) {
       return { ok: true };
     }
 
+    case "award_round": {
+      const team = normalizeTeam(body.team);
+      if (!team) {
+        return { ok: false, error: "TEAM_REQUIRED" };
+      }
+
+      awardRoundToTeam(state, team);
+      return { ok: true };
+    }
+
     case "reset_round": {
       resetRoundState(state, { preserveScores: true, preserveNames: true });
       return { ok: true };
@@ -665,9 +728,16 @@ function applyGameAction(state, action, body) {
     case "reset_all": {
       const team1Name = state.game.team1Name || "الفريق الأول";
       const team2Name = state.game.team2Name || "الفريق الثاني";
+
       loadQuestionIntoRound(state, 0, { preserveScores: false, preserveNames: false });
+
       state.game.team1Name = team1Name;
       state.game.team2Name = team2Name;
+      state.game.team1Score = 0;
+      state.game.team2Score = 0;
+      state.enabled = true;
+      state.firstBuzz = null;
+
       return { ok: true };
     }
 
@@ -689,6 +759,7 @@ function awardRoundToTeam(state, team) {
   state.game.currentTurnTeam = "";
   state.game.confrontationWinner = "";
   state.game.stealingTeam = "";
+  state.game.needsDuelChoice = false;
   state.game.team1Strikes = 0;
   state.game.team2Strikes = 0;
 
@@ -721,6 +792,7 @@ function resetRoundState(state, options = {}) {
   state.game.currentTurnTeam = "";
   state.game.confrontationWinner = "";
   state.game.stealingTeam = "";
+  state.game.needsDuelChoice = false;
   state.game.questionText = snapshot.questionText;
   state.game.answers = snapshot.answers;
   state.game.roundPoints = 0;
@@ -751,6 +823,7 @@ function loadQuestionIntoRound(state, questionIndex, options = {}) {
   state.game.currentTurnTeam = "";
   state.game.confrontationWinner = "";
   state.game.stealingTeam = "";
+  state.game.needsDuelChoice = false;
 
   const snapshot = createQuestionSnapshot(state.game.currentQuestionIndex);
   state.game.questionText = snapshot.questionText;
@@ -799,6 +872,7 @@ function createDefaultGameState() {
     currentTurnTeam: "",
     confrontationWinner: "",
     stealingTeam: "",
+    needsDuelChoice: false,
     questionText: snapshot.questionText,
     answers: snapshot.answers,
     roundPoints: 0
@@ -844,6 +918,7 @@ function migrateState(stored, room) {
     currentTurnTeam: normalizeTeam(stored?.game?.currentTurnTeam) || "",
     confrontationWinner: normalizeTeam(stored?.game?.confrontationWinner) || "",
     stealingTeam: normalizeTeam(stored?.game?.stealingTeam) || "",
+    needsDuelChoice: !!stored?.game?.needsDuelChoice,
     questionText: normalizeQuestionText(stored?.game?.questionText || snapshot.questionText),
     answers: mergeAnswers(stored?.game?.answers, snapshot.answers),
     roundPoints: Math.max(0, normalizeNumber(stored?.game?.roundPoints, 0))
@@ -866,9 +941,11 @@ function migrateState(stored, room) {
 
 function mergeAnswers(incoming, fallback) {
   const answers = Array.isArray(incoming) ? incoming : [];
+
   return Array.from({ length: 6 }, (_, i) => {
     const answer = answers[i];
     const fallbackAnswer = fallback[i] || { text: "", points: 0, revealed: false };
+
     return {
       text: normalizeAnswerText(answer?.text || fallbackAnswer.text),
       points: Math.max(0, normalizeNumber(answer?.points, fallbackAnswer.points)),
@@ -938,7 +1015,8 @@ function publicGameState(state) {
       phase: state.game.phase,
       currentTurnTeam: state.game.currentTurnTeam,
       confrontationWinner: state.game.confrontationWinner,
-      stealingTeam: state.game.stealingTeam
+      stealingTeam: state.game.stealingTeam,
+      needsDuelChoice: !!state.game.needsDuelChoice
     },
 
     display: {
@@ -1002,6 +1080,7 @@ async function readPusherAuthPayload(request) {
   }
 
   const form = await request.formData().catch(() => null);
+
   return {
     socketId: String(form?.get("socket_id") || ""),
     channelName: String(form?.get("channel_name") || "")
@@ -1221,7 +1300,7 @@ function bytesToHex(bytes) {
 }
 
 /* =========================
-   MD5 (for Pusher REST auth)
+   MD5
 ========================= */
 
 function md5Hex(str) {
@@ -1349,19 +1428,23 @@ function bit_rol(num, cnt) {
 function str2binl(str) {
   const bin = [];
   const mask = 255;
+
   for (let i = 0; i < str.length * 8; i += 8) {
     bin[i >> 5] |= (str.charCodeAt(i / 8) & mask) << (i % 32);
   }
+
   return bin;
 }
 
 function binl2hex(binarray) {
   const hex_tab = "0123456789abcdef";
   let str = "";
+
   for (let i = 0; i < binarray.length * 4; i++) {
     str +=
       hex_tab.charAt((binarray[i >> 2] >> ((i % 4) * 8 + 4)) & 0x0f) +
       hex_tab.charAt((binarray[i >> 2] >> ((i % 4) * 8)) & 0x0f);
   }
+
   return str;
 }
