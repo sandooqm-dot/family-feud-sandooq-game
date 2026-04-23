@@ -541,14 +541,18 @@
 
     bellToggleBtn.addEventListener("click", async () => {
       if (isBusy) return;
+
+      const nextVisible = !(controlState.buzzVisible === true);
+
       await sendGameAction("set_buzz_visible", {
-        visible: !(controlState.buzzVisible === true)
+        visible: nextVisible
       });
     });
 
     errorBtn.addEventListener("click", async () => {
       if (isBusy) return;
-      if (!controlState.currentTurnTeam) return;
+      if (!canRegisterError()) return;
+
       await sendGameAction("register_error", {
         team: controlState.currentTurnTeam
       });
@@ -556,9 +560,12 @@
 
     nextQuestionBtn.addEventListener("click", async () => {
       if (isBusy) return;
+
       const ok = await sendGameAction("next_question");
+
       if (ok) {
         await sendGameAction("show_question", { visible: true });
+        await sendGameAction("set_buzz_visible", { visible: true });
       }
     });
 
@@ -629,6 +636,7 @@
       syncStarted = true;
 
       const ok = await detectApiBase();
+
       if (ok) {
         await fetchRemoteGameState();
         await maybeInitialAutoShowQuestion();
@@ -640,6 +648,7 @@
 
     function startFallbackPoll() {
       if (fallbackPoll) clearInterval(fallbackPoll);
+
       fallbackPoll = setInterval(() => {
         fetchRemoteGameState();
       }, FALLBACK_POLL_MS);
@@ -704,7 +713,7 @@
           await fetchRemoteGameState();
         });
 
-        gameChannel.bind("game-updated", async (payload) => {
+        gameChannel.bind("game-updated", (payload) => {
           applyRemoteGameState(payload);
           renderAll();
         });
@@ -795,6 +804,15 @@
         isBusy = false;
         renderAll();
       }
+    }
+
+    async function runGameActions(actions) {
+      for (const item of actions) {
+        const ok = await sendGameAction(item.action, item.payload || {});
+        if (!ok) return false;
+      }
+
+      return true;
     }
 
     function applyRemoteGameState(remoteState) {
@@ -956,6 +974,30 @@
       return "";
     }
 
+    function getOtherTeam(team) {
+      return team === "team1" ? "team2" : "team1";
+    }
+
+    function canRegisterError() {
+      if (!controlState.currentTurnTeam) return false;
+      if (controlState.stage === "steal_result") return false;
+      if (controlState.stage === "steal_pick") return false;
+      return true;
+    }
+
+    function getFirstBuzzLabel() {
+      if (!controlState.firstBuzzName) {
+        return "اسم اللاعب الذي يضغط أولًا";
+      }
+
+      const teamName = getTeamName(controlState.firstBuzzTeam);
+      if (teamName) {
+        return `${controlState.firstBuzzName} - ${teamName}`;
+      }
+
+      return controlState.firstBuzzName;
+    }
+
     function renderAll() {
       const totalQuestions = controlState.totalQuestions > 0 ? controlState.totalQuestions : "";
       questionNumberEl.textContent = totalQuestions
@@ -963,11 +1005,11 @@
         : `سؤال ${controlState.currentQuestionIndex + 1}`;
 
       questionTextEl.textContent = displayState.question || "نص السؤال";
-      firstPlayerBoxEl.textContent = controlState.firstBuzzName || "اسم اللاعب الذي يضغط أولًا";
+      firstPlayerBoxEl.textContent = getFirstBuzzLabel();
       bellToggleBtn.textContent = controlState.buzzVisible ? "إخفاء الجرس" : "إظهار الجرس";
 
       bellToggleBtn.disabled = isBusy;
-      errorBtn.disabled = isBusy || !controlState.currentTurnTeam;
+      errorBtn.disabled = isBusy || !canRegisterError();
       nextQuestionBtn.disabled = isBusy;
 
       renderAnswers();
@@ -1035,7 +1077,7 @@
 
         const cancelRow = buildRow([
           buildRedButton("إلغاء", async () => {
-            await sendGameAction("cancel_context");
+            await cancelDuelAndOpenBuzzAgain();
           })
         ]);
 
@@ -1046,14 +1088,14 @@
 
       if (controlState.stage === "play_or_pass") {
         const winnerName = getTeamName(controlState.confrontationWinner);
-        panelTitleEl.textContent = `فريق ${winnerName} فاز بالمواجهة، ماذا تريد؟`;
+        panelTitleEl.textContent = `الفريق ${winnerName} فاز بالسؤال ماذا تريد؟`;
 
         const row = buildRow([
           buildBlueButton("نلعب", async () => {
-            await sendGameAction("choose_play_or_pass", { decision: "play" });
+            await choosePlayOrPass("play");
           }),
           buildBlueButton("نمرر للفريق الآخر", async () => {
-            await sendGameAction("choose_play_or_pass", { decision: "pass" });
+            await choosePlayOrPass("pass");
           })
         ]);
 
@@ -1069,13 +1111,13 @@
       }
 
       if (controlState.stage === "steal_result") {
-        panelTitleEl.textContent = "هل تمت عملية السرقة؟";
+        panelTitleEl.textContent = "ماذا حصل لسرقة السؤال؟";
 
         const row = buildRow([
           buildBlueButton("تمت السرقة", async () => {
             await sendGameAction("steal_result", { result: "success" });
           }),
-          buildBlueButton("فشلت", async () => {
+          buildBlueButton("فشلت السرقة", async () => {
             await sendGameAction("steal_result", { result: "fail" });
           })
         ]);
@@ -1085,7 +1127,7 @@
       }
 
       if (controlState.stage === "steal_pick") {
-        panelTitleEl.textContent = "اضغط على الجواب الذي تم سرقته";
+        panelTitleEl.textContent = "اضغط على الجواب الذي تم سرقته لمنح النقاط";
         return;
       }
 
@@ -1129,6 +1171,22 @@
       }
 
       await sendGameAction("reveal_answer", { answerIndex: index });
+    }
+
+    async function choosePlayOrPass(decision) {
+      const ok = await sendGameAction("choose_play_or_pass", { decision });
+
+      if (ok) {
+        await sendGameAction("set_buzz_visible", { visible: false });
+      }
+    }
+
+    async function cancelDuelAndOpenBuzzAgain() {
+      await runGameActions([
+        { action: "cancel_context" },
+        { action: "clear_first_buzz" },
+        { action: "set_buzz_visible", payload: { visible: true } }
+      ]);
     }
 
     function getCurrentViewport() {
