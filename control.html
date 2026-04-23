@@ -190,6 +190,13 @@
       filter:none !important;
     }
 
+    .answer-card:disabled{
+      opacity:.75;
+      cursor:default;
+      transform:none !important;
+      filter:none !important;
+    }
+
     .answer-points{
       position:absolute;
       left:18px;
@@ -478,6 +485,7 @@
     let channel = null;
 
     let isBusy = false;
+    let stealAwardInProgress = false;
     let pusher = null;
     let gameChannel = null;
     let fallbackPoll = null;
@@ -1008,9 +1016,9 @@
       firstPlayerBoxEl.textContent = getFirstBuzzLabel();
       bellToggleBtn.textContent = controlState.buzzVisible ? "إخفاء الجرس" : "إظهار الجرس";
 
-      bellToggleBtn.disabled = isBusy;
-      errorBtn.disabled = isBusy || !canRegisterError();
-      nextQuestionBtn.disabled = isBusy;
+      bellToggleBtn.disabled = isBusy || stealAwardInProgress;
+      errorBtn.disabled = isBusy || stealAwardInProgress || !canRegisterError();
+      nextQuestionBtn.disabled = isBusy || stealAwardInProgress;
 
       renderAnswers();
       renderPanel();
@@ -1032,9 +1040,18 @@
 
       answers.forEach((answer, index) => {
         const card = document.createElement("button");
+        const isStealPickRevealedAnswer =
+          controlState.stage === "steal_pick" && !!answer.revealed;
+
+        const shouldDisable =
+          isBusy ||
+          stealAwardInProgress ||
+          isStealPickRevealedAnswer;
+
         card.type = "button";
         card.className = "answer-card" + (answer.revealed ? " revealed" : "");
-        if (isBusy) card.classList.add("disabled");
+        if (shouldDisable) card.classList.add("disabled");
+        card.disabled = shouldDisable;
 
         card.style.gridRow = positions[index]?.row || "auto";
         card.style.gridColumn = positions[index]?.col || "auto";
@@ -1147,7 +1164,7 @@
       btn.type = "button";
       btn.className = "panel-btn";
       btn.textContent = text;
-      btn.disabled = isBusy;
+      btn.disabled = isBusy || stealAwardInProgress;
       btn.addEventListener("click", onClick);
       return btn;
     }
@@ -1157,16 +1174,34 @@
       btn.type = "button";
       btn.className = "panel-btn red";
       btn.textContent = text;
-      btn.disabled = isBusy;
+      btn.disabled = isBusy || stealAwardInProgress;
       btn.addEventListener("click", onClick);
       return btn;
     }
 
     async function handleAnswerClick(index) {
-      if (isBusy) return;
+      if (isBusy || stealAwardInProgress) return;
+
+      const answer = Array.isArray(displayState.answers)
+        ? displayState.answers[index]
+        : null;
+
+      if (!answer) return;
 
       if (controlState.stage === "steal_pick") {
-        await sendGameAction("award_steal", { answerIndex: index });
+        if (answer.revealed) return;
+
+        stealAwardInProgress = true;
+        renderAll();
+
+        try {
+          await sendGameAction("award_steal", { answerIndex: index });
+          await fetchRemoteGameState();
+        } finally {
+          stealAwardInProgress = false;
+          renderAll();
+        }
+
         return;
       }
 
