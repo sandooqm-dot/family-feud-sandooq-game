@@ -231,15 +231,6 @@
       box-shadow:0 10px 18px rgba(0,0,0,.12);
     }
 
-    .continue-btn:hover:not(:disabled){
-      transform:translateY(-1px);
-      filter:brightness(1.03);
-    }
-
-    .continue-btn:active:not(:disabled){
-      transform:scale(.985);
-    }
-
     .continue-btn:disabled{
       opacity:.55;
       cursor:not-allowed;
@@ -343,15 +334,6 @@
       font-weight:900;
       cursor:pointer;
       transition:transform .15s ease, filter .15s ease;
-    }
-
-    .secondary-btn:hover{
-      transform:translateY(-1px);
-      filter:brightness(1.04);
-    }
-
-    .secondary-btn:active{
-      transform:scale(.985);
     }
 
     body.portrait .game-shell{
@@ -502,7 +484,7 @@
     const LANDSCAPE_HEIGHT = 768;
     const PORTRAIT_WIDTH = 640;
     const PORTRAIT_HEIGHT = 1280;
-    const FALLBACK_POLL_MS = 2000;
+    const FALLBACK_POLL_MS = 1200;
 
     const STORAGE = {
       apiBase: "familyfeud_api_base",
@@ -516,7 +498,7 @@
 
     let API_BASE = "";
     let pusher = null;
-    let channel = null;
+    let pusherChannel = null;
     let fallbackPoll = null;
     let currentBuzzState = null;
     let currentGameDisplay = null;
@@ -537,7 +519,6 @@
 
     const teamBadge = document.getElementById("teamBadge");
     const playerNameLabel = document.getElementById("playerNameLabel");
-    const buzzArea = document.getElementById("buzzArea");
     const buzzBtn = document.getElementById("buzzBtn");
     const buzzStatus = document.getElementById("buzzStatus");
     const backBtn = document.getElementById("backBtn");
@@ -554,20 +535,17 @@
       try { sessionStorage.setItem(key, value); } catch (e) {}
     }
 
-    function removeStored(key) {
-      try { localStorage.removeItem(key); } catch (e) {}
-      try { sessionStorage.removeItem(key); } catch (e) {}
-    }
-
     function readStored(key) {
       try {
         const localValue = localStorage.getItem(key);
         if (localValue) return localValue;
       } catch (e) {}
+
       try {
         const sessionValue = sessionStorage.getItem(key);
         if (sessionValue) return sessionValue;
       } catch (e) {}
+
       return "";
     }
 
@@ -577,6 +555,7 @@
 
     function buildApiCandidates() {
       const params = new URLSearchParams(window.location.search);
+
       const candidates = [
         readStored(STORAGE.apiBase),
         readStored(STORAGE.buzzApiBase),
@@ -652,6 +631,7 @@
       if (!isTypingNow() || force) {
         updateStableViewport();
       }
+
       root.style.setProperty("--app-height", stableViewport.height + "px");
     }
 
@@ -716,8 +696,10 @@
       const fromQuery = normalizeRoom(url.searchParams.get("room"));
       const fromStorage = normalizeRoom(readStored(STORAGE.room) || readStored(STORAGE.buzzRoom));
       const room = fromQuery || fromStorage || "family-feud-demo";
+
       writeStored(STORAGE.room, room);
       writeStored(STORAGE.buzzRoom, room);
+
       return room;
     }
 
@@ -733,6 +715,7 @@
 
       id = id.replace(/[^\w-]/g, "").slice(0, 80);
       writeStored(STORAGE.playerId, id);
+
       return id;
     }
 
@@ -744,8 +727,17 @@
       const remoteTeam1 = currentGameDisplay?.team1Name || "";
       const remoteTeam2 = currentGameDisplay?.team2Name || "";
 
-      const team1 = remoteTeam1 || team1FromQuery || (readStored("familyfeud_team1") || "").trim() || "الفريق الأول";
-      const team2 = remoteTeam2 || team2FromQuery || (readStored("familyfeud_team2") || "").trim() || "الفريق الثاني";
+      const team1 =
+        remoteTeam1 ||
+        team1FromQuery ||
+        (readStored("familyfeud_team1") || "").trim() ||
+        "الفريق الأول";
+
+      const team2 =
+        remoteTeam2 ||
+        team2FromQuery ||
+        (readStored("familyfeud_team2") || "").trim() ||
+        "الفريق الثاني";
 
       return { team1, team2 };
     }
@@ -784,10 +776,13 @@
 
     function showBuzzScreen() {
       saveLocalData();
+
       teamBadge.textContent = getTeamLabel();
       playerNameLabel.textContent = currentPlayerName();
+
       joinScreen.classList.add("hidden");
       buzzScreen.classList.remove("hidden");
+
       startLiveSync();
       updateLayout(true);
     }
@@ -795,6 +790,7 @@
     function showJoinScreen() {
       joinScreen.classList.remove("hidden");
       buzzScreen.classList.add("hidden");
+
       stopLiveSync();
       updateJoinState();
       updateLayout(true);
@@ -813,6 +809,7 @@
       updateJoinState();
 
       if (!joinScreen.classList.contains("hidden")) return;
+
       teamBadge.textContent = getTeamLabel();
     }
 
@@ -912,8 +909,13 @@
     async function fetchGameDisplay() {
       try {
         const res = await apiGet(`/api/game/state?room=${encodeURIComponent(roomId)}`);
+
         if (res?.ok && res?.state?.display) {
           applyGameDisplay(res.state.display);
+        }
+
+        if (res?.ok && res?.state?.buzz) {
+          applyBuzzState(res.state.buzz);
         }
       } catch (error) {}
     }
@@ -1003,15 +1005,19 @@
       }
     }
 
+    function startFallbackPoll() {
+      if (fallbackPoll) clearInterval(fallbackPoll);
+
+      fallbackPoll = setInterval(async () => {
+        await fetchBuzzState();
+      }, FALLBACK_POLL_MS);
+    }
+
     function startLiveSync() {
       if (syncStarted) return;
       syncStarted = true;
 
-      stopLiveSync();
-      fallbackPoll = setInterval(async () => {
-        await fetchBuzzState();
-      }, FALLBACK_POLL_MS);
-
+      startFallbackPoll();
       fetchBuzzState();
     }
 
@@ -1025,8 +1031,11 @@
     }
 
     async function initPusher() {
+      if (pusher || pusherChannel) return;
+
       try {
         const cfgRes = await apiGet(`/api/buzz/pusher-config?room=${encodeURIComponent(roomId)}`);
+
         if (!cfgRes.ok || !cfgRes.key || !cfgRes.cluster || !cfgRes.channel || !window.Pusher) {
           return;
         }
@@ -1047,13 +1056,13 @@
           }
         });
 
-        channel = pusher.subscribe(cfgRes.channel);
+        pusherChannel = pusher.subscribe(cfgRes.channel);
 
-        channel.bind("pusher:subscription_succeeded", async () => {
+        pusherChannel.bind("pusher:subscription_succeeded", async () => {
           await fetchBuzzState();
         });
 
-        channel.bind("buzz-updated", (payload) => {
+        pusherChannel.bind("buzz-updated", (payload) => {
           applyBuzzState(payload);
         });
       } catch (error) {}
@@ -1062,10 +1071,10 @@
     function destroyPusher() {
       stopLiveSync();
 
-      if (channel) {
-        try { channel.unbind_all(); } catch (e) {}
-        try { pusher.unsubscribe(channel.name); } catch (e) {}
-        channel = null;
+      if (pusherChannel) {
+        try { pusherChannel.unbind_all(); } catch (e) {}
+        try { pusher.unsubscribe(pusherChannel.name); } catch (e) {}
+        pusherChannel = null;
       }
 
       if (pusher) {
@@ -1149,6 +1158,7 @@
       updateLayout(true);
 
       const apiReady = await detectApiBase();
+
       if (!apiReady) {
         setJoinStatus("تعذر الوصول إلى الباكند. تأكد من رابط الـ Worker.", true);
         showJoinScreen();
@@ -1160,6 +1170,7 @@
 
       if (selectedTeam && playerNameInput.value.trim()) {
         const joined = await joinRoom();
+
         if (joined) {
           showBuzzScreen();
           await fetchBuzzState();
