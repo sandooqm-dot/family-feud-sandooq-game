@@ -272,6 +272,10 @@
       margin-bottom:16px;
     }
 
+    .panel-row.single-fail{
+      justify-content:center;
+    }
+
     .panel-btn{
       min-width:184px;
       height:62px;
@@ -302,11 +306,30 @@
       background:linear-gradient(180deg, var(--button-red) 0%, var(--button-red-2) 100%);
     }
 
+    .panel-btn.fail-only{
+      min-width:232px;
+      height:70px;
+      font-size:24px;
+      transform:translateX(10px);
+    }
+
+    .panel-btn.fail-only:hover{
+      transform:translateX(10px) translateY(-1px);
+    }
+
+    .panel-btn.fail-only:active{
+      transform:translateX(10px) scale(.99);
+    }
+
     .panel-btn:disabled{
       opacity:.65;
       cursor:default;
       transform:none !important;
       filter:none !important;
+    }
+
+    .panel-btn.fail-only:disabled{
+      transform:translateX(10px) !important;
     }
 
     .player-box{
@@ -986,6 +1009,10 @@
       return team === "team1" ? "team2" : "team1";
     }
 
+    function isStealStage() {
+      return controlState.stage === "steal_result" || controlState.stage === "steal_pick";
+    }
+
     function canRegisterError() {
       if (!controlState.currentTurnTeam) return false;
       if (controlState.stage === "steal_result") return false;
@@ -1040,13 +1067,12 @@
 
       answers.forEach((answer, index) => {
         const card = document.createElement("button");
-        const isStealPickRevealedAnswer =
-          controlState.stage === "steal_pick" && !!answer.revealed;
+        const isBlockedRevealedAnswer = isStealStage() && !!answer.revealed;
 
         const shouldDisable =
           isBusy ||
           stealAwardInProgress ||
-          isStealPickRevealedAnswer;
+          isBlockedRevealedAnswer;
 
         card.type = "button";
         card.className = "answer-card" + (answer.revealed ? " revealed" : "");
@@ -1127,24 +1153,15 @@
         return;
       }
 
-      if (controlState.stage === "steal_result") {
-        panelTitleEl.textContent = "ماذا حصل لسرقة السؤال؟";
+      if (isStealStage()) {
+        panelTitleEl.textContent = "اضغط على الجواب لمنح الفريق الاخر النقاط";
 
-        const row = buildRow([
-          buildBlueButton("تمت السرقة", async () => {
-            await sendGameAction("steal_result", { result: "success" });
-          }),
-          buildBlueButton("فشلت السرقة", async () => {
-            await sendGameAction("steal_result", { result: "fail" });
-          })
+        const failRow = buildRow([
+          buildFailStealButton()
         ]);
+        failRow.classList.add("single-fail");
 
-        panelActionsEl.appendChild(row);
-        return;
-      }
-
-      if (controlState.stage === "steal_pick") {
-        panelTitleEl.textContent = "اضغط على الجواب الذي تم سرقته لمنح النقاط";
+        panelActionsEl.appendChild(failRow);
         return;
       }
 
@@ -1179,6 +1196,14 @@
       return btn;
     }
 
+    function buildFailStealButton() {
+      const btn = buildRedButton("فشلت السرقة", async () => {
+        await sendGameAction("steal_result", { result: "fail" });
+      });
+      btn.classList.add("fail-only");
+      return btn;
+    }
+
     async function handleAnswerClick(index) {
       if (isBusy || stealAwardInProgress) return;
 
@@ -1188,15 +1213,30 @@
 
       if (!answer) return;
 
-      if (controlState.stage === "steal_pick") {
+      if (isStealStage()) {
         if (answer.revealed) return;
 
         stealAwardInProgress = true;
         renderAll();
 
         try {
-          await sendGameAction("award_steal", { answerIndex: index });
-          await fetchRemoteGameState();
+          let awarded = false;
+
+          if (controlState.stage === "steal_result") {
+            awarded = await sendGameAction("award_steal", { answerIndex: index });
+
+            if (!awarded) {
+              const movedToPick = await sendGameAction("steal_result", { result: "success" });
+              if (!movedToPick) return;
+              awarded = await sendGameAction("award_steal", { answerIndex: index });
+            }
+          } else {
+            awarded = await sendGameAction("award_steal", { answerIndex: index });
+          }
+
+          if (awarded) {
+            await fetchRemoteGameState();
+          }
         } finally {
           stealAwardInProgress = false;
           renderAll();
