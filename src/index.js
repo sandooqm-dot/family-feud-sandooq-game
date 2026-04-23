@@ -15,8 +15,21 @@ export default {
           ok: true,
           key: env.PUSHER_KEY || "",
           cluster: env.PUSHER_CLUSTER || "",
-          channel: channelNameForRoom(room),
+          channel: buzzChannelNameForRoom(room),
           authEndpoint: `/api/buzz/pusher/auth?room=${encodeURIComponent(room)}`
+        });
+      }
+
+      if (url.pathname === "/api/game/pusher-config" && request.method === "GET") {
+        const room = normalizeRoom(url.searchParams.get("room"));
+        if (!room) return json({ ok: false, error: "ROOM_REQUIRED" }, 400);
+
+        return json({
+          ok: true,
+          key: env.PUSHER_KEY || "",
+          cluster: env.PUSHER_CLUSTER || "",
+          channel: gameChannelNameForRoom(room),
+          authEndpoint: `/api/game/pusher/auth?room=${encodeURIComponent(room)}`
         });
       }
 
@@ -24,40 +37,54 @@ export default {
         const room = normalizeRoom(url.searchParams.get("room"));
         if (!room) return json({ ok: false, error: "ROOM_REQUIRED" }, 400);
 
-        const contentType = request.headers.get("content-type") || "";
-        let socketId = "";
-        let channelName = "";
-
-        if (contentType.includes("application/json")) {
-          const body = await request.json().catch(() => ({}));
-          socketId = String(body.socket_id || "");
-          channelName = String(body.channel_name || "");
-        } else {
-          const form = await request.formData().catch(() => null);
-          socketId = String(form?.get("socket_id") || "");
-          channelName = String(form?.get("channel_name") || "");
-        }
-
-        if (!socketId || !channelName) {
+        const payload = await readPusherAuthPayload(request);
+        if (!payload.socketId || !payload.channelName) {
           return json({ ok: false, error: "INVALID_PUSHER_AUTH_PAYLOAD" }, 400);
         }
 
-        const expectedChannel = channelNameForRoom(room);
-        if (channelName !== expectedChannel) {
+        const expectedChannel = buzzChannelNameForRoom(room);
+        if (payload.channelName !== expectedChannel) {
           return json({ ok: false, error: "CHANNEL_ROOM_MISMATCH" }, 400);
         }
 
         const auth = await buildPusherChannelAuth(
           env.PUSHER_KEY,
           env.PUSHER_SECRET,
-          socketId,
-          channelName
+          payload.socketId,
+          payload.channelName
         );
 
         return json({ auth });
       }
 
-      if (!url.pathname.startsWith("/api/buzz/")) {
+      if (url.pathname === "/api/game/pusher/auth" && request.method === "POST") {
+        const room = normalizeRoom(url.searchParams.get("room"));
+        if (!room) return json({ ok: false, error: "ROOM_REQUIRED" }, 400);
+
+        const payload = await readPusherAuthPayload(request);
+        if (!payload.socketId || !payload.channelName) {
+          return json({ ok: false, error: "INVALID_PUSHER_AUTH_PAYLOAD" }, 400);
+        }
+
+        const expectedChannel = gameChannelNameForRoom(room);
+        if (payload.channelName !== expectedChannel) {
+          return json({ ok: false, error: "CHANNEL_ROOM_MISMATCH" }, 400);
+        }
+
+        const auth = await buildPusherChannelAuth(
+          env.PUSHER_KEY,
+          env.PUSHER_SECRET,
+          payload.socketId,
+          payload.channelName
+        );
+
+        return json({ auth });
+      }
+
+      const isBuzzRoute = url.pathname.startsWith("/api/buzz/");
+      const isGameRoute = url.pathname.startsWith("/api/game/");
+
+      if (!isBuzzRoute && !isGameRoute) {
         return json({ ok: false, error: "NOT_FOUND" }, 404);
       }
 
@@ -103,7 +130,7 @@ export class BuzzRoomDO {
         const state = await this.loadState(url.searchParams.get("room"));
         this.cleanupPlayers(state);
         await this.saveState(state, false);
-        return json({ ok: true, state: publicState(state) });
+        return json({ ok: true, state: publicBuzzState(state) });
       }
 
       if (request.method === "POST" && url.pathname === "/api/buzz/join") {
@@ -128,11 +155,9 @@ export class BuzzRoomDO {
           lastSeenAt: Date.now()
         };
 
-        state.updatedAt = Date.now();
-        state.version += 1;
-
+        touchState(state);
         await this.saveState(state, true);
-        return json({ ok: true, state: publicState(state) });
+        return json({ ok: true, state: publicBuzzState(state) });
       }
 
       if (request.method === "POST" && url.pathname === "/api/buzz/press") {
@@ -158,19 +183,25 @@ export class BuzzRoomDO {
         };
 
         if (!state.enabled) {
-          return json({
-            ok: false,
-            error: "BUZZ_DISABLED",
-            state: publicState(state)
-          }, 409);
+          return json(
+            {
+              ok: false,
+              error: "BUZZ_DISABLED",
+              state: publicBuzzState(state)
+            },
+            409
+          );
         }
 
         if (state.firstBuzz) {
-          return json({
-            ok: false,
-            error: "ALREADY_BUZZED",
-            state: publicState(state)
-          }, 409);
+          return json(
+            {
+              ok: false,
+              error: "ALREADY_BUZZED",
+              state: publicBuzzState(state)
+            },
+            409
+          );
         }
 
         state.firstBuzz = {
@@ -180,11 +211,9 @@ export class BuzzRoomDO {
           at: Date.now()
         };
 
-        state.updatedAt = Date.now();
-        state.version += 1;
-
+        touchState(state);
         await this.saveState(state, true);
-        return json({ ok: true, accepted: true, state: publicState(state) });
+        return json({ ok: true, accepted: true, state: publicBuzzState(state) });
       }
 
       if (request.method === "POST" && url.pathname === "/api/buzz/toggle") {
@@ -201,11 +230,9 @@ export class BuzzRoomDO {
         state.enabled = body.enabled;
         state.firstBuzz = null;
 
-        state.updatedAt = Date.now();
-        state.version += 1;
-
+        touchState(state);
         await this.saveState(state, true);
-        return json({ ok: true, state: publicState(state) });
+        return json({ ok: true, state: publicBuzzState(state) });
       }
 
       if (request.method === "POST" && url.pathname === "/api/buzz/reset") {
@@ -214,11 +241,72 @@ export class BuzzRoomDO {
         this.cleanupPlayers(state);
 
         state.firstBuzz = null;
-        state.updatedAt = Date.now();
-        state.version += 1;
 
+        touchState(state);
         await this.saveState(state, true);
-        return json({ ok: true, state: publicState(state) });
+        return json({ ok: true, state: publicBuzzState(state) });
+      }
+
+      if (request.method === "GET" && url.pathname === "/api/game/state") {
+        const state = await this.loadState(url.searchParams.get("room"));
+        this.cleanupPlayers(state);
+        await this.saveState(state, false);
+        return json({ ok: true, state: publicGameState(state) });
+      }
+
+      if (request.method === "POST" && url.pathname === "/api/game/init") {
+        const room = normalizeRoom(url.searchParams.get("room"));
+        const body = await safeJson(request);
+
+        const state = await this.loadState(room);
+
+        const questionIndex = normalizeQuestionIndex(body.questionIndex ?? 0);
+        const snapshot = createQuestionSnapshot(questionIndex);
+
+        state.game.currentQuestionIndex = questionIndex;
+        state.game.totalQuestions = QUESTIONS.length;
+        state.game.phase = "idle";
+        state.game.showQuestion = false;
+        state.game.currentTurnTeam = "";
+        state.game.confrontationWinner = "";
+        state.game.stealingTeam = "";
+        state.game.questionText = snapshot.questionText;
+        state.game.answers = snapshot.answers;
+        state.game.roundPoints = 0;
+        state.game.team1Name = normalizeTeamLabel(body.team1Name || state.game.team1Name || "الفريق الأول");
+        state.game.team2Name = normalizeTeamLabel(body.team2Name || state.game.team2Name || "الفريق الثاني");
+        state.game.team1Score = 0;
+        state.game.team2Score = 0;
+        state.game.team1Strikes = 0;
+        state.game.team2Strikes = 0;
+
+        state.enabled = true;
+        state.firstBuzz = null;
+
+        touchState(state);
+        await this.saveState(state, true);
+        return json({ ok: true, state: publicGameState(state) });
+      }
+
+      if (request.method === "POST" && url.pathname === "/api/game/action") {
+        const room = normalizeRoom(url.searchParams.get("room"));
+        const body = await safeJson(request);
+        const action = String(body.action || "").trim().toLowerCase();
+
+        if (!action) {
+          return json({ ok: false, error: "ACTION_REQUIRED" }, 400);
+        }
+
+        const state = await this.loadState(room);
+        const result = applyGameAction(state, action, body);
+
+        if (!result.ok) {
+          return json(result, 400);
+        }
+
+        touchState(state);
+        await this.saveState(state, true);
+        return json({ ok: true, action, state: publicGameState(state) });
       }
 
       return json({ ok: false, error: "NOT_FOUND" }, 404);
@@ -238,20 +326,7 @@ export class BuzzRoomDO {
     if (this.cache) return this.cache;
 
     const stored = await this.state.storage.get("state");
-    if (stored) {
-      this.cache = stored;
-      return this.cache;
-    }
-
-    this.cache = {
-      room: normalizeRoom(room) || "default",
-      enabled: true,
-      firstBuzz: null,
-      players: {},
-      updatedAt: Date.now(),
-      version: 1
-    };
-
+    this.cache = migrateState(stored, room);
     await this.state.storage.put("state", this.cache);
     return this.cache;
   }
@@ -260,7 +335,7 @@ export class BuzzRoomDO {
     const now = Date.now();
     const maxIdleMs = 1000 * 60 * 60 * 12;
 
-    for (const [playerId, player] of Object.entries(state.players)) {
+    for (const [playerId, player] of Object.entries(state.players || {})) {
       if (!player?.lastSeenAt || now - player.lastSeenAt > maxIdleMs) {
         delete state.players[playerId];
       }
@@ -281,16 +356,608 @@ export class BuzzRoomDO {
       return;
     }
 
-    const channel = channelNameForRoom(state.room);
-    const eventName = "buzz-updated";
-    const payload = publicState(state);
-
     try {
-      await triggerPusherEvent(this.env, channel, eventName, payload);
+      await Promise.all([
+        triggerPusherEvent(
+          this.env,
+          buzzChannelNameForRoom(state.room),
+          "buzz-updated",
+          publicBuzzState(state)
+        ),
+        triggerPusherEvent(
+          this.env,
+          gameChannelNameForRoom(state.room),
+          "game-updated",
+          publicGameState(state)
+        )
+      ]);
     } catch (error) {
       console.error("PUSHER_TRIGGER_FAILED", error);
     }
   }
+}
+
+/* =========================
+   Question bank
+========================= */
+
+const QUESTIONS = [
+  {
+    question: "اذكر شيئًا يستخدمه الناس يوميًا",
+    answers: [
+      { text: "الجوال", points: 32 },
+      { text: "المفاتيح", points: 18 },
+      { text: "الماء", points: 14 },
+      { text: "السيارة", points: 10 },
+      { text: "المحفظة", points: 8 },
+      { text: "النظارة", points: 6 }
+    ]
+  },
+  {
+    question: "اذكر شيئًا تجده في شنطة أي امرأة؟",
+    answers: [
+      { text: "روج / مكياج", points: 40 },
+      { text: "عطر", points: 25 },
+      { text: "محفظة فلوس", points: 15 },
+      { text: "مناديل", points: 10 },
+      { text: "مفاتيح", points: 10 },
+      { text: "جوال", points: 8 }
+    ]
+  },
+  {
+    question: "اذكر شيئًا يوجد في المطبخ",
+    answers: [
+      { text: "الثلاجة", points: 28 },
+      { text: "الفرن", points: 20 },
+      { text: "الصحون", points: 16 },
+      { text: "الملاعق", points: 12 },
+      { text: "الكاسات", points: 9 },
+      { text: "القدر", points: 7 }
+    ]
+  },
+  {
+    question: "اذكر شيئًا يحمله الطالب معه",
+    answers: [
+      { text: "الحقيبة", points: 30 },
+      { text: "القلم", points: 18 },
+      { text: "الدفتر", points: 16 },
+      { text: "الكتب", points: 14 },
+      { text: "المقلمة", points: 8 },
+      { text: "الآيباد", points: 6 }
+    ]
+  },
+  {
+    question: "اذكر شيئًا يستخدم في السفر",
+    answers: [
+      { text: "جواز السفر", points: 34 },
+      { text: "الشنطة", points: 22 },
+      { text: "التذكرة", points: 16 },
+      { text: "الملابس", points: 12 },
+      { text: "الفلوس", points: 9 },
+      { text: "الجوال", points: 7 }
+    ]
+  }
+];
+
+/* =========================
+   Game actions
+========================= */
+
+function applyGameAction(state, action, body) {
+  switch (action) {
+    case "show_question":
+    case "set_question_visibility": {
+      if (typeof body.visible !== "boolean") {
+        return { ok: false, error: "VISIBLE_BOOLEAN_REQUIRED" };
+      }
+      state.game.showQuestion = body.visible;
+      return { ok: true };
+    }
+
+    case "set_team_names": {
+      if (body.team1Name !== undefined) {
+        state.game.team1Name = normalizeTeamLabel(body.team1Name || state.game.team1Name);
+      }
+      if (body.team2Name !== undefined) {
+        state.game.team2Name = normalizeTeamLabel(body.team2Name || state.game.team2Name);
+      }
+      return { ok: true };
+    }
+
+    case "set_buzz_visible": {
+      if (typeof body.visible !== "boolean") {
+        return { ok: false, error: "VISIBLE_BOOLEAN_REQUIRED" };
+      }
+      state.enabled = body.visible;
+      state.firstBuzz = null;
+      return { ok: true };
+    }
+
+    case "clear_first_buzz": {
+      state.firstBuzz = null;
+      return { ok: true };
+    }
+
+    case "next_question": {
+      const nextIndex = normalizeQuestionIndex(state.game.currentQuestionIndex + 1);
+      loadQuestionIntoRound(state, nextIndex, { preserveScores: true, preserveNames: true });
+      return { ok: true };
+    }
+
+    case "previous_question": {
+      let prevIndex = normalizeQuestionIndex(state.game.currentQuestionIndex - 1);
+      if (state.game.currentQuestionIndex === 0) prevIndex = QUESTIONS.length - 1;
+      loadQuestionIntoRound(state, prevIndex, { preserveScores: true, preserveNames: true });
+      return { ok: true };
+    }
+
+    case "set_question_index": {
+      if (body.questionIndex === undefined || body.questionIndex === null) {
+        return { ok: false, error: "QUESTION_INDEX_REQUIRED" };
+      }
+      const index = normalizeQuestionIndex(body.questionIndex);
+      loadQuestionIntoRound(state, index, { preserveScores: true, preserveNames: true });
+      return { ok: true };
+    }
+
+    case "reveal_answer": {
+      const answerIndex = normalizeAnswerIndex(body.answerIndex);
+      if (answerIndex === -1) {
+        return { ok: false, error: "ANSWER_INDEX_INVALID" };
+      }
+
+      if (!state.game.answers[answerIndex].revealed) {
+        state.game.answers[answerIndex].revealed = true;
+        updateRoundPoints(state);
+      }
+
+      if (state.game.phase === "steal_pick") {
+        const stealTeam = normalizeTeam(state.game.stealingTeam);
+        if (!stealTeam) {
+          return { ok: false, error: "STEALING_TEAM_NOT_SET" };
+        }
+        awardRoundToTeam(state, stealTeam);
+        return { ok: true };
+      }
+
+      if (!normalizeTeam(state.game.currentTurnTeam) && state.firstBuzz) {
+        if (answerIndex === 0) {
+          state.game.confrontationWinner = state.firstBuzz.team;
+          state.game.phase = "play_or_pass";
+        } else {
+          state.game.phase = "duel_select";
+        }
+      } else if (normalizeTeam(state.game.currentTurnTeam) && allAnswersRevealed(state.game)) {
+        awardRoundToTeam(state, state.game.currentTurnTeam);
+      }
+
+      return { ok: true };
+    }
+
+    case "hide_answer": {
+      const answerIndex = normalizeAnswerIndex(body.answerIndex);
+      if (answerIndex === -1) {
+        return { ok: false, error: "ANSWER_INDEX_INVALID" };
+      }
+      state.game.answers[answerIndex].revealed = false;
+      updateRoundPoints(state);
+      return { ok: true };
+    }
+
+    case "set_duel_winner": {
+      const team = normalizeTeam(body.team);
+      if (!team) {
+        return { ok: false, error: "TEAM_REQUIRED" };
+      }
+      state.game.confrontationWinner = team;
+      state.game.phase = "play_or_pass";
+      return { ok: true };
+    }
+
+    case "cancel_duel":
+    case "cancel_context": {
+      if (state.game.phase === "play_or_pass") {
+        state.game.phase = "duel_select";
+      } else {
+        state.game.phase = "idle";
+      }
+      return { ok: true };
+    }
+
+    case "choose_play_or_pass": {
+      const decision = String(body.decision || "").trim().toLowerCase();
+      const winner = normalizeTeam(state.game.confrontationWinner);
+
+      if (!winner) {
+        return { ok: false, error: "CONFRONTATION_WINNER_NOT_SET" };
+      }
+
+      if (decision !== "play" && decision !== "pass") {
+        return { ok: false, error: "DECISION_INVALID" };
+      }
+
+      state.game.currentTurnTeam = decision === "play" ? winner : getOtherTeam(winner);
+      state.game.phase = "main";
+      return { ok: true };
+    }
+
+    case "register_error": {
+      let team = normalizeTeam(body.team);
+      if (!team) {
+        team = normalizeTeam(state.game.currentTurnTeam);
+      }
+      if (!team) {
+        return { ok: false, error: "CURRENT_TURN_TEAM_REQUIRED" };
+      }
+
+      if (team === "team1") {
+        state.game.team1Strikes = Math.min(3, state.game.team1Strikes + 1);
+        if (state.game.team1Strikes >= 3) {
+          state.game.stealingTeam = "team2";
+          state.game.phase = "steal_result";
+          state.enabled = false;
+          state.firstBuzz = null;
+        }
+      } else {
+        state.game.team2Strikes = Math.min(3, state.game.team2Strikes + 1);
+        if (state.game.team2Strikes >= 3) {
+          state.game.stealingTeam = "team1";
+          state.game.phase = "steal_result";
+          state.enabled = false;
+          state.firstBuzz = null;
+        }
+      }
+
+      return { ok: true };
+    }
+
+    case "steal_result": {
+      const result = String(body.result || "").trim().toLowerCase();
+
+      if (result !== "success" && result !== "fail") {
+        return { ok: false, error: "STEAL_RESULT_INVALID" };
+      }
+
+      if (result === "fail") {
+        const originalTeam = normalizeTeam(state.game.currentTurnTeam);
+        if (!originalTeam) {
+          return { ok: false, error: "CURRENT_TURN_TEAM_REQUIRED" };
+        }
+        awardRoundToTeam(state, originalTeam);
+        return { ok: true };
+      }
+
+      state.game.phase = "steal_pick";
+      return { ok: true };
+    }
+
+    case "award_steal": {
+      const stealTeam = normalizeTeam(state.game.stealingTeam);
+      if (!stealTeam) {
+        return { ok: false, error: "STEALING_TEAM_NOT_SET" };
+      }
+
+      const answerIndex = normalizeAnswerIndex(body.answerIndex);
+      if (answerIndex === -1) {
+        return { ok: false, error: "ANSWER_INDEX_INVALID" };
+      }
+
+      if (!state.game.answers[answerIndex].revealed) {
+        state.game.answers[answerIndex].revealed = true;
+        updateRoundPoints(state);
+      }
+
+      awardRoundToTeam(state, stealTeam);
+      return { ok: true };
+    }
+
+    case "reset_round": {
+      resetRoundState(state, { preserveScores: true, preserveNames: true });
+      return { ok: true };
+    }
+
+    case "reset_scores": {
+      state.game.team1Score = 0;
+      state.game.team2Score = 0;
+      return { ok: true };
+    }
+
+    case "reset_all": {
+      const team1Name = state.game.team1Name || "الفريق الأول";
+      const team2Name = state.game.team2Name || "الفريق الثاني";
+      loadQuestionIntoRound(state, 0, { preserveScores: false, preserveNames: false });
+      state.game.team1Name = team1Name;
+      state.game.team2Name = team2Name;
+      return { ok: true };
+    }
+
+    default:
+      return { ok: false, error: "ACTION_NOT_SUPPORTED" };
+  }
+}
+
+function awardRoundToTeam(state, team) {
+  updateRoundPoints(state);
+
+  if (team === "team1") {
+    state.game.team1Score += state.game.roundPoints;
+  } else if (team === "team2") {
+    state.game.team2Score += state.game.roundPoints;
+  }
+
+  state.game.phase = "idle";
+  state.game.currentTurnTeam = "";
+  state.game.confrontationWinner = "";
+  state.game.stealingTeam = "";
+  state.game.team1Strikes = 0;
+  state.game.team2Strikes = 0;
+
+  state.enabled = false;
+  state.firstBuzz = null;
+}
+
+function resetRoundState(state, options = {}) {
+  const preserveScores = !!options.preserveScores;
+  const preserveNames = !!options.preserveNames;
+
+  const currentIndex = normalizeQuestionIndex(state.game.currentQuestionIndex);
+  const snapshot = createQuestionSnapshot(currentIndex);
+
+  const team1Name = preserveNames ? state.game.team1Name : "الفريق الأول";
+  const team2Name = preserveNames ? state.game.team2Name : "الفريق الثاني";
+  const team1Score = preserveScores ? state.game.team1Score : 0;
+  const team2Score = preserveScores ? state.game.team2Score : 0;
+
+  state.game.currentQuestionIndex = currentIndex;
+  state.game.totalQuestions = QUESTIONS.length;
+  state.game.phase = "idle";
+  state.game.showQuestion = false;
+  state.game.team1Name = team1Name;
+  state.game.team2Name = team2Name;
+  state.game.team1Score = team1Score;
+  state.game.team2Score = team2Score;
+  state.game.team1Strikes = 0;
+  state.game.team2Strikes = 0;
+  state.game.currentTurnTeam = "";
+  state.game.confrontationWinner = "";
+  state.game.stealingTeam = "";
+  state.game.questionText = snapshot.questionText;
+  state.game.answers = snapshot.answers;
+  state.game.roundPoints = 0;
+
+  state.enabled = true;
+  state.firstBuzz = null;
+}
+
+function loadQuestionIntoRound(state, questionIndex, options = {}) {
+  const preserveScores = !!options.preserveScores;
+  const preserveNames = !!options.preserveNames;
+
+  const team1Name = preserveNames ? state.game.team1Name : "الفريق الأول";
+  const team2Name = preserveNames ? state.game.team2Name : "الفريق الثاني";
+  const team1Score = preserveScores ? state.game.team1Score : 0;
+  const team2Score = preserveScores ? state.game.team2Score : 0;
+
+  state.game.currentQuestionIndex = normalizeQuestionIndex(questionIndex);
+  state.game.totalQuestions = QUESTIONS.length;
+  state.game.phase = "idle";
+  state.game.showQuestion = false;
+  state.game.team1Name = team1Name;
+  state.game.team2Name = team2Name;
+  state.game.team1Score = team1Score;
+  state.game.team2Score = team2Score;
+  state.game.team1Strikes = 0;
+  state.game.team2Strikes = 0;
+  state.game.currentTurnTeam = "";
+  state.game.confrontationWinner = "";
+  state.game.stealingTeam = "";
+
+  const snapshot = createQuestionSnapshot(state.game.currentQuestionIndex);
+  state.game.questionText = snapshot.questionText;
+  state.game.answers = snapshot.answers;
+  state.game.roundPoints = 0;
+
+  state.enabled = true;
+  state.firstBuzz = null;
+}
+
+/* =========================
+   State creation / migration
+========================= */
+
+function createQuestionSnapshot(index) {
+  const safeIndex = normalizeQuestionIndex(index);
+  const question = QUESTIONS[safeIndex] || QUESTIONS[0];
+
+  return {
+    questionText: String(question.question || "").trim(),
+    answers: Array.from({ length: 6 }, (_, i) => {
+      const answer = question.answers[i] || { text: "", points: 0 };
+      return {
+        text: String(answer.text || "").trim(),
+        points: Math.max(0, normalizeNumber(answer.points, 0)),
+        revealed: false
+      };
+    })
+  };
+}
+
+function createDefaultGameState() {
+  const snapshot = createQuestionSnapshot(0);
+
+  return {
+    currentQuestionIndex: 0,
+    totalQuestions: QUESTIONS.length,
+    phase: "idle",
+    showQuestion: false,
+    team1Name: "الفريق الأول",
+    team2Name: "الفريق الثاني",
+    team1Score: 0,
+    team2Score: 0,
+    team1Strikes: 0,
+    team2Strikes: 0,
+    currentTurnTeam: "",
+    confrontationWinner: "",
+    stealingTeam: "",
+    questionText: snapshot.questionText,
+    answers: snapshot.answers,
+    roundPoints: 0
+  };
+}
+
+function createDefaultState(room) {
+  return {
+    room: normalizeRoom(room) || "default",
+    enabled: true,
+    firstBuzz: null,
+    players: {},
+    game: createDefaultGameState(),
+    updatedAt: Date.now(),
+    version: 1
+  };
+}
+
+function migrateState(stored, room) {
+  const base = createDefaultState(room);
+
+  if (!stored || typeof stored !== "object") {
+    return base;
+  }
+
+  const currentQuestionIndex = normalizeQuestionIndex(
+    stored?.game?.currentQuestionIndex ?? base.game.currentQuestionIndex
+  );
+  const snapshot = createQuestionSnapshot(currentQuestionIndex);
+
+  const game = {
+    ...base.game,
+    currentQuestionIndex,
+    totalQuestions: QUESTIONS.length,
+    phase: normalizeGamePhase(stored?.game?.phase),
+    showQuestion: typeof stored?.game?.showQuestion === "boolean" ? stored.game.showQuestion : base.game.showQuestion,
+    team1Name: normalizeTeamLabel(stored?.game?.team1Name || base.game.team1Name),
+    team2Name: normalizeTeamLabel(stored?.game?.team2Name || base.game.team2Name),
+    team1Score: Math.max(0, normalizeNumber(stored?.game?.team1Score, base.game.team1Score)),
+    team2Score: Math.max(0, normalizeNumber(stored?.game?.team2Score, base.game.team2Score)),
+    team1Strikes: normalizeStrikeCount(stored?.game?.team1Strikes),
+    team2Strikes: normalizeStrikeCount(stored?.game?.team2Strikes),
+    currentTurnTeam: normalizeTeam(stored?.game?.currentTurnTeam) || "",
+    confrontationWinner: normalizeTeam(stored?.game?.confrontationWinner) || "",
+    stealingTeam: normalizeTeam(stored?.game?.stealingTeam) || "",
+    questionText: normalizeQuestionText(stored?.game?.questionText || snapshot.questionText),
+    answers: mergeAnswers(stored?.game?.answers, snapshot.answers),
+    roundPoints: Math.max(0, normalizeNumber(stored?.game?.roundPoints, 0))
+  };
+
+  const merged = {
+    ...base,
+    room: normalizeRoom(stored.room) || normalizeRoom(room) || base.room,
+    enabled: typeof stored.enabled === "boolean" ? stored.enabled : base.enabled,
+    firstBuzz: normalizeFirstBuzz(stored.firstBuzz),
+    players: normalizePlayers(stored.players),
+    game,
+    updatedAt: Math.max(0, normalizeNumber(stored.updatedAt, base.updatedAt)),
+    version: Math.max(1, normalizeNumber(stored.version, base.version))
+  };
+
+  updateRoundPoints(merged);
+  return merged;
+}
+
+function mergeAnswers(incoming, fallback) {
+  const answers = Array.isArray(incoming) ? incoming : [];
+  return Array.from({ length: 6 }, (_, i) => {
+    const answer = answers[i];
+    const fallbackAnswer = fallback[i] || { text: "", points: 0, revealed: false };
+    return {
+      text: normalizeAnswerText(answer?.text || fallbackAnswer.text),
+      points: Math.max(0, normalizeNumber(answer?.points, fallbackAnswer.points)),
+      revealed: !!answer?.revealed
+    };
+  });
+}
+
+function touchState(state) {
+  updateRoundPoints(state);
+  state.updatedAt = Date.now();
+  state.version = Math.max(1, normalizeNumber(state.version, 0) + 1);
+}
+
+/* =========================
+   Public state
+========================= */
+
+function publicBuzzState(state) {
+  return {
+    room: state.room,
+    enabled: !!state.enabled,
+    firstBuzz: state.firstBuzz
+      ? {
+          playerId: state.firstBuzz.playerId,
+          name: state.firstBuzz.name,
+          team: state.firstBuzz.team,
+          at: state.firstBuzz.at
+        }
+      : null,
+    players: Object.values(state.players || {}).map((p) => ({
+      id: p.id,
+      name: p.name,
+      team: p.team
+    })),
+    updatedAt: state.updatedAt,
+    version: state.version
+  };
+}
+
+function publicGameState(state) {
+  return {
+    room: state.room,
+    updatedAt: state.updatedAt,
+    version: state.version,
+
+    buzz: {
+      enabled: !!state.enabled,
+      firstBuzz: state.firstBuzz
+        ? {
+            playerId: state.firstBuzz.playerId,
+            name: state.firstBuzz.name,
+            team: state.firstBuzz.team,
+            at: state.firstBuzz.at
+          }
+        : null,
+      players: Object.values(state.players || {}).map((p) => ({
+        id: p.id,
+        name: p.name,
+        team: p.team
+      }))
+    },
+
+    control: {
+      currentQuestionIndex: state.game.currentQuestionIndex,
+      totalQuestions: state.game.totalQuestions,
+      phase: state.game.phase,
+      currentTurnTeam: state.game.currentTurnTeam,
+      confrontationWinner: state.game.confrontationWinner,
+      stealingTeam: state.game.stealingTeam
+    },
+
+    display: {
+      showQuestion: !!state.game.showQuestion,
+      question: state.game.questionText,
+      team1Name: state.game.team1Name,
+      team2Name: state.game.team2Name,
+      team1Score: state.game.team1Score,
+      team2Score: state.game.team2Score,
+      team1Strikes: state.game.team1Strikes,
+      team2Strikes: state.game.team2Strikes,
+      roundPoints: state.game.roundPoints,
+      answers: state.game.answers.map((a) => ({
+        text: a.text,
+        points: a.points,
+        revealed: !!a.revealed
+      }))
+    }
+  };
 }
 
 /* =========================
@@ -323,6 +990,24 @@ async function safeJson(request) {
   }
 }
 
+async function readPusherAuthPayload(request) {
+  const contentType = request.headers.get("content-type") || "";
+
+  if (contentType.includes("application/json")) {
+    const body = await request.json().catch(() => ({}));
+    return {
+      socketId: String(body.socket_id || ""),
+      channelName: String(body.channel_name || "")
+    };
+  }
+
+  const form = await request.formData().catch(() => null);
+  return {
+    socketId: String(form?.get("socket_id") || ""),
+    channelName: String(form?.get("channel_name") || "")
+  };
+}
+
 function normalizeRoom(value) {
   const v = String(value || "").trim().toLowerCase();
   if (!v) return "";
@@ -347,30 +1032,116 @@ function normalizeTeam(value) {
   return "";
 }
 
-function publicState(state) {
-  return {
-    room: state.room,
-    enabled: !!state.enabled,
-    firstBuzz: state.firstBuzz
-      ? {
-          playerId: state.firstBuzz.playerId,
-          name: state.firstBuzz.name,
-          team: state.firstBuzz.team,
-          at: state.firstBuzz.at
-        }
-      : null,
-    players: Object.values(state.players || {}).map((p) => ({
-      id: p.id,
-      name: p.name,
-      team: p.team
-    })),
-    updatedAt: state.updatedAt,
-    version: state.version
-  };
+function normalizeTeamLabel(value) {
+  const v = String(value || "").trim();
+  return v.slice(0, 60) || "الفريق";
 }
 
-function channelNameForRoom(room) {
+function normalizeQuestionText(value) {
+  const v = String(value || "").trim();
+  return v.slice(0, 180);
+}
+
+function normalizeAnswerText(value) {
+  const v = String(value || "").trim();
+  return v.slice(0, 80);
+}
+
+function normalizeNumber(value, fallback = 0) {
+  const n = Number(value);
+  return Number.isFinite(n) ? n : fallback;
+}
+
+function normalizeStrikeCount(value) {
+  return Math.max(0, Math.min(3, normalizeNumber(value, 0)));
+}
+
+function normalizeAnswerIndex(value) {
+  const n = Number(value);
+  if (!Number.isInteger(n)) return -1;
+  if (n < 0 || n > 5) return -1;
+  return n;
+}
+
+function normalizeQuestionIndex(value) {
+  const n = Number(value);
+  if (!Number.isInteger(n)) return 0;
+  if (QUESTIONS.length <= 0) return 0;
+  if (n < 0) return 0;
+  if (n >= QUESTIONS.length) return n % QUESTIONS.length;
+  return n;
+}
+
+function normalizeGamePhase(value) {
+  const allowed = new Set([
+    "idle",
+    "duel_select",
+    "play_or_pass",
+    "main",
+    "steal_result",
+    "steal_pick"
+  ]);
+
+  const v = String(value || "").trim().toLowerCase();
+  return allowed.has(v) ? v : "idle";
+}
+
+function normalizeFirstBuzz(firstBuzz) {
+  if (!firstBuzz || typeof firstBuzz !== "object") return null;
+
+  const playerId = normalizeId(firstBuzz.playerId);
+  const name = normalizePlayerName(firstBuzz.name);
+  const team = normalizeTeam(firstBuzz.team);
+  const at = Math.max(0, normalizeNumber(firstBuzz.at, 0));
+
+  if (!playerId || !name || !team) return null;
+
+  return { playerId, name, team, at };
+}
+
+function normalizePlayers(players) {
+  const source = players && typeof players === "object" ? players : {};
+  const result = {};
+
+  for (const [key, value] of Object.entries(source)) {
+    const playerId = normalizeId(key || value?.id);
+    const name = normalizePlayerName(value?.name);
+    const team = normalizeTeam(value?.team);
+    const lastSeenAt = Math.max(0, normalizeNumber(value?.lastSeenAt, 0));
+
+    if (!playerId || !name || !team) continue;
+
+    result[playerId] = {
+      id: playerId,
+      name,
+      team,
+      lastSeenAt
+    };
+  }
+
+  return result;
+}
+
+function updateRoundPoints(state) {
+  state.game.roundPoints = state.game.answers.reduce((sum, answer) => {
+    return sum + (answer.revealed ? Math.max(0, normalizeNumber(answer.points, 0)) : 0);
+  }, 0);
+}
+
+function allAnswersRevealed(game) {
+  return game.answers.every((answer) => !!answer.revealed);
+}
+
+function getOtherTeam(team) {
+  return team === "team1" ? "team2" : "team1";
+}
+
+function buzzChannelNameForRoom(room) {
   return `private-buzz-${room}`;
+}
+
+function gameChannelNameForRoom(room) {
+  return `private-game-${room}`;
 }
 
 /* =========================
