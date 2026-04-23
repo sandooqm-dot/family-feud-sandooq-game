@@ -535,6 +535,13 @@
     const PORTRAIT_WIDTH = 640;
     const PORTRAIT_HEIGHT = 1280;
 
+    const DISPLAY_KEY = "familyfeud_display_state_v1";
+    const CONTROL_KEY = "familyfeud_control_state_v1";
+    const ROOM_KEY = "familyfeud_room_id";
+    const BUZZ_ROOM_KEY = "familyfeud_buzz_room";
+    const API_BASE_KEY = "familyfeud_api_base";
+    const BUZZ_API_BASE_KEY = "familyfeud_buzz_api_base";
+
     const root = document.documentElement;
 
     const teamOneInput = document.getElementById("teamOneInput");
@@ -562,6 +569,64 @@
 
     let stableViewport = { width: window.innerWidth, height: window.innerHeight };
     let stableOrientationPortrait = window.innerHeight > window.innerWidth;
+    let currentRoomId = createFreshRoomId();
+
+    persistRoomId(currentRoomId);
+
+    function readStored(key) {
+      try {
+        const localValue = localStorage.getItem(key);
+        if (localValue) return localValue;
+      } catch (e) {}
+
+      try {
+        const sessionValue = sessionStorage.getItem(key);
+        if (sessionValue) return sessionValue;
+      } catch (e) {}
+
+      return "";
+    }
+
+    function writeStored(key, value) {
+      try { localStorage.setItem(key, value); } catch (e) {}
+      try { sessionStorage.setItem(key, value); } catch (e) {}
+    }
+
+    function normalizeBase(base) {
+      return String(base || "").trim().replace(/\/+$/, "");
+    }
+
+    function getApiBases() {
+      const seen = new Set();
+      const result = [];
+
+      const candidates = [
+        readStored(API_BASE_KEY),
+        readStored(BUZZ_API_BASE_KEY),
+        window.location.origin.includes("workers.dev") ? window.location.origin : "",
+        "https://family-feud-buzz.sandooq-m.workers.dev",
+        "https://z.sandooq-m.workers.dev"
+      ];
+
+      candidates.forEach((base) => {
+        const normalized = normalizeBase(base);
+        if (!normalized || seen.has(normalized)) return;
+        seen.add(normalized);
+        result.push(normalized);
+      });
+
+      return result;
+    }
+
+    function createFreshRoomId() {
+      const randomPart = Math.random().toString(36).slice(2, 8);
+      return `family-feud-${randomPart}`;
+    }
+
+    function persistRoomId(roomId) {
+      writeStored(ROOM_KEY, roomId);
+      writeStored(BUZZ_ROOM_KEY, roomId);
+    }
 
     function getCurrentViewport() {
       const vv = window.visualViewport;
@@ -651,51 +716,46 @@
       });
     }
 
-    function buildControlLink() {
+    function buildPageLink(fileName) {
       const url = new URL(window.location.href);
       const path = url.pathname;
 
       if (/index\.html?$/i.test(path)) {
-        url.pathname = path.replace(/index\.html?$/i, "control.html");
+        url.pathname = path.replace(/index\.html?$/i, fileName);
       } else if (path.endsWith("/")) {
-        url.pathname = path + "control.html";
+        url.pathname = path + fileName;
       } else {
-        url.pathname = path.replace(/\/[^/]*$/, "/control.html");
+        url.pathname = path.replace(/\/[^/]*$/, "/" + fileName);
       }
 
       url.search = "";
       url.hash = "";
+      url.searchParams.set("room", currentRoomId);
       return url.toString();
+    }
+
+    function buildControlLink() {
+      return buildPageLink("control.html");
     }
 
     function buildBuzzLink() {
-      const url = new URL(window.location.href);
-      const path = url.pathname;
-
-      if (/index\.html?$/i.test(path)) {
-        url.pathname = path.replace(/index\.html?$/i, "buzz.html");
-      } else if (path.endsWith("/")) {
-        url.pathname = path + "buzz.html";
-      } else {
-        url.pathname = path.replace(/\/[^/]*$/, "/buzz.html");
-      }
-
-      url.search = "";
-      url.hash = "";
-      return url.toString();
+      return buildPageLink("buzz.html");
     }
 
-    const CONTROL_LINK = buildControlLink();
-    const BUZZ_LINK = buildBuzzLink();
+    function buildGameLink() {
+      return buildPageLink("game.html");
+    }
 
     function updateAnswersBox() {
-      answersLinkInput.value = CONTROL_LINK;
-      qrImage.src = "https://api.qrserver.com/v1/create-qr-code/?size=260x260&data=" + encodeURIComponent(CONTROL_LINK);
+      const controlLink = buildControlLink();
+      answersLinkInput.value = controlLink;
+      qrImage.src = "https://api.qrserver.com/v1/create-qr-code/?size=260x260&data=" + encodeURIComponent(controlLink);
     }
 
     function updateBuzzBox() {
-      buzzLinkInput.value = BUZZ_LINK;
-      buzzQrImage.src = "https://api.qrserver.com/v1/create-qr-code/?size=260x260&data=" + encodeURIComponent(BUZZ_LINK);
+      const buzzLink = buildBuzzLink();
+      buzzLinkInput.value = buzzLink;
+      buzzQrImage.src = "https://api.qrserver.com/v1/create-qr-code/?size=260x260&data=" + encodeURIComponent(buzzLink);
     }
 
     function openOverlay(el) {
@@ -714,6 +774,78 @@
       startBtn.disabled = !ready;
     }
 
+    function initializeLocalGameState(team1, team2) {
+      const defaultQuestion = "اذكر شيئًا يستخدمه الناس يوميًا";
+
+      const displayState = {
+        showQuestion: false,
+        question: defaultQuestion,
+        team1Name: team1,
+        team2Name: team2,
+        team1Score: 0,
+        team2Score: 0,
+        team1Strikes: 0,
+        team2Strikes: 0,
+        roundPoints: 0,
+        answers: [
+          { text: "الجوال", points: 32, revealed: false },
+          { text: "المفاتيح", points: 18, revealed: false },
+          { text: "الماء", points: 14, revealed: false },
+          { text: "السيارة", points: 10, revealed: false },
+          { text: "المحفظة", points: 8, revealed: false },
+          { text: "النظارة", points: 6, revealed: false }
+        ]
+      };
+
+      const controlState = {
+        currentQuestionIndex: 0,
+        stage: "idle",
+        currentTurnTeam: "",
+        confrontationWinner: "",
+        stealingTeam: "",
+        firstBuzzName: "",
+        firstBuzzTeam: "",
+        buzzVisible: true
+      };
+
+      writeStored(DISPLAY_KEY, JSON.stringify(displayState));
+      writeStored(CONTROL_KEY, JSON.stringify(controlState));
+      writeStored("familyfeud_buzz_enabled_presenter", "1");
+    }
+
+    async function initializeRemoteGame(room, team1, team2) {
+      const bases = getApiBases();
+
+      for (const base of bases) {
+        try {
+          const response = await fetch(`${base}/api/game/init?room=${encodeURIComponent(room)}`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "Cache-Control": "no-cache",
+              "Pragma": "no-cache"
+            },
+            body: JSON.stringify({
+              team1Name: team1,
+              team2Name: team2,
+              questionIndex: 0
+            })
+          });
+
+          if (!response.ok) continue;
+
+          const data = await response.json().catch(() => null);
+          if (!data || !data.ok) continue;
+
+          writeStored(API_BASE_KEY, base);
+          writeStored(BUZZ_API_BASE_KEY, base);
+          return true;
+        } catch (error) {}
+      }
+
+      return false;
+    }
+
     guideBtn.addEventListener("click", () => openOverlay(guideOverlay));
 
     answersBtn.addEventListener("click", () => {
@@ -726,12 +858,33 @@
       openOverlay(buzzOverlay);
     });
 
-    startBtn.addEventListener("click", () => {
+    startBtn.addEventListener("click", async () => {
       if (startBtn.disabled) return;
 
-      sessionStorage.setItem("familyfeud_team1", teamOneInput.value.trim());
-      sessionStorage.setItem("familyfeud_team2", teamTwoInput.value.trim());
-      window.location.href = "game.html";
+      const team1 = teamOneInput.value.trim();
+      const team2 = teamTwoInput.value.trim();
+
+      sessionStorage.setItem("familyfeud_team1", team1);
+      sessionStorage.setItem("familyfeud_team2", team2);
+      writeStored("familyfeud_team1", team1);
+      writeStored("familyfeud_team2", team2);
+
+      startBtn.disabled = true;
+      const originalText = startBtn.textContent;
+      startBtn.textContent = "جارٍ البدء...";
+
+      const remoteOk = await initializeRemoteGame(currentRoomId, team1, team2);
+
+      if (!remoteOk) {
+        startBtn.disabled = false;
+        startBtn.textContent = originalText;
+        window.alert("تعذر تجهيز الغرفة الآن. تأكد من أن الباكند منشور ثم حاول مرة أخرى.");
+        return;
+      }
+
+      initializeLocalGameState(team1, team2);
+      startBtn.textContent = originalText;
+      window.location.href = buildGameLink();
     });
 
     document.querySelectorAll("[data-close]").forEach(btn => {
@@ -790,11 +943,13 @@
 
     teamOneInput.addEventListener("input", () => {
       sessionStorage.setItem("familyfeud_team1", teamOneInput.value);
+      writeStored("familyfeud_team1", teamOneInput.value);
       updateStartButtonState();
     });
 
     teamTwoInput.addEventListener("input", () => {
       sessionStorage.setItem("familyfeud_team2", teamTwoInput.value);
+      writeStored("familyfeud_team2", teamTwoInput.value);
       updateStartButtonState();
     });
 
@@ -825,6 +980,8 @@
     });
 
     updateStartButtonState();
+    updateAnswersBox();
+    updateBuzzBox();
     updateLayout(true);
 
     window.addEventListener("load", () => {
