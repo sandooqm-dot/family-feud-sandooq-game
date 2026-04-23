@@ -88,10 +88,10 @@
 
     .store-logo{
       position:absolute;
-      top:14px;
-      left:18px;
-      width:132px;
-      height:88px;
+      top:12px;
+      left:16px;
+      width:145px;
+      height:92px;
       object-fit:contain;
       z-index:5;
     }
@@ -99,19 +99,19 @@
     .game-logo{
       position:absolute;
       top:10px;
-      right:18px;
-      width:142px;
-      height:84px;
+      right:16px;
+      width:150px;
+      height:88px;
       object-fit:contain;
       z-index:5;
     }
 
     .question-box{
       position:absolute;
-      top:38px;
+      top:34px;
       left:50%;
       transform:translateX(-50%);
-      width:840px;
+      width:888px;
       height:150px;
       border-radius:34px;
       border:6px solid var(--gold);
@@ -128,14 +128,14 @@
     .question-text{
       width:100%;
       height:100%;
-      padding:8px 34px 0;
+      padding:0 32px;
       display:flex;
       align-items:center;
       justify-content:center;
       text-align:center;
       color:var(--white);
-      font-size:64px;
-      line-height:1.18;
+      font-size:58px;
+      line-height:1.1;
       font-weight:900;
       white-space:nowrap;
       overflow:hidden;
@@ -144,11 +144,11 @@
 
     .round-box{
       position:absolute;
-      top:204px;
+      top:210px;
       left:50%;
       transform:translateX(-50%);
-      width:244px;
-      height:108px;
+      width:250px;
+      height:112px;
       border-radius:30px;
       border:6px solid var(--gold);
       background:linear-gradient(180deg, #0a1d56 0%, #08173d 100%);
@@ -162,26 +162,26 @@
 
     .round-label{
       color:var(--white);
-      font-size:22px;
-      line-height:1.15;
+      font-size:24px;
+      line-height:1;
       font-weight:900;
-      margin-bottom:6px;
+      margin-bottom:8px;
     }
 
     .round-score{
       color:var(--gold);
-      font-size:58px;
+      font-size:60px;
       line-height:1;
       font-weight:900;
     }
 
     .board{
       position:absolute;
-      top:292px;
+      top:288px;
       left:50%;
       transform:translateX(-50%);
       width:888px;
-      height:364px;
+      height:372px;
       border-radius:36px;
       border:7px solid var(--board-gold);
       background:#2b47ad;
@@ -190,7 +190,7 @@
 
     .answers-grid{
       position:absolute;
-      inset:26px 24px 26px 24px;
+      inset:24px 22px 24px 22px;
       display:grid;
       grid-template-columns:1fr 1fr;
       grid-template-rows:repeat(3, 1fr);
@@ -219,7 +219,7 @@
       display:flex;
       align-items:center;
       justify-content:center;
-      padding:0 82px 0 80px;
+      padding:0 84px 0 78px;
     }
 
     .rank-circle{
@@ -266,19 +266,19 @@
       text-align:center;
       color:var(--white);
       font-size:38px;
-      line-height:1.18;
+      line-height:1.15;
       font-weight:900;
       white-space:nowrap;
       overflow:hidden;
       text-overflow:ellipsis;
-      padding:6px 10px 0;
+      padding:0 10px;
     }
 
     .team-panel{
       position:absolute;
-      top:130px;
+      top:126px;
       width:252px;
-      height:492px;
+      height:494px;
       border-radius:36px;
       border:8px solid var(--panel-border);
       background:linear-gradient(180deg, #0b2270 0%, #091f64 100%);
@@ -299,17 +299,17 @@
     }
 
     .team-name{
-      margin-top:40px;
+      margin-top:34px;
       width:100%;
-      min-height:66px;
-      padding:6px 18px 0;
+      height:74px;
+      padding:0 14px;
       display:flex;
       align-items:center;
       justify-content:center;
       text-align:center;
       color:var(--white);
-      font-size:52px;
-      line-height:1.18;
+      font-size:48px;
+      line-height:1.1;
       font-weight:900;
       white-space:nowrap;
       overflow:hidden;
@@ -317,7 +317,7 @@
     }
 
     .team-score-box{
-      margin-top:34px;
+      margin-top:28px;
       width:184px;
       height:112px;
       border-radius:32px;
@@ -338,10 +338,10 @@
     }
 
     .strikes-label{
-      margin-top:54px;
+      margin-top:58px;
       color:var(--white);
       font-size:22px;
-      line-height:1.18;
+      line-height:1.1;
       font-weight:900;
       opacity:.95;
     }
@@ -388,7 +388,7 @@
         </div>
 
         <aside class="team-panel left">
-          <div id="teamTwoName" class="team-name">الأقوياء</div>
+          <div id="teamTwoName" class="team-name">الفريق الثاني</div>
 
           <div class="team-score-box">
             <div id="teamTwoScore" class="team-score">0</div>
@@ -408,7 +408,7 @@
         </div>
 
         <aside class="team-panel right">
-          <div id="teamOneName" class="team-name">الأبطال</div>
+          <div id="teamOneName" class="team-name">الفريق الأول</div>
 
           <div class="team-score-box">
             <div id="teamOneScore" class="team-score">0</div>
@@ -432,7 +432,9 @@
   <script>
     const DESIGN_WIDTH = 1600;
     const DESIGN_HEIGHT = 768;
-    const STORAGE_KEY = "familyfeud_display_state_v1";
+
+    const DISPLAY_KEY = "familyfeud_display_state_v1";
+    const DISPLAY_CHANNEL = "familyfeud_display_channel_v1";
 
     const root = document.documentElement;
 
@@ -451,6 +453,13 @@
 
     let stableViewport = { width: window.innerWidth, height: window.innerHeight };
     let lastStateSignature = "";
+    let channel = null;
+
+    try {
+      channel = new BroadcastChannel(DISPLAY_CHANNEL);
+    } catch (e) {
+      channel = null;
+    }
 
     function readStored(key) {
       try {
@@ -476,10 +485,10 @@
 
     function getDefaultState() {
       return {
-        showQuestion: false,
+        showQuestion: true,
         question: "اذكر شيئًا يستخدمه الناس يوميًا",
-        team1Name: readStored("familyfeud_team1") || "الأبطال",
-        team2Name: readStored("familyfeud_team2") || "الأقوياء",
+        team1Name: readStored("familyfeud_team1") || "الفريق الأول",
+        team2Name: readStored("familyfeud_team2") || "الفريق الثاني",
         team1Score: 0,
         team2Score: 0,
         team1Strikes: 0,
@@ -505,41 +514,42 @@
       return Math.max(0, Math.min(3, normalizeNumber(value, 0)));
     }
 
-    function normalizeAnswer(answer) {
+    function normalizeAnswer(answer, fallback) {
       return {
-        text: String(answer?.text || "").trim(),
-        points: Math.max(0, normalizeNumber(answer?.points, 0)),
+        text: String(answer?.text ?? fallback?.text ?? "").trim(),
+        points: Math.max(0, normalizeNumber(answer?.points, fallback?.points ?? 0)),
         revealed: !!answer?.revealed
       };
     }
 
     function normalizeState(raw) {
       const defaults = getDefaultState();
-      const answers = Array.isArray(raw?.answers) ? raw.answers : defaults.answers;
+      const source = raw || defaults;
+      const answers = Array.isArray(source.answers) ? source.answers : defaults.answers;
 
       const normalizedAnswers = [];
       for (let i = 0; i < 6; i++) {
-        normalizedAnswers.push(normalizeAnswer(answers[i] || defaults.answers[i]));
+        normalizedAnswers.push(normalizeAnswer(answers[i], defaults.answers[i]));
       }
 
       return {
-        showQuestion: typeof raw?.showQuestion === "boolean" ? raw.showQuestion : defaults.showQuestion,
-        question: String(raw?.question || defaults.question).trim() || defaults.question,
-        team1Name: String(raw?.team1Name || defaults.team1Name).trim() || defaults.team1Name,
-        team2Name: String(raw?.team2Name || defaults.team2Name).trim() || defaults.team2Name,
-        team1Score: Math.max(0, normalizeNumber(raw?.team1Score, defaults.team1Score)),
-        team2Score: Math.max(0, normalizeNumber(raw?.team2Score, defaults.team2Score)),
-        team1Strikes: normalizeStrikeCount(raw?.team1Strikes),
-        team2Strikes: normalizeStrikeCount(raw?.team2Strikes),
-        roundPoints: raw?.roundPoints === null || raw?.roundPoints === undefined
+        showQuestion: typeof source.showQuestion === "boolean" ? source.showQuestion : defaults.showQuestion,
+        question: String(source.question || defaults.question).trim() || defaults.question,
+        team1Name: String(source.team1Name || defaults.team1Name).trim() || defaults.team1Name,
+        team2Name: String(source.team2Name || defaults.team2Name).trim() || defaults.team2Name,
+        team1Score: Math.max(0, normalizeNumber(source.team1Score, defaults.team1Score)),
+        team2Score: Math.max(0, normalizeNumber(source.team2Score, defaults.team2Score)),
+        team1Strikes: normalizeStrikeCount(source.team1Strikes),
+        team2Strikes: normalizeStrikeCount(source.team2Strikes),
+        roundPoints: source.roundPoints === null || source.roundPoints === undefined
           ? null
-          : Math.max(0, normalizeNumber(raw.roundPoints, 0)),
+          : Math.max(0, normalizeNumber(source.roundPoints, 0)),
         answers: normalizedAnswers
       };
     }
 
     function readDisplayState() {
-      const raw = readStored(STORAGE_KEY);
+      const raw = readStored(DISPLAY_KEY);
       if (!raw) return normalizeState(getDefaultState());
 
       const parsed = safeParse(raw);
@@ -597,6 +607,7 @@
 
       requestAnimationFrame(() => {
         fitGameToViewport();
+        applyAutoTextFitting();
         nudgeSafariBar();
       });
     }
@@ -638,7 +649,7 @@
         if (revealed) {
           slot.innerHTML = `
             <div class="answer-points">${answer.points}</div>
-            <div class="answer-label">${answer.text || ""}</div>
+            <div class="answer-label auto-fit-answer">${answer.text || ""}</div>
           `;
         } else {
           slot.innerHTML = `<div class="rank-circle">${index + 1}</div>`;
@@ -668,6 +679,34 @@
       applyStrikeRow(strikeRows.team2, state.team2Strikes);
 
       renderAnswers(state);
+      requestAnimationFrame(applyAutoTextFitting);
+    }
+
+    function fitTextToBox(element, maxSize, minSize) {
+      if (!element) return;
+
+      element.style.fontSize = maxSize + "px";
+
+      let current = maxSize;
+      while (current > minSize) {
+        const tooWide = element.scrollWidth > element.clientWidth + 1;
+        const tooTall = element.scrollHeight > element.clientHeight + 1;
+
+        if (!tooWide && !tooTall) break;
+
+        current -= 1;
+        element.style.fontSize = current + "px";
+      }
+    }
+
+    function applyAutoTextFitting() {
+      fitTextToBox(questionTextEl, 58, 26);
+      fitTextToBox(teamOneNameEl, 48, 22);
+      fitTextToBox(teamTwoNameEl, 48, 22);
+
+      document.querySelectorAll(".auto-fit-answer").forEach(el => {
+        fitTextToBox(el, 38, 18);
+      });
     }
 
     const storeLogo = document.getElementById("storeLogo");
@@ -680,10 +719,16 @@
       gameLogo.style.display = "none";
     });
 
+    if (channel) {
+      channel.onmessage = () => {
+        renderDisplay();
+      };
+    }
+
     renderDisplay();
     updateLayout();
 
-    setInterval(renderDisplay, 300);
+    setInterval(renderDisplay, 250);
 
     window.addEventListener("storage", renderDisplay);
 
@@ -692,7 +737,10 @@
       updateLayout();
     });
 
-    window.addEventListener("focus", renderDisplay);
+    window.addEventListener("focus", () => {
+      renderDisplay();
+      updateLayout();
+    });
 
     window.addEventListener("load", () => {
       renderDisplay();
