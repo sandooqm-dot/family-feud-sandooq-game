@@ -285,6 +285,7 @@
       justify-content:center;
       margin-top:10px;
       margin-bottom:18px;
+      min-height:280px;
     }
 
     .buzz-btn{
@@ -479,7 +480,7 @@
               <div id="playerNameLabel" class="player-name">اسم اللاعب</div>
             </div>
 
-            <div class="buzz-area">
+            <div id="buzzArea" class="buzz-area">
               <button id="buzzBtn" class="buzz-btn" type="button">جرس</button>
             </div>
 
@@ -501,24 +502,27 @@
     const LANDSCAPE_HEIGHT = 768;
     const PORTRAIT_WIDTH = 640;
     const PORTRAIT_HEIGHT = 1280;
-    const LIVE_POLL_MS = 500;
+    const FALLBACK_POLL_MS = 2000;
+
+    const STORAGE = {
+      apiBase: "familyfeud_api_base",
+      buzzApiBase: "familyfeud_buzz_api_base",
+      room: "familyfeud_room_id",
+      buzzRoom: "familyfeud_buzz_room",
+      team: "familyfeud_buzz_team",
+      name: "familyfeud_buzz_name",
+      playerId: "familyfeud_buzz_player_id"
+    };
 
     let API_BASE = "";
     let pusher = null;
     let channel = null;
     let fallbackPoll = null;
-    let currentState = null;
+    let currentBuzzState = null;
+    let currentGameDisplay = null;
     let joinInFlight = false;
     let pressInFlight = false;
     let syncStarted = false;
-
-    const STORAGE = {
-      apiBase: "familyfeud_api_base",
-      room: "familyfeud_room",
-      team: "familyfeud_buzz_team",
-      name: "familyfeud_buzz_name",
-      playerId: "familyfeud_buzz_player_id"
-    };
 
     const root = document.documentElement;
 
@@ -533,6 +537,7 @@
 
     const teamBadge = document.getElementById("teamBadge");
     const playerNameLabel = document.getElementById("playerNameLabel");
+    const buzzArea = document.getElementById("buzzArea");
     const buzzBtn = document.getElementById("buzzBtn");
     const buzzStatus = document.getElementById("buzzStatus");
     const backBtn = document.getElementById("backBtn");
@@ -566,24 +571,22 @@
       return "";
     }
 
+    function normalizeBase(base) {
+      return String(base || "").trim().replace(/\/+$/, "");
+    }
+
     function buildApiCandidates() {
       const params = new URLSearchParams(window.location.search);
-      const saved = [
-        readStored(STORAGE.apiBase),
-        params.get("api")
-      ].filter(Boolean);
-
       const candidates = [
-        ...saved,
+        readStored(STORAGE.apiBase),
+        readStored(STORAGE.buzzApiBase),
+        params.get("api"),
+        window.location.hostname.endsWith(".workers.dev") ? window.location.origin : "",
         "https://z.sandooq-m.workers.dev",
         "https://family-feud-buzz.sandooq-m.workers.dev"
       ];
 
-      if (window.location.hostname.endsWith(".workers.dev")) {
-        candidates.unshift(window.location.origin);
-      }
-
-      return [...new Set(candidates.map(v => String(v || "").trim()).filter(Boolean))];
+      return [...new Set(candidates.map(v => normalizeBase(v)).filter(Boolean))];
     }
 
     async function detectApiBase() {
@@ -596,7 +599,8 @@
             cache: "no-store",
             headers: {
               "Accept": "application/json",
-              "Cache-Control": "no-cache"
+              "Cache-Control": "no-cache",
+              "Pragma": "no-cache"
             }
           });
 
@@ -605,6 +609,7 @@
 
           API_BASE = candidate;
           writeStored(STORAGE.apiBase, candidate);
+          writeStored(STORAGE.buzzApiBase, candidate);
           return true;
         } catch (error) {}
       }
@@ -709,9 +714,10 @@
     function getRoomId() {
       const url = new URL(window.location.href);
       const fromQuery = normalizeRoom(url.searchParams.get("room"));
-      const fromStorage = normalizeRoom(readStored(STORAGE.room));
+      const fromStorage = normalizeRoom(readStored(STORAGE.room) || readStored(STORAGE.buzzRoom));
       const room = fromQuery || fromStorage || "family-feud-demo";
       writeStored(STORAGE.room, room);
+      writeStored(STORAGE.buzzRoom, room);
       return room;
     }
 
@@ -735,8 +741,11 @@
       const team1FromQuery = (url.searchParams.get("team1") || "").trim();
       const team2FromQuery = (url.searchParams.get("team2") || "").trim();
 
-      const team1 = team1FromQuery || (readStored("familyfeud_team1") || "").trim() || "الفريق الأول";
-      const team2 = team2FromQuery || (readStored("familyfeud_team2") || "").trim() || "الفريق الثاني";
+      const remoteTeam1 = currentGameDisplay?.team1Name || "";
+      const remoteTeam2 = currentGameDisplay?.team2Name || "";
+
+      const team1 = remoteTeam1 || team1FromQuery || (readStored("familyfeud_team1") || "").trim() || "الفريق الأول";
+      const team2 = remoteTeam2 || team2FromQuery || (readStored("familyfeud_team2") || "").trim() || "الفريق الثاني";
 
       return { team1, team2 };
     }
@@ -768,10 +777,6 @@
       writeStored(STORAGE.name, currentPlayerName());
     }
 
-    function clearWinnerLocalOnly() {
-      setBuzzStatus("اضغط الجرس عندما تبدأ الجولة");
-    }
-
     function getTeamLabel() {
       const labels = getTeamLabels();
       return selectedTeam === "team2" ? labels.team2 : labels.team1;
@@ -799,26 +804,41 @@
       buzzStatus.textContent = text;
     }
 
-    function applyState(state) {
-      currentState = state || null;
+    function setBuzzButtonVisible(visible) {
+      buzzBtn.classList.toggle("hidden", !visible);
+    }
 
-      if (!currentState) {
+    function applyGameDisplay(display) {
+      currentGameDisplay = display || null;
+      updateJoinState();
+
+      if (!joinScreen.classList.contains("hidden")) return;
+      teamBadge.textContent = getTeamLabel();
+    }
+
+    function applyBuzzState(state) {
+      currentBuzzState = state || null;
+
+      if (!currentBuzzState) {
+        setBuzzButtonVisible(false);
         buzzBtn.disabled = true;
         setBuzzStatus("تعذر قراءة حالة الجرس.");
         return;
       }
 
-      const firstBuzz = currentState.firstBuzz;
-      const enabled = !!currentState.enabled;
+      const firstBuzz = currentBuzzState.firstBuzz;
+      const enabled = !!currentBuzzState.enabled;
       const mePressedFirst = !!firstBuzz && firstBuzz.playerId === playerId;
       const someoneElsePressed = !!firstBuzz && firstBuzz.playerId !== playerId;
 
       if (!enabled) {
+        setBuzzButtonVisible(false);
         buzzBtn.disabled = true;
-        clearWinnerLocalOnly();
-        setBuzzStatus("الجرس مقفل الآن.");
+        setBuzzStatus("الجرس مخفي الآن.");
         return;
       }
+
+      setBuzzButtonVisible(true);
 
       if (!firstBuzz) {
         buzzBtn.disabled = false;
@@ -837,6 +857,9 @@
         setBuzzStatus("تم تسجيل ضغطة لاعب آخر.");
         return;
       }
+
+      buzzBtn.disabled = false;
+      setBuzzStatus("اضغط الجرس عندما تبدأ الجولة");
     }
 
     async function apiGet(path) {
@@ -850,7 +873,8 @@
         cache: "no-store",
         headers: {
           "Accept": "application/json",
-          "Cache-Control": "no-cache"
+          "Cache-Control": "no-cache",
+          "Pragma": "no-cache"
         }
       });
 
@@ -875,7 +899,8 @@
         headers: {
           "Content-Type": "application/json",
           "Accept": "application/json",
-          "Cache-Control": "no-cache"
+          "Cache-Control": "no-cache",
+          "Pragma": "no-cache"
         },
         body: JSON.stringify(payload || {})
       });
@@ -884,11 +909,21 @@
       return { ok: response.ok, status: response.status, data };
     }
 
-    async function fetchState() {
+    async function fetchGameDisplay() {
+      try {
+        const res = await apiGet(`/api/game/state?room=${encodeURIComponent(roomId)}`);
+        if (res?.ok && res?.state?.display) {
+          applyGameDisplay(res.state.display);
+        }
+      } catch (error) {}
+    }
+
+    async function fetchBuzzState() {
       try {
         const res = await apiGet(`/api/buzz/state?room=${encodeURIComponent(roomId)}`);
-        applyState(res.state);
+        applyBuzzState(res.state);
       } catch (error) {
+        setBuzzButtonVisible(false);
         buzzBtn.disabled = true;
         setBuzzStatus("تعذر الاتصال بالجرس الآن.");
       }
@@ -912,7 +947,7 @@
           return false;
         }
 
-        applyState(res.data.state);
+        applyBuzzState(res.data.state);
         setJoinStatus("تم الانضمام بنجاح.", false);
         return true;
       } catch (error) {
@@ -938,18 +973,19 @@
         });
 
         if (res.ok && res.data && res.data.state) {
-          applyState(res.data.state);
+          applyBuzzState(res.data.state);
           return;
         }
 
         if (res.data && res.data.state) {
-          applyState(res.data.state);
+          applyBuzzState(res.data.state);
         } else {
-          await fetchState();
+          await fetchBuzzState();
         }
 
         if (res.data?.error === "BUZZ_DISABLED") {
-          setBuzzStatus("الجرس مقفل الآن.");
+          setBuzzButtonVisible(false);
+          setBuzzStatus("الجرس مخفي الآن.");
           return;
         }
 
@@ -972,11 +1008,11 @@
       syncStarted = true;
 
       stopLiveSync();
-      fallbackPoll = setInterval(() => {
-        fetchState();
-      }, LIVE_POLL_MS);
+      fallbackPoll = setInterval(async () => {
+        await fetchBuzzState();
+      }, FALLBACK_POLL_MS);
 
-      fetchState();
+      fetchBuzzState();
     }
 
     function stopLiveSync() {
@@ -1013,12 +1049,12 @@
 
         channel = pusher.subscribe(cfgRes.channel);
 
-        channel.bind("pusher:subscription_succeeded", () => {
-          fetchState();
+        channel.bind("pusher:subscription_succeeded", async () => {
+          await fetchBuzzState();
         });
 
         channel.bind("buzz-updated", (payload) => {
-          applyState(payload);
+          applyBuzzState(payload);
         });
       } catch (error) {}
     }
@@ -1062,11 +1098,13 @@
         return;
       }
 
+      await fetchGameDisplay();
+
       const joined = await joinRoom();
       if (!joined) return;
 
       showBuzzScreen();
-      fetchState();
+      await fetchBuzzState();
     });
 
     buzzBtn.addEventListener("click", async () => {
@@ -1117,13 +1155,14 @@
         return;
       }
 
+      await fetchGameDisplay();
       await initPusher();
 
       if (selectedTeam && playerNameInput.value.trim()) {
         const joined = await joinRoom();
         if (joined) {
           showBuzzScreen();
-          fetchState();
+          await fetchBuzzState();
         } else {
           showJoinScreen();
         }
@@ -1139,10 +1178,12 @@
         await detectApiBase();
       }
 
+      await fetchGameDisplay();
+
       if (!joinScreen.classList.contains("hidden")) return;
 
       await joinRoom();
-      fetchState();
+      await fetchBuzzState();
     });
 
     window.addEventListener("focus", async () => {
@@ -1150,10 +1191,12 @@
         await detectApiBase();
       }
 
+      await fetchGameDisplay();
+
       if (!joinScreen.classList.contains("hidden")) return;
 
       await joinRoom();
-      fetchState();
+      await fetchBuzzState();
     });
 
     window.addEventListener("load", () => {
