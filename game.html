@@ -469,6 +469,7 @@
     let gameChannel = null;
     let fallbackPoll = null;
     let syncStarted = false;
+    let teamNamesSynced = false;
 
     try {
       channel = new BroadcastChannel(DISPLAY_CHANNEL);
@@ -540,6 +541,7 @@
 
     function writeStored(key, value) {
       const stringValue = typeof value === "string" ? value : JSON.stringify(value);
+
       try { localStorage.setItem(key, stringValue); } catch (e) {}
       try { sessionStorage.setItem(key, stringValue); } catch (e) {}
 
@@ -676,7 +678,9 @@
       syncStarted = true;
 
       const ok = await detectApiBase();
+
       if (ok) {
+        await syncTeamNamesToRemote();
         await fetchRemoteGameState();
         await initPusher();
       }
@@ -819,6 +823,55 @@
       }
 
       return false;
+    }
+
+    async function sendGameAction(action, extra = {}) {
+      const bases = getApiBases();
+
+      for (const base of bases) {
+        try {
+          const res = await fetch(`${base}/api/game/action?room=${encodeURIComponent(roomId)}`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "Cache-Control": "no-cache",
+              "Pragma": "no-cache"
+            },
+            body: JSON.stringify({
+              action,
+              ...extra
+            })
+          });
+
+          const data = await res.json().catch(() => null);
+          if (!res.ok || !data || !data.ok || !data.state) continue;
+
+          apiBase = base;
+          writeStored(API_BASE_KEY, base);
+          writeStored(BUZZ_API_BASE_KEY, base);
+
+          applyRemoteGameState(data.state);
+          renderDisplay();
+          return true;
+        } catch (error) {}
+      }
+
+      return false;
+    }
+
+    async function syncTeamNamesToRemote() {
+      if (teamNamesSynced) return;
+      teamNamesSynced = true;
+
+      const team1Name = String(readStored("familyfeud_team1") || "").trim();
+      const team2Name = String(readStored("familyfeud_team2") || "").trim();
+
+      if (!team1Name && !team2Name) return;
+
+      await sendGameAction("set_team_names", {
+        team1Name: team1Name || undefined,
+        team2Name: team2Name || undefined
+      });
     }
 
     function applyRemoteGameState(remoteState) {
