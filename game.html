@@ -366,6 +366,111 @@
 
     .strike.active{
       color:var(--strike-on);
+      text-shadow:
+        0 0 10px rgba(255,44,63,.35),
+        0 3px 0 rgba(0,0,0,.15);
+    }
+
+    .strike-effect-layer{
+      position:absolute;
+      inset:0;
+      z-index:60;
+      pointer-events:none;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      opacity:0;
+    }
+
+    .strike-effect-layer.show{
+      opacity:1;
+    }
+
+    .big-strike-x{
+      position:absolute;
+      left:50%;
+      top:50%;
+      transform:translate(-50%, -50%) scale(.65);
+      color:#ff2638;
+      font-size:310px;
+      font-weight:900;
+      line-height:1;
+      opacity:0;
+      text-shadow:
+        0 0 18px rgba(255,255,255,.55),
+        0 0 42px rgba(255,38,56,.65),
+        0 12px 0 rgba(0,0,0,.25);
+    }
+
+    .strike-effect-layer.show-x .big-strike-x{
+      animation:bigStrikePop .95s ease forwards;
+    }
+
+    .transfer-message-box{
+      position:absolute;
+      left:50%;
+      top:50%;
+      width:760px;
+      min-height:154px;
+      transform:translate(-50%, -50%) scale(.9);
+      border-radius:34px;
+      border:7px solid var(--gold);
+      background:linear-gradient(180deg, #0a1d56 0%, #08173d 100%);
+      color:var(--white);
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      text-align:center;
+      padding:20px 32px;
+      font-size:52px;
+      line-height:1.25;
+      font-weight:900;
+      opacity:0;
+      box-shadow:
+        0 18px 40px rgba(0,0,0,.35),
+        inset 0 0 0 1px rgba(255,255,255,.05);
+    }
+
+    .strike-effect-layer.show-transfer .transfer-message-box{
+      animation:transferMessagePop 1.85s ease forwards;
+    }
+
+    @keyframes bigStrikePop{
+      0%{
+        opacity:0;
+        transform:translate(-50%, -50%) scale(.45) rotate(-6deg);
+      }
+      18%{
+        opacity:1;
+        transform:translate(-50%, -50%) scale(1.08) rotate(0deg);
+      }
+      55%{
+        opacity:1;
+        transform:translate(-50%, -50%) scale(1);
+      }
+      100%{
+        opacity:0;
+        transform:translate(-50%, -50%) scale(.86);
+      }
+    }
+
+    @keyframes transferMessagePop{
+      0%{
+        opacity:0;
+        transform:translate(-50%, -50%) scale(.84);
+      }
+      14%{
+        opacity:1;
+        transform:translate(-50%, -50%) scale(1.03);
+      }
+      78%{
+        opacity:1;
+        transform:translate(-50%, -50%) scale(1);
+      }
+      100%{
+        opacity:0;
+        transform:translate(-50%, -50%) scale(.94);
+      }
     }
   </style>
 </head>
@@ -423,6 +528,11 @@
           </div>
         </aside>
 
+        <div id="strikeEffectLayer" class="strike-effect-layer" aria-hidden="true">
+          <div id="bigStrikeX" class="big-strike-x">X</div>
+          <div id="transferMessageBox" class="transfer-message-box">ينتقل السؤال إلى الفريق الآخر</div>
+        </div>
+
       </div>
     </div>
 
@@ -454,6 +564,8 @@
     const questionTextEl = document.getElementById("questionText");
     const answersGrid = document.getElementById("answersGrid");
 
+    const strikeEffectLayer = document.getElementById("strikeEffectLayer");
+
     const strikeRows = {
       team1: document.querySelectorAll("#teamOneStrikes .strike"),
       team2: document.querySelectorAll("#teamTwoStrikes .strike")
@@ -470,6 +582,9 @@
     let fallbackPoll = null;
     let syncStarted = false;
     let teamNamesSynced = false;
+
+    let previousStrikeSnapshot = null;
+    let strikeEffectTimers = [];
 
     try {
       channel = new BroadcastChannel(DISPLAY_CHANNEL);
@@ -941,6 +1056,59 @@
       });
     }
 
+    function detectStrikeEffect(state) {
+      const nextSnapshot = {
+        team1: normalizeStrikeCount(state.team1Strikes),
+        team2: normalizeStrikeCount(state.team2Strikes)
+      };
+
+      if (!previousStrikeSnapshot) {
+        previousStrikeSnapshot = nextSnapshot;
+        return;
+      }
+
+      if (nextSnapshot.team1 > previousStrikeSnapshot.team1) {
+        playStrikeEffect(nextSnapshot.team1);
+      } else if (nextSnapshot.team2 > previousStrikeSnapshot.team2) {
+        playStrikeEffect(nextSnapshot.team2);
+      }
+
+      previousStrikeSnapshot = nextSnapshot;
+    }
+
+    function clearStrikeEffectTimers() {
+      strikeEffectTimers.forEach((timer) => clearTimeout(timer));
+      strikeEffectTimers = [];
+    }
+
+    function resetStrikeEffectLayer() {
+      strikeEffectLayer.classList.remove("show", "show-x", "show-transfer");
+      void strikeEffectLayer.offsetWidth;
+    }
+
+    function playStrikeEffect(strikeCount) {
+      clearStrikeEffectTimers();
+      resetStrikeEffectLayer();
+
+      strikeEffectLayer.classList.add("show", "show-x");
+
+      if (strikeCount >= 3) {
+        strikeEffectTimers.push(setTimeout(() => {
+          strikeEffectLayer.classList.remove("show-x");
+          void strikeEffectLayer.offsetWidth;
+          strikeEffectLayer.classList.add("show", "show-transfer");
+        }, 850));
+
+        strikeEffectTimers.push(setTimeout(() => {
+          strikeEffectLayer.classList.remove("show", "show-x", "show-transfer");
+        }, 2850));
+      } else {
+        strikeEffectTimers.push(setTimeout(() => {
+          strikeEffectLayer.classList.remove("show", "show-x", "show-transfer");
+        }, 1000));
+      }
+    }
+
     function renderAnswers(state) {
       const positions = [
         { row: 1, col: 2 },
@@ -980,6 +1148,8 @@
 
       if (signature === lastStateSignature) return;
       lastStateSignature = signature;
+
+      detectStrikeEffect(state);
 
       teamOneNameEl.textContent = state.team1Name;
       teamTwoNameEl.textContent = state.team2Name;
