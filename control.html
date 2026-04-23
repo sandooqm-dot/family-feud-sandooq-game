@@ -430,72 +430,13 @@
 
     const DISPLAY_KEY = "familyfeud_display_state_v1";
     const CONTROL_KEY = "familyfeud_control_state_v1";
+    const ROOM_KEY = "familyfeud_room_id";
+    const BUZZ_ROOM_KEY = "familyfeud_buzz_room";
+    const API_BASE_KEY = "familyfeud_api_base";
+    const BUZZ_API_BASE_KEY = "familyfeud_buzz_api_base";
     const DISPLAY_CHANNEL = "familyfeud_display_channel_v1";
 
     const DEFAULT_ROOM = "family-feud-demo";
-    const POSSIBLE_API_BASES = [
-      readStored("familyfeud_buzz_api_base"),
-      "https://family-feud-buzz.sandooq-m.workers.dev",
-      "https://z.sandooq-m.workers.dev"
-    ].filter(Boolean);
-
-    const QUESTIONS = [
-      {
-        question: "اذكر شيئًا يستخدمه الناس يوميًا",
-        answers: [
-          { text: "الجوال", points: 32 },
-          { text: "المفاتيح", points: 18 },
-          { text: "الماء", points: 14 },
-          { text: "السيارة", points: 10 },
-          { text: "المحفظة", points: 8 },
-          { text: "النظارة", points: 6 }
-        ]
-      },
-      {
-        question: "اذكر شيئًا تجده في شنطة أي امرأة؟",
-        answers: [
-          { text: "روج / مكياج", points: 40 },
-          { text: "عطر", points: 25 },
-          { text: "محفظة فلوس", points: 15 },
-          { text: "مناديل", points: 10 },
-          { text: "مفاتيح", points: 10 },
-          { text: "جوال", points: 8 }
-        ]
-      },
-      {
-        question: "اذكر شيئًا يوجد في المطبخ",
-        answers: [
-          { text: "الثلاجة", points: 28 },
-          { text: "الفرن", points: 20 },
-          { text: "الصحون", points: 16 },
-          { text: "الملاعق", points: 12 },
-          { text: "الكاسات", points: 9 },
-          { text: "القدر", points: 7 }
-        ]
-      },
-      {
-        question: "اذكر شيئًا يحمله الطالب معه",
-        answers: [
-          { text: "الحقيبة", points: 30 },
-          { text: "القلم", points: 18 },
-          { text: "الدفتر", points: 16 },
-          { text: "الكتب", points: 14 },
-          { text: "المقلمة", points: 8 },
-          { text: "الآيباد", points: 6 }
-        ]
-      },
-      {
-        question: "اذكر شيئًا يستخدم في السفر",
-        answers: [
-          { text: "جواز السفر", points: 34 },
-          { text: "الشنطة", points: 22 },
-          { text: "التذكرة", points: 16 },
-          { text: "الملابس", points: 12 },
-          { text: "الفلوس", points: 9 },
-          { text: "الجوال", points: 7 }
-        ]
-      }
-    ];
 
     const root = document.documentElement;
 
@@ -510,9 +451,11 @@
     const nextQuestionBtn = document.getElementById("nextQuestionBtn");
 
     let stableViewport = { width: window.innerWidth, height: window.innerHeight };
+    let roomId = resolveRoomId();
     let displayState = readDisplayState();
     let controlState = readControlState();
     let channel = null;
+    let isBusy = false;
 
     try {
       channel = new BroadcastChannel(DISPLAY_CHANNEL);
@@ -520,10 +463,11 @@
       channel = null;
     }
 
+    persistRoomId(roomId);
     ensureInitialState();
     renderAll();
     updateLayout();
-    startBuzzPolling();
+    startRemoteSync();
 
     if (channel) {
       channel.onmessage = () => {
@@ -539,9 +483,8 @@
       renderAll();
     });
 
-    window.addEventListener("focus", () => {
-      displayState = readDisplayState();
-      controlState = readControlState();
+    window.addEventListener("focus", async () => {
+      await fetchRemoteGameState();
       renderAll();
     });
 
@@ -568,99 +511,177 @@
     document.addEventListener("touchend", nudgeSafariBar, { passive: true });
 
     bellToggleBtn.addEventListener("click", async () => {
-      const nextVisible = !controlState.buzzVisible;
-      controlState.buzzVisible = nextVisible;
-      if (!nextVisible) {
-        controlState.firstBuzzName = "";
-        controlState.firstBuzzTeam = "";
-      }
-      saveControlState();
-      renderAll();
-      await setRemoteBuzzEnabled(nextVisible);
-      await refreshBuzzState();
+      if (isBusy) return;
+      await sendGameAction("set_buzz_visible", {
+        visible: !(controlState.buzzVisible === true)
+      });
     });
 
     errorBtn.addEventListener("click", async () => {
+      if (isBusy) return;
       if (!controlState.currentTurnTeam) return;
-
-      if (controlState.currentTurnTeam === "team1") {
-        displayState.team1Strikes = Math.min(3, Number(displayState.team1Strikes || 0) + 1);
-        if (displayState.team1Strikes >= 3) {
-          controlState.stealingTeam = "team2";
-          controlState.stage = "steal_result";
-          controlState.buzzVisible = false;
-          saveControlState();
-          saveDisplayState();
-          renderAll();
-          await setRemoteBuzzEnabled(false);
-          return;
-        }
-      } else {
-        displayState.team2Strikes = Math.min(3, Number(displayState.team2Strikes || 0) + 1);
-        if (displayState.team2Strikes >= 3) {
-          controlState.stealingTeam = "team1";
-          controlState.stage = "steal_result";
-          controlState.buzzVisible = false;
-          saveControlState();
-          saveDisplayState();
-          renderAll();
-          await setRemoteBuzzEnabled(false);
-          return;
-        }
-      }
-
-      saveDisplayState();
-      renderAll();
+      await sendGameAction("register_error", {
+        team: controlState.currentTurnTeam
+      });
     });
 
     nextQuestionBtn.addEventListener("click", async () => {
-      controlState.currentQuestionIndex = (controlState.currentQuestionIndex + 1) % QUESTIONS.length;
-      controlState.stage = "idle";
-      controlState.currentTurnTeam = "";
-      controlState.confrontationWinner = "";
-      controlState.stealingTeam = "";
-      controlState.firstBuzzName = "";
-      controlState.firstBuzzTeam = "";
-      controlState.buzzVisible = true;
-
-      const team1Name = displayState.team1Name || readStored("familyfeud_team1") || "الفريق الأول";
-      const team2Name = displayState.team2Name || readStored("familyfeud_team2") || "الفريق الثاني";
-      const team1Score = Number(displayState.team1Score || 0);
-      const team2Score = Number(displayState.team2Score || 0);
-
-      const q = QUESTIONS[controlState.currentQuestionIndex];
-
-      displayState = {
-        showQuestion: true,
-        question: q.question,
-        team1Name,
-        team2Name,
-        team1Score,
-        team2Score,
-        team1Strikes: 0,
-        team2Strikes: 0,
-        roundPoints: 0,
-        answers: q.answers.map(a => ({
-          text: a.text,
-          points: a.points,
-          revealed: false
-        }))
-      };
-
-      saveControlState();
-      saveDisplayState();
-      renderAll();
-      await setRemoteBuzzEnabled(true);
-      await refreshBuzzState();
+      if (isBusy) return;
+      await sendGameAction("next_question");
     });
 
-    function ensureInitialState() {
-      const q = QUESTIONS[controlState.currentQuestionIndex] || QUESTIONS[0];
+    function resolveRoomId() {
+      const url = new URL(window.location.href);
+      const fromUrl = normalizeRoom(url.searchParams.get("room"));
+      const fromStorage = normalizeRoom(readStored(ROOM_KEY) || readStored(BUZZ_ROOM_KEY));
+      return fromUrl || fromStorage || DEFAULT_ROOM;
+    }
 
-      if (!displayState || !Array.isArray(displayState.answers) || displayState.answers.length !== 6) {
+    function persistRoomId(nextRoom) {
+      writeStored(ROOM_KEY, nextRoom);
+      writeStored(BUZZ_ROOM_KEY, nextRoom);
+    }
+
+    function getApiBases() {
+      const seen = new Set();
+      const bases = [];
+
+      const rawBases = [
+        readStored(API_BASE_KEY),
+        readStored(BUZZ_API_BASE_KEY),
+        window.location.origin.includes("workers.dev") ? window.location.origin : "",
+        "https://family-feud-buzz.sandooq-m.workers.dev",
+        "https://z.sandooq-m.workers.dev"
+      ];
+
+      rawBases.forEach((base) => {
+        const normalized = normalizeBase(base);
+        if (!normalized || seen.has(normalized)) return;
+        seen.add(normalized);
+        bases.push(normalized);
+      });
+
+      return bases;
+    }
+
+    async function startRemoteSync() {
+      await fetchRemoteGameState();
+      setInterval(fetchRemoteGameState, 700);
+    }
+
+    async function fetchRemoteGameState() {
+      const bases = getApiBases();
+
+      for (const base of bases) {
+        try {
+          const res = await fetch(`${base}/api/game/state?room=${encodeURIComponent(roomId)}`, {
+            method: "GET",
+            cache: "no-store",
+            headers: {
+              "Cache-Control": "no-cache",
+              "Pragma": "no-cache"
+            }
+          });
+
+          if (!res.ok) continue;
+
+          const data = await res.json().catch(() => null);
+          if (!data || !data.ok || !data.state) continue;
+
+          applyRemoteGameState(data.state);
+          writeStored(API_BASE_KEY, base);
+          writeStored(BUZZ_API_BASE_KEY, base);
+          return true;
+        } catch (error) {}
+      }
+
+      return false;
+    }
+
+    async function sendGameAction(action, extra = {}) {
+      const bases = getApiBases();
+      isBusy = true;
+
+      try {
+        for (const base of bases) {
+          try {
+            const res = await fetch(`${base}/api/game/action?room=${encodeURIComponent(roomId)}`, {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                "Cache-Control": "no-cache",
+                "Pragma": "no-cache"
+              },
+              body: JSON.stringify({
+                action,
+                ...extra
+              })
+            });
+
+            if (!res.ok) continue;
+
+            const data = await res.json().catch(() => null);
+            if (!data || !data.ok || !data.state) continue;
+
+            applyRemoteGameState(data.state);
+            writeStored(API_BASE_KEY, base);
+            writeStored(BUZZ_API_BASE_KEY, base);
+            return true;
+          } catch (error) {}
+        }
+
+        return false;
+      } finally {
+        isBusy = false;
+      }
+    }
+
+    function applyRemoteGameState(remoteState) {
+      if (!remoteState) return;
+
+      const display = remoteState.display || {};
+      const control = remoteState.control || {};
+      const buzz = remoteState.buzz || {};
+
+      displayState = {
+        showQuestion: !!display.showQuestion,
+        question: String(display.question || ""),
+        team1Name: String(display.team1Name || readStored("familyfeud_team1") || "الفريق الأول"),
+        team2Name: String(display.team2Name || readStored("familyfeud_team2") || "الفريق الثاني"),
+        team1Score: Number(display.team1Score || 0),
+        team2Score: Number(display.team2Score || 0),
+        team1Strikes: Number(display.team1Strikes || 0),
+        team2Strikes: Number(display.team2Strikes || 0),
+        roundPoints: Number(display.roundPoints || 0),
+        answers: Array.isArray(display.answers) ? display.answers.map((answer) => ({
+          text: String(answer?.text || ""),
+          points: Number(answer?.points || 0),
+          revealed: !!answer?.revealed
+        })) : []
+      };
+
+      controlState = {
+        currentQuestionIndex: Number(control.currentQuestionIndex || 0),
+        totalQuestions: Number(control.totalQuestions || 0),
+        stage: String(control.phase || "idle"),
+        currentTurnTeam: String(control.currentTurnTeam || ""),
+        confrontationWinner: String(control.confrontationWinner || ""),
+        stealingTeam: String(control.stealingTeam || ""),
+        firstBuzzName: String(buzz.firstBuzz?.name || ""),
+        firstBuzzTeam: String(buzz.firstBuzz?.team || ""),
+        buzzVisible: !!buzz.enabled
+      };
+
+      saveDisplayState();
+      saveControlState();
+      renderAll();
+    }
+
+    function ensureInitialState() {
+      if (!displayState || !Array.isArray(displayState.answers)) {
         displayState = {
-          showQuestion: true,
-          question: q.question,
+          showQuestion: false,
+          question: "",
           team1Name: readStored("familyfeud_team1") || "الفريق الأول",
           team2Name: readStored("familyfeud_team2") || "الفريق الثاني",
           team1Score: 0,
@@ -668,9 +689,9 @@
           team1Strikes: 0,
           team2Strikes: 0,
           roundPoints: 0,
-          answers: q.answers.map(a => ({
-            text: a.text,
-            points: a.points,
+          answers: Array.from({ length: 6 }, () => ({
+            text: "",
+            points: 0,
             revealed: false
           }))
         };
@@ -686,6 +707,7 @@
     function getDefaultControlState() {
       return {
         currentQuestionIndex: 0,
+        totalQuestions: 0,
         stage: "idle",
         currentTurnTeam: "",
         confrontationWinner: "",
@@ -714,6 +736,7 @@
       const stringValue = typeof value === "string" ? value : JSON.stringify(value);
       try { localStorage.setItem(key, stringValue); } catch (e) {}
       try { sessionStorage.setItem(key, stringValue); } catch (e) {}
+
       if (channel) {
         try { channel.postMessage({ key }); } catch (e) {}
       }
@@ -725,6 +748,16 @@
       } catch (e) {
         return null;
       }
+    }
+
+    function normalizeBase(base) {
+      return String(base || "").trim().replace(/\/+$/, "");
+    }
+
+    function normalizeRoom(value) {
+      const v = String(value || "").trim().toLowerCase();
+      if (!v) return "";
+      return v.replace(/[^a-z0-9_-]/g, "").slice(0, 64);
     }
 
     function readDisplayState() {
@@ -765,40 +798,47 @@
     }
 
     function renderAll() {
-      questionNumberEl.textContent = `سؤال ${controlState.currentQuestionIndex + 1}`;
+      const totalQuestions = controlState.totalQuestions > 0 ? controlState.totalQuestions : "";
+      questionNumberEl.textContent = totalQuestions
+        ? `سؤال ${controlState.currentQuestionIndex + 1} / ${totalQuestions}`
+        : `سؤال ${controlState.currentQuestionIndex + 1}`;
+
       questionTextEl.textContent = displayState.question || "نص السؤال";
       firstPlayerBoxEl.textContent = controlState.firstBuzzName || "اسم اللاعب الذي يضغط أولًا";
       bellToggleBtn.textContent = controlState.buzzVisible ? "إخفاء الجرس" : "إظهار الجرس";
+
       renderAnswers();
       renderPanel();
     }
 
     function renderAnswers() {
       const positions = [
-        { row: 1, col: 2 }, // 1 يمين
-        { row: 1, col: 1 }, // 2 يسار
-        { row: 2, col: 2 }, // 3 يمين
-        { row: 2, col: 1 }, // 4 يسار
-        { row: 3, col: 2 }, // 5 يمين
-        { row: 3, col: 1 }  // 6 يسار
+        { row: 1, col: 2 },
+        { row: 1, col: 1 },
+        { row: 2, col: 2 },
+        { row: 2, col: 1 },
+        { row: 3, col: 2 },
+        { row: 3, col: 1 }
       ];
 
       answersGridEl.innerHTML = "";
 
-      (displayState.answers || []).forEach((answer, index) => {
+      const answers = Array.isArray(displayState.answers) ? displayState.answers : [];
+
+      answers.forEach((answer, index) => {
         const card = document.createElement("button");
         card.type = "button";
         card.className = "answer-card" + (answer.revealed ? " revealed" : "");
-        card.style.gridRow = positions[index].row;
-        card.style.gridColumn = positions[index].col;
+        card.style.gridRow = positions[index]?.row || "auto";
+        card.style.gridColumn = positions[index]?.col || "auto";
 
         card.innerHTML = `
           <div class="answer-points">${answer.points}</div>
           <div class="answer-label">${answer.text}</div>
         `;
 
-        card.addEventListener("click", () => {
-          handleAnswerClick(index);
+        card.addEventListener("click", async () => {
+          await handleAnswerClick(index);
         });
 
         answersGridEl.appendChild(card);
@@ -817,28 +857,20 @@
       panelTitleEl.classList.remove("hint-hidden");
 
       if (controlState.stage === "duel_select") {
-        panelTitleEl.textContent = "مين جاوب ...؟";
+        panelTitleEl.textContent = "مين جاوب؟";
 
         const row = buildRow([
-          buildBlueButton(getTeamName("team1"), () => {
-            controlState.confrontationWinner = "team1";
-            controlState.stage = "play_or_pass";
-            saveControlState();
-            renderAll();
+          buildBlueButton(getTeamName("team1"), async () => {
+            await sendGameAction("set_duel_winner", { team: "team1" });
           }),
-          buildBlueButton(getTeamName("team2"), () => {
-            controlState.confrontationWinner = "team2";
-            controlState.stage = "play_or_pass";
-            saveControlState();
-            renderAll();
+          buildBlueButton(getTeamName("team2"), async () => {
+            await sendGameAction("set_duel_winner", { team: "team2" });
           })
         ]);
 
         const cancelRow = buildRow([
-          buildRedButton("إلغاء", () => {
-            controlState.stage = "idle";
-            saveControlState();
-            renderAll();
+          buildRedButton("إلغاء", async () => {
+            await sendGameAction("cancel_context");
           })
         ]);
 
@@ -849,30 +881,20 @@
 
       if (controlState.stage === "play_or_pass") {
         const winnerName = getTeamName(controlState.confrontationWinner);
-        const otherName = getTeamName(getOtherTeam(controlState.confrontationWinner));
-
-        panelTitleEl.textContent = `الفريق ${winnerName} فاز بالسؤال ماذا تريد ؟`;
+        panelTitleEl.textContent = `فريق ${winnerName} فاز بالمواجهة، ماذا تريد؟`;
 
         const row = buildRow([
-          buildBlueButton("نلعب", () => {
-            controlState.currentTurnTeam = controlState.confrontationWinner;
-            controlState.stage = "main";
-            saveControlState();
-            renderAll();
+          buildBlueButton("نلعب", async () => {
+            await sendGameAction("choose_play_or_pass", { decision: "play" });
           }),
-          buildBlueButton(`نمرر لـ${otherName}`, () => {
-            controlState.currentTurnTeam = getOtherTeam(controlState.confrontationWinner);
-            controlState.stage = "main";
-            saveControlState();
-            renderAll();
+          buildBlueButton("نمرر للفريق الآخر", async () => {
+            await sendGameAction("choose_play_or_pass", { decision: "pass" });
           })
         ]);
 
         const cancelRow = buildRow([
-          buildRedButton("إلغاء", () => {
-            controlState.stage = "duel_select";
-            saveControlState();
-            renderAll();
+          buildRedButton("إلغاء", async () => {
+            await sendGameAction("cancel_context");
           })
         ]);
 
@@ -882,18 +904,14 @@
       }
 
       if (controlState.stage === "steal_result") {
-        panelTitleEl.textContent = "ماذا حصل لسرقة السؤال ؟";
+        panelTitleEl.textContent = "هل تمت عملية السرقة؟";
 
         const row = buildRow([
-          buildBlueButton("تمت السرقة", () => {
-            controlState.stage = "steal_pick";
-            saveControlState();
-            renderAll();
+          buildBlueButton("تمت السرقة", async () => {
+            await sendGameAction("steal_result", { result: "success" });
           }),
-          buildBlueButton("فشلت السرقة", () => {
-            if (controlState.currentTurnTeam) {
-              awardRoundToTeam(controlState.currentTurnTeam);
-            }
+          buildBlueButton("فشلت", async () => {
+            await sendGameAction("steal_result", { result: "fail" });
           })
         ]);
 
@@ -902,7 +920,7 @@
       }
 
       if (controlState.stage === "steal_pick") {
-        panelTitleEl.textContent = "اضغط على الجواب الذي تم سرقته لمنح النقاط";
+        panelTitleEl.textContent = "اضغط على الجواب الذي تم سرقته";
         return;
       }
 
@@ -935,123 +953,15 @@
       return btn;
     }
 
-    function handleAnswerClick(index) {
-      const answer = displayState.answers[index];
-      if (!answer) return;
+    async function handleAnswerClick(index) {
+      if (isBusy) return;
 
       if (controlState.stage === "steal_pick") {
-        if (!answer.revealed) {
-          answer.revealed = true;
-        }
-        saveDisplayState();
-        awardRoundToTeam(controlState.stealingTeam);
+        await sendGameAction("award_steal", { answerIndex: index });
         return;
       }
 
-      if (!answer.revealed) {
-        answer.revealed = true;
-        saveDisplayState();
-      } else {
-        saveDisplayState();
-      }
-
-      if (!controlState.currentTurnTeam && controlState.stage === "idle" && controlState.firstBuzzTeam) {
-        if (index === 0) {
-          controlState.confrontationWinner = controlState.firstBuzzTeam;
-          controlState.stage = "play_or_pass";
-        } else {
-          controlState.stage = "duel_select";
-        }
-        saveControlState();
-        renderAll();
-        return;
-      }
-
-      if (controlState.currentTurnTeam && displayState.answers.every(a => a.revealed)) {
-        awardRoundToTeam(controlState.currentTurnTeam);
-        return;
-      }
-
-      renderAll();
-    }
-
-    function awardRoundToTeam(team) {
-      const points = calculateRoundPoints();
-
-      if (team === "team1") {
-        displayState.team1Score = Number(displayState.team1Score || 0) + points;
-      } else if (team === "team2") {
-        displayState.team2Score = Number(displayState.team2Score || 0) + points;
-      }
-
-      displayState.team1Strikes = 0;
-      displayState.team2Strikes = 0;
-      saveDisplayState();
-
-      controlState.stage = "idle";
-      controlState.currentTurnTeam = "";
-      controlState.confrontationWinner = "";
-      controlState.stealingTeam = "";
-      controlState.firstBuzzName = "";
-      controlState.firstBuzzTeam = "";
-      saveControlState();
-
-      renderAll();
-    }
-
-    async function startBuzzPolling() {
-      await refreshBuzzState();
-      setInterval(refreshBuzzState, 700);
-    }
-
-    async function refreshBuzzState() {
-      const room = readStored("familyfeud_buzz_room") || DEFAULT_ROOM;
-
-      for (const base of POSSIBLE_API_BASES) {
-        try {
-          const res = await fetch(`${base}/api/buzz/state?room=${encodeURIComponent(room)}`, {
-            method: "GET",
-            cache: "no-store"
-          });
-
-          if (!res.ok) continue;
-          const data = await res.json();
-
-          if (!data?.ok || !data?.state) continue;
-
-          controlState.buzzVisible = !!data.state.enabled;
-          controlState.firstBuzzName = data.state.firstBuzz?.name || "";
-          controlState.firstBuzzTeam = data.state.firstBuzz?.team || "";
-
-          saveControlState();
-          renderAll();
-
-          writeStored("familyfeud_buzz_api_base", base);
-          return;
-        } catch (e) {}
-      }
-    }
-
-    async function setRemoteBuzzEnabled(enabled) {
-      const room = readStored("familyfeud_buzz_room") || DEFAULT_ROOM;
-
-      for (const base of POSSIBLE_API_BASES) {
-        try {
-          const res = await fetch(`${base}/api/buzz/toggle?room=${encodeURIComponent(room)}`, {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json"
-            },
-            body: JSON.stringify({ enabled })
-          });
-
-          if (!res.ok) continue;
-          writeStored("familyfeud_buzz_api_base", base);
-          return true;
-        } catch (e) {}
-      }
-
-      return false;
+      await sendGameAction("reveal_answer", { answerIndex: index });
     }
 
     function getCurrentViewport() {
