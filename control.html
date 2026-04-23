@@ -164,7 +164,7 @@
       justify-content:center;
       padding:0 74px 0 72px;
       cursor:pointer;
-      transition:transform .12s ease, filter .12s ease, box-shadow .12s ease;
+      transition:transform .12s ease, filter .12s ease, box-shadow .12s ease, opacity .12s ease;
       box-shadow:0 6px 12px rgba(0,0,0,.12);
     }
 
@@ -181,6 +181,13 @@
       box-shadow:
         0 0 0 3px rgba(241,203,74,.45),
         0 6px 14px rgba(0,0,0,.15);
+    }
+
+    .answer-card.disabled{
+      opacity:.75;
+      cursor:default;
+      transform:none !important;
+      filter:none !important;
     }
 
     .answer-points{
@@ -269,7 +276,7 @@
       font-weight:900;
       cursor:pointer;
       border:2px solid rgba(255,255,255,.82);
-      transition:transform .12s ease, filter .12s ease;
+      transition:transform .12s ease, filter .12s ease, opacity .12s ease;
       padding:0 14px;
       white-space:nowrap;
     }
@@ -286,6 +293,13 @@
     .panel-btn.red{
       min-width:190px;
       background:linear-gradient(180deg, var(--button-red) 0%, var(--button-red-2) 100%);
+    }
+
+    .panel-btn:disabled{
+      opacity:.65;
+      cursor:default;
+      transform:none !important;
+      filter:none !important;
     }
 
     .player-box{
@@ -332,7 +346,7 @@
       font-weight:900;
       cursor:pointer;
       border:4px solid rgba(255,255,255,.88);
-      transition:transform .12s ease, filter .12s ease;
+      transition:transform .12s ease, filter .12s ease, opacity .12s ease;
     }
 
     .main-btn:hover{
@@ -351,6 +365,13 @@
     .main-btn.red{
       background:linear-gradient(180deg, var(--button-red) 0%, var(--button-red-2) 100%);
       font-size:34px;
+    }
+
+    .main-btn:disabled{
+      opacity:.65;
+      cursor:default;
+      transform:none !important;
+      filter:none !important;
     }
 
     .home-btn{
@@ -400,9 +421,7 @@
 
         <section class="right-panel">
           <div id="panelTitle" class="panel-title hint-hidden">.</div>
-
           <div id="panelActions" class="panel-actions"></div>
-
           <div id="firstPlayerBox" class="player-box">اسم اللاعب الذي يضغط أولًا</div>
         </section>
 
@@ -424,6 +443,7 @@
     <div class="page-spacer" aria-hidden="true"></div>
   </main>
 
+  <script src="https://js.pusher.com/8.4.0/pusher.min.js"></script>
   <script>
     const DESIGN_WIDTH = 1600;
     const DESIGN_HEIGHT = 768;
@@ -437,6 +457,7 @@
     const DISPLAY_CHANNEL = "familyfeud_display_channel_v1";
 
     const DEFAULT_ROOM = "family-feud-demo";
+    const FALLBACK_POLL_MS = 3500;
 
     const root = document.documentElement;
 
@@ -455,7 +476,14 @@
     let displayState = readDisplayState();
     let controlState = readControlState();
     let channel = null;
+
     let isBusy = false;
+    let pusher = null;
+    let gameChannel = null;
+    let fallbackPoll = null;
+    let syncStarted = false;
+    let apiBase = normalizeBase(readStored(API_BASE_KEY) || readStored(BUZZ_API_BASE_KEY));
+    let initialAutoShowDone = false;
 
     try {
       channel = new BroadcastChannel(DISPLAY_CHANNEL);
@@ -509,6 +537,7 @@
 
     document.addEventListener("touchstart", nudgeSafariBar, { passive: true });
     document.addEventListener("touchend", nudgeSafariBar, { passive: true });
+    window.addEventListener("beforeunload", destroyLiveSync);
 
     bellToggleBtn.addEventListener("click", async () => {
       if (isBusy) return;
@@ -527,7 +556,10 @@
 
     nextQuestionBtn.addEventListener("click", async () => {
       if (isBusy) return;
-      await sendGameAction("next_question");
+      const ok = await sendGameAction("next_question");
+      if (ok) {
+        await sendGameAction("show_question", { visible: true });
+      }
     });
 
     function resolveRoomId() {
@@ -547,6 +579,7 @@
       const bases = [];
 
       const rawBases = [
+        apiBase,
         readStored(API_BASE_KEY),
         readStored(BUZZ_API_BASE_KEY),
         window.location.origin.includes("workers.dev") ? window.location.origin : "",
@@ -564,9 +597,129 @@
       return bases;
     }
 
+    async function detectApiBase() {
+      const bases = getApiBases();
+
+      for (const base of bases) {
+        try {
+          const res = await fetch(`${base}/api/game/state?room=${encodeURIComponent(roomId)}`, {
+            method: "GET",
+            cache: "no-store",
+            headers: {
+              "Cache-Control": "no-cache",
+              "Pragma": "no-cache"
+            }
+          });
+
+          const data = await res.json().catch(() => null);
+          if (!res.ok || !data || !data.ok || !data.state) continue;
+
+          apiBase = base;
+          writeStored(API_BASE_KEY, base);
+          writeStored(BUZZ_API_BASE_KEY, base);
+          return true;
+        } catch (error) {}
+      }
+
+      return false;
+    }
+
     async function startRemoteSync() {
-      await fetchRemoteGameState();
-      setInterval(fetchRemoteGameState, 700);
+      if (syncStarted) return;
+      syncStarted = true;
+
+      const ok = await detectApiBase();
+      if (ok) {
+        await fetchRemoteGameState();
+        await maybeInitialAutoShowQuestion();
+        await initPusher();
+      }
+
+      startFallbackPoll();
+    }
+
+    function startFallbackPoll() {
+      if (fallbackPoll) clearInterval(fallbackPoll);
+      fallbackPoll = setInterval(() => {
+        fetchRemoteGameState();
+      }, FALLBACK_POLL_MS);
+    }
+
+    function destroyLiveSync() {
+      if (fallbackPoll) {
+        clearInterval(fallbackPoll);
+        fallbackPoll = null;
+      }
+
+      if (gameChannel && pusher) {
+        try { gameChannel.unbind_all(); } catch (e) {}
+        try { pusher.unsubscribe(gameChannel.name); } catch (e) {}
+      }
+
+      gameChannel = null;
+
+      if (pusher) {
+        try { pusher.disconnect(); } catch (e) {}
+      }
+
+      pusher = null;
+      syncStarted = false;
+    }
+
+    async function initPusher() {
+      if (!window.Pusher) return;
+      if (!apiBase) return;
+      if (pusher || gameChannel) return;
+
+      try {
+        const res = await fetch(`${apiBase}/api/game/pusher-config?room=${encodeURIComponent(roomId)}`, {
+          method: "GET",
+          cache: "no-store",
+          headers: {
+            "Cache-Control": "no-cache",
+            "Pragma": "no-cache"
+          }
+        });
+
+        const data = await res.json().catch(() => null);
+        if (!res.ok || !data || !data.ok || !data.key || !data.cluster || !data.channel) return;
+
+        const authEndpoint = String(data.authEndpoint || "").startsWith("http")
+          ? data.authEndpoint
+          : `${apiBase}${data.authEndpoint}`;
+
+        window.Pusher.logToConsole = false;
+
+        pusher = new window.Pusher(data.key, {
+          cluster: data.cluster,
+          channelAuthorization: {
+            endpoint: authEndpoint,
+            transport: "ajax"
+          }
+        });
+
+        gameChannel = pusher.subscribe(data.channel);
+
+        gameChannel.bind("pusher:subscription_succeeded", async () => {
+          await fetchRemoteGameState();
+        });
+
+        gameChannel.bind("game-updated", async (payload) => {
+          applyRemoteGameState(payload);
+          renderAll();
+        });
+      } catch (error) {}
+    }
+
+    async function maybeInitialAutoShowQuestion() {
+      if (initialAutoShowDone) return;
+      if (!displayState.question) return;
+
+      initialAutoShowDone = true;
+
+      if (!displayState.showQuestion) {
+        await sendGameAction("show_question", { visible: true });
+      }
     }
 
     async function fetchRemoteGameState() {
@@ -588,9 +741,12 @@
           const data = await res.json().catch(() => null);
           if (!data || !data.ok || !data.state) continue;
 
-          applyRemoteGameState(data.state);
+          apiBase = base;
           writeStored(API_BASE_KEY, base);
           writeStored(BUZZ_API_BASE_KEY, base);
+
+          applyRemoteGameState(data.state);
+          renderAll();
           return true;
         } catch (error) {}
       }
@@ -601,6 +757,7 @@
     async function sendGameAction(action, extra = {}) {
       const bases = getApiBases();
       isBusy = true;
+      renderAll();
 
       try {
         for (const base of bases) {
@@ -623,9 +780,12 @@
             const data = await res.json().catch(() => null);
             if (!data || !data.ok || !data.state) continue;
 
-            applyRemoteGameState(data.state);
+            apiBase = base;
             writeStored(API_BASE_KEY, base);
             writeStored(BUZZ_API_BASE_KEY, base);
+
+            applyRemoteGameState(data.state);
+            renderAll();
             return true;
           } catch (error) {}
         }
@@ -633,6 +793,7 @@
         return false;
       } finally {
         isBusy = false;
+        renderAll();
       }
     }
 
@@ -653,11 +814,13 @@
         team1Strikes: Number(display.team1Strikes || 0),
         team2Strikes: Number(display.team2Strikes || 0),
         roundPoints: Number(display.roundPoints || 0),
-        answers: Array.isArray(display.answers) ? display.answers.map((answer) => ({
-          text: String(answer?.text || ""),
-          points: Number(answer?.points || 0),
-          revealed: !!answer?.revealed
-        })) : []
+        answers: Array.isArray(display.answers)
+          ? display.answers.map((answer) => ({
+              text: String(answer?.text || ""),
+              points: Number(answer?.points || 0),
+              revealed: !!answer?.revealed
+            }))
+          : []
       };
 
       controlState = {
@@ -674,7 +837,6 @@
 
       saveDisplayState();
       saveControlState();
-      renderAll();
     }
 
     function ensureInitialState() {
@@ -734,6 +896,7 @@
 
     function writeStored(key, value) {
       const stringValue = typeof value === "string" ? value : JSON.stringify(value);
+
       try { localStorage.setItem(key, stringValue); } catch (e) {}
       try { sessionStorage.setItem(key, stringValue); } catch (e) {}
 
@@ -787,10 +950,6 @@
       }, 0);
     }
 
-    function getOtherTeam(team) {
-      return team === "team1" ? "team2" : "team1";
-    }
-
     function getTeamName(team) {
       if (team === "team1") return displayState.team1Name || "الفريق الأول";
       if (team === "team2") return displayState.team2Name || "الفريق الثاني";
@@ -806,6 +965,10 @@
       questionTextEl.textContent = displayState.question || "نص السؤال";
       firstPlayerBoxEl.textContent = controlState.firstBuzzName || "اسم اللاعب الذي يضغط أولًا";
       bellToggleBtn.textContent = controlState.buzzVisible ? "إخفاء الجرس" : "إظهار الجرس";
+
+      bellToggleBtn.disabled = isBusy;
+      errorBtn.disabled = isBusy || !controlState.currentTurnTeam;
+      nextQuestionBtn.disabled = isBusy;
 
       renderAnswers();
       renderPanel();
@@ -829,6 +992,8 @@
         const card = document.createElement("button");
         card.type = "button";
         card.className = "answer-card" + (answer.revealed ? " revealed" : "");
+        if (isBusy) card.classList.add("disabled");
+
         card.style.gridRow = positions[index]?.row || "auto";
         card.style.gridColumn = positions[index]?.col || "auto";
 
@@ -940,6 +1105,7 @@
       btn.type = "button";
       btn.className = "panel-btn";
       btn.textContent = text;
+      btn.disabled = isBusy;
       btn.addEventListener("click", onClick);
       return btn;
     }
@@ -949,6 +1115,7 @@
       btn.type = "button";
       btn.className = "panel-btn red";
       btn.textContent = text;
+      btn.disabled = isBusy;
       btn.addEventListener("click", onClick);
       return btn;
     }
