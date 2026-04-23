@@ -434,7 +434,13 @@
     const DESIGN_HEIGHT = 768;
 
     const DISPLAY_KEY = "familyfeud_display_state_v1";
+    const ROOM_KEY = "familyfeud_room_id";
+    const BUZZ_ROOM_KEY = "familyfeud_buzz_room";
+    const API_BASE_KEY = "familyfeud_api_base";
+    const BUZZ_API_BASE_KEY = "familyfeud_buzz_api_base";
     const DISPLAY_CHANNEL = "familyfeud_display_channel_v1";
+
+    const DEFAULT_ROOM = "family-feud-demo";
 
     const root = document.documentElement;
 
@@ -453,6 +459,7 @@
 
     let stableViewport = { width: window.innerWidth, height: window.innerHeight };
     let lastStateSignature = "";
+    let roomId = resolveRoomId();
     let channel = null;
 
     try {
@@ -460,6 +467,53 @@
     } catch (e) {
       channel = null;
     }
+
+    persistRoomId(roomId);
+    renderDisplay();
+    updateLayout();
+    startRemoteSync();
+
+    if (channel) {
+      channel.onmessage = () => {
+        renderDisplay();
+      };
+    }
+
+    window.addEventListener("storage", renderDisplay);
+
+    window.addEventListener("pageshow", async () => {
+      await fetchRemoteGameState();
+      renderDisplay();
+      updateLayout();
+    });
+
+    window.addEventListener("focus", async () => {
+      await fetchRemoteGameState();
+      renderDisplay();
+      updateLayout();
+    });
+
+    window.addEventListener("load", () => {
+      renderDisplay();
+      setTimeout(updateLayout, 60);
+      setTimeout(updateLayout, 220);
+    }, { passive: true });
+
+    window.addEventListener("resize", updateLayout, { passive: true });
+
+    window.addEventListener("orientationchange", () => {
+      setTimeout(updateLayout, 80);
+      setTimeout(updateLayout, 250);
+      setTimeout(updateLayout, 500);
+    }, { passive: true });
+
+    if (window.visualViewport) {
+      window.visualViewport.addEventListener("resize", updateLayout, { passive: true });
+      window.visualViewport.addEventListener("scroll", updateLayout, { passive: true });
+    }
+
+    document.addEventListener("touchstart", nudgeSafariBar, { passive: true });
+    document.addEventListener("touchend", nudgeSafariBar, { passive: true });
 
     function readStored(key) {
       try {
@@ -475,6 +529,16 @@
       return "";
     }
 
+    function writeStored(key, value) {
+      const stringValue = typeof value === "string" ? value : JSON.stringify(value);
+      try { localStorage.setItem(key, stringValue); } catch (e) {}
+      try { sessionStorage.setItem(key, stringValue); } catch (e) {}
+
+      if (channel) {
+        try { channel.postMessage({ key }); } catch (e) {}
+      }
+    }
+
     function safeParse(json) {
       try {
         return JSON.parse(json);
@@ -483,25 +547,66 @@
       }
     }
 
+    function normalizeBase(base) {
+      return String(base || "").trim().replace(/\/+$/, "");
+    }
+
+    function normalizeRoom(value) {
+      const v = String(value || "").trim().toLowerCase();
+      if (!v) return "";
+      return v.replace(/[^a-z0-9_-]/g, "").slice(0, 64);
+    }
+
+    function resolveRoomId() {
+      const url = new URL(window.location.href);
+      const fromUrl = normalizeRoom(url.searchParams.get("room"));
+      const fromStorage = normalizeRoom(readStored(ROOM_KEY) || readStored(BUZZ_ROOM_KEY));
+      return fromUrl || fromStorage || DEFAULT_ROOM;
+    }
+
+    function persistRoomId(nextRoom) {
+      writeStored(ROOM_KEY, nextRoom);
+      writeStored(BUZZ_ROOM_KEY, nextRoom);
+    }
+
+    function getApiBases() {
+      const seen = new Set();
+      const result = [];
+
+      const candidates = [
+        readStored(API_BASE_KEY),
+        readStored(BUZZ_API_BASE_KEY),
+        window.location.origin.includes("workers.dev") ? window.location.origin : "",
+        "https://family-feud-buzz.sandooq-m.workers.dev",
+        "https://z.sandooq-m.workers.dev"
+      ];
+
+      candidates.forEach((base) => {
+        const normalized = normalizeBase(base);
+        if (!normalized || seen.has(normalized)) return;
+        seen.add(normalized);
+        result.push(normalized);
+      });
+
+      return result;
+    }
+
     function getDefaultState() {
       return {
-        showQuestion: true,
-        question: "اذكر شيئًا يستخدمه الناس يوميًا",
+        showQuestion: false,
+        question: "",
         team1Name: readStored("familyfeud_team1") || "الفريق الأول",
         team2Name: readStored("familyfeud_team2") || "الفريق الثاني",
         team1Score: 0,
         team2Score: 0,
         team1Strikes: 0,
         team2Strikes: 0,
-        roundPoints: null,
-        answers: [
-          { text: "الجوال", points: 32, revealed: false },
-          { text: "المفاتيح", points: 18, revealed: false },
-          { text: "الماء", points: 14, revealed: false },
-          { text: "السيارة", points: 10, revealed: false },
-          { text: "المحفظة", points: 8, revealed: false },
-          { text: "النظارة", points: 6, revealed: false }
-        ]
+        roundPoints: 0,
+        answers: Array.from({ length: 6 }, () => ({
+          text: "",
+          points: 0,
+          revealed: false
+        }))
       };
     }
 
@@ -534,16 +639,14 @@
 
       return {
         showQuestion: typeof source.showQuestion === "boolean" ? source.showQuestion : defaults.showQuestion,
-        question: String(source.question || defaults.question).trim() || defaults.question,
+        question: String(source.question || defaults.question).trim(),
         team1Name: String(source.team1Name || defaults.team1Name).trim() || defaults.team1Name,
         team2Name: String(source.team2Name || defaults.team2Name).trim() || defaults.team2Name,
         team1Score: Math.max(0, normalizeNumber(source.team1Score, defaults.team1Score)),
         team2Score: Math.max(0, normalizeNumber(source.team2Score, defaults.team2Score)),
         team1Strikes: normalizeStrikeCount(source.team1Strikes),
         team2Strikes: normalizeStrikeCount(source.team2Strikes),
-        roundPoints: source.roundPoints === null || source.roundPoints === undefined
-          ? null
-          : Math.max(0, normalizeNumber(source.roundPoints, 0)),
+        roundPoints: Math.max(0, normalizeNumber(source.roundPoints, 0)),
         answers: normalizedAnswers
       };
     }
@@ -556,6 +659,41 @@
       if (!parsed) return normalizeState(getDefaultState());
 
       return normalizeState(parsed);
+    }
+
+    async function startRemoteSync() {
+      await fetchRemoteGameState();
+      setInterval(fetchRemoteGameState, 700);
+    }
+
+    async function fetchRemoteGameState() {
+      const bases = getApiBases();
+
+      for (const base of bases) {
+        try {
+          const res = await fetch(`${base}/api/game/state?room=${encodeURIComponent(roomId)}`, {
+            method: "GET",
+            cache: "no-store",
+            headers: {
+              "Cache-Control": "no-cache",
+              "Pragma": "no-cache"
+            }
+          });
+
+          if (!res.ok) continue;
+
+          const data = await res.json().catch(() => null);
+          if (!data || !data.ok || !data.state || !data.state.display) continue;
+
+          const nextState = normalizeState(data.state.display);
+          writeStored(DISPLAY_KEY, nextState);
+          writeStored(API_BASE_KEY, base);
+          writeStored(BUZZ_API_BASE_KEY, base);
+          return true;
+        } catch (error) {}
+      }
+
+      return false;
     }
 
     function getCurrentViewport() {
@@ -618,22 +756,14 @@
       });
     }
 
-    function calculateRoundPoints(state) {
-      if (state.roundPoints !== null) return state.roundPoints;
-
-      return state.answers.reduce((sum, answer) => {
-        return answer.revealed ? sum + answer.points : sum;
-      }, 0);
-    }
-
     function renderAnswers(state) {
       const positions = [
-        { row: 1, col: 2 }, // 1 يمين
-        { row: 1, col: 1 }, // 2 يسار
-        { row: 2, col: 2 }, // 3 يمين
-        { row: 2, col: 1 }, // 4 يسار
-        { row: 3, col: 2 }, // 5 يمين
-        { row: 3, col: 1 }  // 6 يسار
+        { row: 1, col: 2 },
+        { row: 1, col: 1 },
+        { row: 2, col: 2 },
+        { row: 2, col: 1 },
+        { row: 3, col: 2 },
+        { row: 3, col: 1 }
       ];
 
       answersGrid.innerHTML = "";
@@ -673,7 +803,7 @@
       teamTwoScoreEl.textContent = state.team2Score;
 
       questionTextEl.textContent = state.showQuestion ? state.question : "";
-      roundScoreEl.textContent = calculateRoundPoints(state);
+      roundScoreEl.textContent = state.roundPoints;
 
       applyStrikeRow(strikeRows.team1, state.team1Strikes);
       applyStrikeRow(strikeRows.team2, state.team2Strikes);
@@ -718,51 +848,6 @@
     gameLogo.addEventListener("error", () => {
       gameLogo.style.display = "none";
     });
-
-    if (channel) {
-      channel.onmessage = () => {
-        renderDisplay();
-      };
-    }
-
-    renderDisplay();
-    updateLayout();
-
-    setInterval(renderDisplay, 250);
-
-    window.addEventListener("storage", renderDisplay);
-
-    window.addEventListener("pageshow", () => {
-      renderDisplay();
-      updateLayout();
-    });
-
-    window.addEventListener("focus", () => {
-      renderDisplay();
-      updateLayout();
-    });
-
-    window.addEventListener("load", () => {
-      renderDisplay();
-      setTimeout(updateLayout, 60);
-      setTimeout(updateLayout, 220);
-    }, { passive: true });
-
-    window.addEventListener("resize", updateLayout, { passive: true });
-
-    window.addEventListener("orientationchange", () => {
-      setTimeout(updateLayout, 80);
-      setTimeout(updateLayout, 250);
-      setTimeout(updateLayout, 500);
-    }, { passive: true });
-
-    if (window.visualViewport) {
-      window.visualViewport.addEventListener("resize", updateLayout, { passive: true });
-      window.visualViewport.addEventListener("scroll", updateLayout, { passive: true });
-    }
-
-    document.addEventListener("touchstart", nudgeSafariBar, { passive: true });
-    document.addEventListener("touchend", nudgeSafariBar, { passive: true });
   </script>
 </body>
 </html>
