@@ -552,10 +552,7 @@
     const DISPLAY_CHANNEL = "familyfeud_display_channel_v1";
 
     const DEFAULT_ROOM = "family-feud-demo";
-    const FALLBACK_POLL_MS = 3500;
-    const PUSHER_FALLBACK_POLL_MS = 9000;
-    const MIN_STATE_FETCH_GAP_MS = 700;
-    const PUSHER_RECENT_GRACE_MS = 2400;
+    const FALLBACK_POLL_MS = 700;
 
     const root = document.documentElement;
 
@@ -584,10 +581,7 @@
     let pusher = null;
     let gameChannel = null;
     let fallbackPoll = null;
-    let currentPollMs = 0;
-    let usingPusherRealtime = false;
     let stateFetchInFlight = null;
-    let lastRemoteStateAt = 0;
 
     let syncStarted = false;
     let teamNamesSynced = false;
@@ -624,19 +618,13 @@
     });
 
     window.addEventListener("pageshow", async () => {
-      await fetchRemoteGameState({ force: true });
+      await fetchRemoteGameState(true);
       renderDisplay();
       updateLayout();
     });
 
     window.addEventListener("focus", async () => {
-      if (Date.now() - lastRemoteStateAt < MIN_STATE_FETCH_GAP_MS) {
-        renderDisplay();
-        updateLayout();
-        return;
-      }
-
-      await fetchRemoteGameState({ force: true });
+      await fetchRemoteGameState(true);
       renderDisplay();
       updateLayout();
     });
@@ -820,38 +808,19 @@
 
       if (ok) {
         await syncTeamNamesToRemote();
-        await fetchRemoteGameState({ force: true });
+        await fetchRemoteGameState(true);
         await initPusher();
       }
 
       startFallbackPoll();
     }
 
-    function startFallbackPoll(intervalMs = usingPusherRealtime ? PUSHER_FALLBACK_POLL_MS : FALLBACK_POLL_MS) {
-      if (fallbackPoll && currentPollMs === intervalMs) return;
-
-      if (fallbackPoll) {
-        clearInterval(fallbackPoll);
-        fallbackPoll = null;
-      }
-
-      currentPollMs = intervalMs;
+    function startFallbackPoll() {
+      if (fallbackPoll) clearInterval(fallbackPoll);
 
       fallbackPoll = setInterval(() => {
-        maybePollRemoteGameState();
-      }, intervalMs);
-    }
-
-    function maybePollRemoteGameState() {
-      if (stateFetchInFlight) return;
-
-      const now = Date.now();
-
-      if (usingPusherRealtime && now - lastRemoteStateAt < PUSHER_RECENT_GRACE_MS) {
-        return;
-      }
-
-      fetchRemoteGameState();
+        fetchRemoteGameState(false);
+      }, FALLBACK_POLL_MS);
     }
 
     function destroyLiveSync() {
@@ -873,8 +842,6 @@
 
       pusher = null;
       syncStarted = false;
-      usingPusherRealtime = false;
-      currentPollMs = 0;
       stateFetchInFlight = null;
     }
 
@@ -941,29 +908,10 @@
           }
         });
 
-        if (pusher.connection) {
-          pusher.connection.bind("state_change", (states) => {
-            const currentState = String(states?.current || "");
-
-            if (currentState === "connected") {
-              usingPusherRealtime = true;
-              startFallbackPoll(PUSHER_FALLBACK_POLL_MS);
-              return;
-            }
-
-            if (currentState === "disconnected" || currentState === "unavailable" || currentState === "failed") {
-              usingPusherRealtime = false;
-              startFallbackPoll(FALLBACK_POLL_MS);
-            }
-          });
-        }
-
         gameChannel = pusher.subscribe(data.channel);
 
         gameChannel.bind("pusher:subscription_succeeded", async () => {
-          usingPusherRealtime = true;
-          startFallbackPoll(PUSHER_FALLBACK_POLL_MS);
-          await fetchRemoteGameState({ force: true });
+          await fetchRemoteGameState(true);
         });
 
         gameChannel.bind("game-updated", (payload) => {
@@ -973,18 +921,8 @@
       } catch (error) {}
     }
 
-    async function maybeInitialAutoShowQuestion() {
-      return;
-    }
-
-    async function fetchRemoteGameState(options = {}) {
-      const force = options.force === true;
-      const now = Date.now();
-
-      if (!force) {
-        if (stateFetchInFlight) return stateFetchInFlight;
-        if (now - lastRemoteStateAt < MIN_STATE_FETCH_GAP_MS) return true;
-      }
+    async function fetchRemoteGameState(force = false) {
+      if (stateFetchInFlight && !force) return stateFetchInFlight;
 
       stateFetchInFlight = (async () => {
         const bases = getApiBases();
@@ -1079,8 +1017,6 @@
 
       const nextState = normalizeState(remoteState.display);
       const nextSignature = JSON.stringify(nextState);
-
-      lastRemoteStateAt = Date.now();
 
       currentDisplayState = nextState;
 
