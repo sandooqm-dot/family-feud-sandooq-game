@@ -178,18 +178,18 @@
     }
 
     .answer-card.revealed{
-      background:linear-gradient(180deg, #7d808b 0%, #585c67 100%);
+      background:linear-gradient(180deg, #7b808b 0%, #5b606b 100%);
       box-shadow:
-        0 0 0 3px rgba(241,203,74,.30),
+        0 0 0 3px rgba(241,203,74,.28),
         0 6px 14px rgba(0,0,0,.15);
     }
 
     .answer-card.revealed .answer-label{
-      color:#f3f0ea;
+      color:#f6f2e8;
     }
 
     .answer-card.revealed .answer-points{
-      background:#d7d7d7;
+      background:#d8d8d8;
       color:#111;
       border-color:#343434;
     }
@@ -496,6 +496,7 @@
     const API_BASE_KEY = "familyfeud_api_base";
     const BUZZ_API_BASE_KEY = "familyfeud_buzz_api_base";
     const DISPLAY_CHANNEL = "familyfeud_display_channel_v1";
+    const LOCAL_UI_KEY = "familyfeud_control_ui_v1";
 
     const DEFAULT_ROOM = "family-feud-demo";
     const FALLBACK_POLL_MS = 3500;
@@ -516,6 +517,7 @@
     let roomId = resolveRoomId();
     let displayState = readDisplayState();
     let controlState = readControlState();
+    let localUiState = readLocalUiState();
     let channel = null;
 
     let isBusy = false;
@@ -543,6 +545,7 @@
       channel.onmessage = () => {
         displayState = readDisplayState();
         controlState = readControlState();
+        localUiState = readLocalUiState();
         renderAll();
       };
     }
@@ -550,6 +553,7 @@
     window.addEventListener("storage", () => {
       displayState = readDisplayState();
       controlState = readControlState();
+      localUiState = readLocalUiState();
       renderAll();
     });
 
@@ -860,11 +864,6 @@
     function applyRemoteGameState(remoteState) {
       if (!remoteState) return;
 
-      const previousResolvedQuestionId = String(controlState?.resolvedQuestionId || "");
-      const previousDisplayOnlyRevealIndexes = Array.isArray(controlState?.displayOnlyRevealIndexes)
-        ? controlState.displayOnlyRevealIndexes.filter((index) => Number.isInteger(index))
-        : [];
-
       const display = remoteState.display || {};
       const control = remoteState.control || {};
       const buzz = remoteState.buzz || {};
@@ -888,7 +887,7 @@
           : []
       };
 
-      controlState = normalizeControlState({
+      controlState = {
         currentQuestionIndex: Number(control.currentQuestionIndex || 0),
         totalQuestions: Number(control.totalQuestions || 0),
         stage: String(control.phase || "idle"),
@@ -897,26 +896,12 @@
         stealingTeam: String(control.stealingTeam || ""),
         firstBuzzName: String(buzz.firstBuzz?.name || ""),
         firstBuzzTeam: String(buzz.firstBuzz?.team || ""),
-        buzzVisible: !!buzz.enabled,
-        resolvedQuestionId: "",
-        displayOnlyRevealIndexes: []
-      });
+        buzzVisible: !!buzz.enabled
+      };
 
-      const currentQuestionId = buildQuestionId(controlState.currentQuestionIndex, displayState.question);
-      const keepResolvedState = previousResolvedQuestionId && previousResolvedQuestionId === currentQuestionId;
-
-      if (keepResolvedState) {
-        controlState.resolvedQuestionId = previousResolvedQuestionId;
-        controlState.displayOnlyRevealIndexes = previousDisplayOnlyRevealIndexes.filter((index) => (
-          index >= 0 && index < displayState.answers.length
-        ));
-
-        controlState.displayOnlyRevealIndexes.forEach((index) => {
-          if (displayState.answers[index]) {
-            displayState.answers[index].revealed = true;
-          }
-        });
-      }
+      localUiState = readLocalUiState();
+      reconcileResolvedState();
+      syncDisplayOnlyReveals();
 
       saveDisplayState();
       saveControlState();
@@ -943,12 +928,13 @@
         saveDisplayState();
       }
 
-      controlState = normalizeControlState(controlState);
-
       if (!controlState) {
         controlState = getDefaultControlState();
         saveControlState();
       }
+
+      localUiState = normalizeLocalUiState(localUiState);
+      saveLocalUiState();
     }
 
     function getDefaultControlState() {
@@ -961,31 +947,25 @@
         stealingTeam: "",
         firstBuzzName: "",
         firstBuzzTeam: "",
-        buzzVisible: true,
-        resolvedQuestionId: "",
+        buzzVisible: true
+      };
+    }
+
+    function getDefaultLocalUiState() {
+      return {
+        resolvedQuestionKey: "",
         displayOnlyRevealIndexes: []
       };
     }
 
-    function normalizeControlState(state) {
-      const base = getDefaultControlState();
-      const next = state && typeof state === "object" ? state : {};
-
+    function normalizeLocalUiState(value) {
+      const next = value && typeof value === "object" ? value : {};
       return {
-        ...base,
-        ...next,
-        currentQuestionIndex: Number(next.currentQuestionIndex || 0),
-        totalQuestions: Number(next.totalQuestions || 0),
-        stage: String(next.stage || "idle"),
-        currentTurnTeam: String(next.currentTurnTeam || ""),
-        confrontationWinner: String(next.confrontationWinner || ""),
-        stealingTeam: String(next.stealingTeam || ""),
-        firstBuzzName: String(next.firstBuzzName || ""),
-        firstBuzzTeam: String(next.firstBuzzTeam || ""),
-        buzzVisible: !!next.buzzVisible,
-        resolvedQuestionId: String(next.resolvedQuestionId || ""),
+        resolvedQuestionKey: String(next.resolvedQuestionKey || ""),
         displayOnlyRevealIndexes: Array.isArray(next.displayOnlyRevealIndexes)
-          ? next.displayOnlyRevealIndexes.filter((index) => Number.isInteger(index))
+          ? next.displayOnlyRevealIndexes
+              .map((index) => Number(index))
+              .filter((index) => Number.isInteger(index) && index >= 0)
           : []
       };
     }
@@ -1042,7 +1022,13 @@
     function readControlState() {
       const raw = readStored(CONTROL_KEY);
       const parsed = safeParse(raw);
-      return normalizeControlState(parsed || getDefaultControlState());
+      return parsed || getDefaultControlState();
+    }
+
+    function readLocalUiState() {
+      const raw = readStored(LOCAL_UI_KEY);
+      const parsed = safeParse(raw);
+      return normalizeLocalUiState(parsed || getDefaultLocalUiState());
     }
 
     function saveDisplayState() {
@@ -1051,8 +1037,12 @@
     }
 
     function saveControlState() {
-      controlState = normalizeControlState(controlState);
       writeStored(CONTROL_KEY, controlState);
+    }
+
+    function saveLocalUiState() {
+      localUiState = normalizeLocalUiState(localUiState);
+      writeStored(LOCAL_UI_KEY, localUiState);
     }
 
     function calculateRoundPoints() {
@@ -1063,22 +1053,6 @@
       }, 0);
     }
 
-    function buildQuestionId(index = controlState.currentQuestionIndex, question = displayState.question) {
-      return `${Number(index || 0)}::${String(question || "").trim()}`;
-    }
-
-    function isQuestionResolved() {
-      const currentQuestionId = buildQuestionId();
-      return !!controlState.resolvedQuestionId && controlState.resolvedQuestionId === currentQuestionId;
-    }
-
-    function markQuestionResolved() {
-      controlState.resolvedQuestionId = buildQuestionId();
-      controlState.displayOnlyRevealIndexes = [];
-      saveControlState();
-      saveDisplayState();
-    }
-
     function getTeamName(team) {
       if (team === "team1") return displayState.team1Name || "الفريق الأول";
       if (team === "team2") return displayState.team2Name || "الفريق الثاني";
@@ -1087,6 +1061,59 @@
 
     function getOtherTeam(team) {
       return team === "team1" ? "team2" : "team1";
+    }
+
+    function getQuestionKey() {
+      return `${Number(controlState.currentQuestionIndex || 0)}::${String(displayState.question || "").trim()}`;
+    }
+
+    function isQuestionResolved() {
+      const key = getQuestionKey();
+      return !!key && !!localUiState.resolvedQuestionKey && localUiState.resolvedQuestionKey === key;
+    }
+
+    function reconcileResolvedState() {
+      const currentKey = getQuestionKey();
+
+      if (!currentKey) {
+        localUiState = getDefaultLocalUiState();
+        saveLocalUiState();
+        return;
+      }
+
+      if (localUiState.resolvedQuestionKey && localUiState.resolvedQuestionKey !== currentKey) {
+        localUiState = getDefaultLocalUiState();
+        saveLocalUiState();
+      }
+    }
+
+    function syncDisplayOnlyReveals() {
+      if (!Array.isArray(displayState.answers)) return;
+
+      if (!isQuestionResolved()) return;
+
+      localUiState.displayOnlyRevealIndexes.forEach((index) => {
+        if (displayState.answers[index]) {
+          displayState.answers[index].revealed = true;
+        }
+      });
+
+      displayState.roundPoints = 0;
+    }
+
+    function markQuestionResolved() {
+      localUiState.resolvedQuestionKey = getQuestionKey();
+      localUiState.displayOnlyRevealIndexes = [];
+      saveLocalUiState();
+      syncDisplayOnlyReveals();
+      saveDisplayState();
+    }
+
+    function addDisplayOnlyReveal(index) {
+      const set = new Set(localUiState.displayOnlyRevealIndexes || []);
+      set.add(index);
+      localUiState.displayOnlyRevealIndexes = Array.from(set).sort((a, b) => a - b);
+      saveLocalUiState();
     }
 
     function isStealStage() {
@@ -1145,21 +1172,19 @@
       answersGridEl.innerHTML = "";
 
       const answers = Array.isArray(displayState.answers) ? displayState.answers : [];
+      const questionResolved = isQuestionResolved();
 
       answers.forEach((answer, index) => {
         const card = document.createElement("button");
-        const isBlockedRevealedAnswer =
-          isStealStage() &&
-          !isQuestionResolved() &&
-          !!answer.revealed;
-
+        const isRevealed = !!answer.revealed;
         const shouldDisable =
           isBusy ||
           stealAwardInProgress ||
-          isBlockedRevealedAnswer;
+          (isStealStage() && isRevealed && !questionResolved) ||
+          (questionResolved && isRevealed);
 
         card.type = "button";
-        card.className = "answer-card" + (answer.revealed ? " revealed" : "");
+        card.className = "answer-card" + (isRevealed ? " revealed" : "");
         if (shouldDisable) card.classList.add("disabled");
         card.disabled = shouldDisable;
 
@@ -1290,7 +1315,7 @@
       btn.type = "button";
       btn.className = "panel-btn";
       btn.textContent = text;
-      btn.disabled = isBusy || stealAwardInProgress || isQuestionResolved();
+      btn.disabled = isBusy || stealAwardInProgress;
       btn.addEventListener("click", onClick);
       return btn;
     }
@@ -1300,7 +1325,7 @@
       btn.type = "button";
       btn.className = "panel-btn red";
       btn.textContent = text;
-      btn.disabled = isBusy || stealAwardInProgress || isQuestionResolved();
+      btn.disabled = isBusy || stealAwardInProgress;
       btn.addEventListener("click", onClick);
       return btn;
     }
@@ -1332,12 +1357,7 @@
         if (answer.revealed) return;
 
         displayState.answers[index].revealed = true;
-
-        const seen = new Set(controlState.displayOnlyRevealIndexes || []);
-        seen.add(index);
-        controlState.displayOnlyRevealIndexes = Array.from(seen).sort((a, b) => a - b);
-
-        saveControlState();
+        addDisplayOnlyReveal(index);
         saveDisplayState();
         renderAll();
         return;
@@ -1350,19 +1370,12 @@
         renderAll();
 
         try {
-          let awarded = false;
-
           if (controlState.stage === "steal_result") {
-            awarded = await sendGameAction("award_steal", { answerIndex: index });
-
-            if (!awarded) {
-              const movedToPick = await sendGameAction("steal_result", { result: "success" });
-              if (!movedToPick) return;
-              awarded = await sendGameAction("award_steal", { answerIndex: index });
-            }
-          } else {
-            awarded = await sendGameAction("award_steal", { answerIndex: index });
+            const movedToSuccess = await sendGameAction("steal_result", { result: "success" });
+            if (!movedToSuccess) return;
           }
+
+          const awarded = await sendGameAction("award_steal", { answerIndex: index });
 
           if (awarded) {
             markQuestionResolved();
