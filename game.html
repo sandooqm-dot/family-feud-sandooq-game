@@ -32,6 +32,11 @@
       --green-2:#0d862f;
       --red-1:#d71822;
       --red-2:#a90f17;
+
+      --buzz-glow:#f7df6a;
+      --buzz-glow-soft:rgba(247,223,106,.28);
+      --buzz-name-bg-1:rgba(247,223,106,.30);
+      --buzz-name-bg-2:rgba(247,223,106,.14);
     }
 
     *{
@@ -332,6 +337,10 @@
       display:flex;
       flex-direction:column;
       align-items:center;
+      transition:
+        border-color .22s ease,
+        box-shadow .22s ease,
+        transform .22s ease;
     }
 
     .team-panel.left{
@@ -342,9 +351,19 @@
       right:26px;
     }
 
+    .team-panel.first-buzz-active{
+      border-color:var(--buzz-glow);
+      box-shadow:
+        inset 0 0 0 1px rgba(255,255,255,.06),
+        0 0 0 4px var(--buzz-glow-soft),
+        0 0 28px rgba(247,223,106,.34),
+        0 10px 22px rgba(0,0,0,.12);
+      transform:translateY(-2px);
+    }
+
     .team-name{
       margin-top:34px;
-      width:100%;
+      width:calc(100% - 22px);
       height:74px;
       padding:0 14px;
       display:flex;
@@ -358,6 +377,18 @@
       white-space:nowrap;
       overflow:hidden;
       text-overflow:ellipsis;
+      border-radius:22px;
+      transition:
+        background .22s ease,
+        box-shadow .22s ease,
+        border-color .22s ease;
+    }
+
+    .team-name.first-buzz-active{
+      background:linear-gradient(180deg, var(--buzz-name-bg-1) 0%, var(--buzz-name-bg-2) 100%);
+      box-shadow:
+        inset 0 0 0 3px rgba(247,223,106,.24),
+        0 0 18px rgba(247,223,106,.16);
     }
 
     .team-score-box{
@@ -615,7 +646,7 @@
           <div id="roundScore" class="round-score">0</div>
         </div>
 
-        <aside class="team-panel left">
+        <aside id="teamTwoPanel" class="team-panel left">
           <div id="teamTwoName" class="team-name">الفريق الثاني</div>
 
           <div class="team-score-box">
@@ -635,7 +666,7 @@
           <div id="answersGrid" class="answers-grid"></div>
         </div>
 
-        <aside class="team-panel right">
+        <aside id="teamOnePanel" class="team-panel right">
           <div id="teamOneName" class="team-name">الفريق الأول</div>
 
           <div class="team-score-box">
@@ -693,9 +724,12 @@
 
     const DEFAULT_ROOM = "family-feud-demo";
     const FALLBACK_POLL_MS = 700;
+    const FIRST_BUZZ_HIGHLIGHT_MS = 5000;
 
     const root = document.documentElement;
 
+    const teamOnePanelEl = document.getElementById("teamOnePanel");
+    const teamTwoPanelEl = document.getElementById("teamTwoPanel");
     const teamOneNameEl = document.getElementById("teamOneName");
     const teamTwoNameEl = document.getElementById("teamTwoName");
     const teamOneScoreEl = document.getElementById("teamOneScore");
@@ -715,6 +749,16 @@
     const strikeRows = {
       team1: document.querySelectorAll("#teamOneStrikes .strike"),
       team2: document.querySelectorAll("#teamTwoStrikes .strike")
+    };
+
+    const teamPanelEls = {
+      team1: teamOnePanelEl,
+      team2: teamTwoPanelEl
+    };
+
+    const teamNameEls = {
+      team1: teamOneNameEl,
+      team2: teamTwoNameEl
     };
 
     let stableViewport = { width: window.innerWidth, height: window.innerHeight };
@@ -740,6 +784,10 @@
     let audioEnabled = false;
     let audioChoiceResolved = false;
     let pendingRevealIndexes = new Set();
+
+    let activeFirstBuzzTeam = "";
+    let firstBuzzHighlightTimer = null;
+    let lastFirstBuzzToken = "";
 
     try {
       channel = new BroadcastChannel(DISPLAY_CHANNEL);
@@ -940,6 +988,12 @@
       return String(value || "").trim().toLowerCase().slice(0, 40);
     }
 
+    function normalizeTeam(value) {
+      const v = String(value || "").trim().toLowerCase();
+      if (v === "team1" || v === "team2") return v;
+      return "";
+    }
+
     function resolveRoomId() {
       const url = new URL(window.location.href);
       const fromUrl = normalizeRoom(url.searchParams.get("room"));
@@ -988,6 +1042,8 @@
         roundPoints: 0,
         displayErrorSeq: 0,
         displayErrorReason: "",
+        firstBuzzTeam: "",
+        firstBuzzAt: 0,
         answers: Array.from({ length: 6 }, () => ({
           text: "",
           points: 0,
@@ -1035,6 +1091,8 @@
         roundPoints: Math.max(0, normalizeNumber(source.roundPoints, 0)),
         displayErrorSeq: Math.max(0, normalizeNumber(source.displayErrorSeq, 0)),
         displayErrorReason: normalizeEffectReason(source.displayErrorReason),
+        firstBuzzTeam: normalizeTeam(source.firstBuzzTeam),
+        firstBuzzAt: Math.max(0, normalizeNumber(source.firstBuzzAt, 0)),
         answers: normalizedAnswers
       };
     }
@@ -1092,6 +1150,8 @@
       pusher = null;
       syncStarted = false;
       stateFetchInFlight = null;
+
+      clearFirstBuzzHighlightTimer();
     }
 
     async function detectApiBase() {
@@ -1267,7 +1327,9 @@
       const nextState = normalizeState({
         ...remoteState.display,
         displayErrorSeq: remoteState.effects?.displayErrorSeq,
-        displayErrorReason: remoteState.effects?.displayErrorReason
+        displayErrorReason: remoteState.effects?.displayErrorReason,
+        firstBuzzTeam: remoteState.buzz?.firstBuzz?.team,
+        firstBuzzAt: remoteState.buzz?.firstBuzz?.at
       });
 
       const nextSignature = JSON.stringify(nextState);
@@ -1341,6 +1403,51 @@
       elements.forEach((el, index) => {
         el.classList.toggle("active", index < activeCount);
       });
+    }
+
+    function clearFirstBuzzHighlightTimer() {
+      if (firstBuzzHighlightTimer) {
+        clearTimeout(firstBuzzHighlightTimer);
+        firstBuzzHighlightTimer = null;
+      }
+    }
+
+    function applyFirstBuzzHighlightVisuals() {
+      ["team1", "team2"].forEach((team) => {
+        const isActive = activeFirstBuzzTeam === team;
+        teamPanelEls[team]?.classList.toggle("first-buzz-active", isActive);
+        teamNameEls[team]?.classList.toggle("first-buzz-active", isActive);
+      });
+    }
+
+    function startFirstBuzzHighlight(team, durationMs) {
+      clearFirstBuzzHighlightTimer();
+
+      activeFirstBuzzTeam = team;
+      applyFirstBuzzHighlightVisuals();
+
+      firstBuzzHighlightTimer = setTimeout(() => {
+        activeFirstBuzzTeam = "";
+        applyFirstBuzzHighlightVisuals();
+      }, durationMs);
+    }
+
+    function detectFirstBuzzHighlight(state) {
+      const team = normalizeTeam(state.firstBuzzTeam);
+      const at = Math.max(0, normalizeNumber(state.firstBuzzAt, 0));
+      const token = team && at ? `${team}:${at}` : "";
+
+      if (!token) return;
+      if (token === lastFirstBuzzToken) return;
+
+      lastFirstBuzzToken = token;
+
+      const elapsed = Date.now() - at;
+      const remainingMs = FIRST_BUZZ_HIGHLIGHT_MS - elapsed;
+
+      if (remainingMs <= 0) return;
+
+      startFirstBuzzHighlight(team, remainingMs);
     }
 
     function detectStrikeEffect(state) {
@@ -1494,6 +1601,10 @@
 
     function renderDisplay() {
       const state = currentDisplayState || readDisplayState();
+
+      detectFirstBuzzHighlight(state);
+      applyFirstBuzzHighlightVisuals();
+
       const signature = JSON.stringify(state);
 
       if (signature === lastRenderedSignature) return;
