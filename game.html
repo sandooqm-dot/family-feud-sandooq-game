@@ -27,6 +27,11 @@
 
       --strike-off:#8d8d8d;
       --strike-on:#ff2c3f;
+
+      --green-1:#12a63e;
+      --green-2:#0d862f;
+      --red-1:#d71822;
+      --red-2:#a90f17;
     }
 
     *{
@@ -440,30 +445,30 @@
       left:50%;
       top:50%;
       transform:translate(-50%, -50%);
-      width:600px;
+      width:640px;
       min-height:250px;
       border-radius:34px;
       border:7px solid var(--gold);
       background:linear-gradient(180deg, #0a1d56 0%, #08173d 100%);
-      box-shadow:
-        0 18px 40px rgba(0,0,0,.28),
-        inset 0 0 0 1px rgba(255,255,255,.05);
       z-index:120;
-      display:flex;
+      display:none;
       flex-direction:column;
       align-items:center;
       justify-content:center;
       text-align:center;
       padding:28px 28px 24px;
+      box-shadow:
+        0 18px 40px rgba(0,0,0,.35),
+        inset 0 0 0 1px rgba(255,255,255,.05);
     }
 
-    .audio-choice-box.hidden{
-      display:none;
+    .audio-choice-box.show{
+      display:flex;
     }
 
     .audio-choice-title{
       color:var(--gold);
-      font-size:42px;
+      font-size:54px;
       font-weight:900;
       line-height:1.1;
       margin-bottom:18px;
@@ -471,44 +476,38 @@
 
     .audio-choice-text{
       color:var(--white);
-      font-size:32px;
+      font-size:34px;
       font-weight:900;
-      line-height:1.3;
+      line-height:1.25;
       margin-bottom:28px;
     }
 
     .audio-choice-actions{
       display:flex;
-      gap:18px;
       align-items:center;
       justify-content:center;
+      gap:22px;
       direction:rtl;
     }
 
     .audio-choice-btn{
-      min-width:170px;
-      height:72px;
+      min-width:190px;
+      height:78px;
       border:none;
-      border-radius:24px;
-      color:#fff;
-      font-size:30px;
+      border-radius:26px;
+      color:var(--white);
+      font-size:34px;
       font-weight:900;
       cursor:pointer;
-      box-shadow:0 8px 18px rgba(0,0,0,.18);
-    }
-
-    .audio-choice-btn:active{
-      transform:scale(.98);
+      border:4px solid rgba(255,255,255,.92);
     }
 
     .audio-choice-btn.yes{
-      background:linear-gradient(180deg, #27b64c 0%, #16933a 100%);
-      border:4px solid rgba(255,255,255,.85);
+      background:linear-gradient(180deg, var(--green-1) 0%, var(--green-2) 100%);
     }
 
     .audio-choice-btn.no{
-      background:linear-gradient(180deg, #e14141 0%, #bc2525 100%);
-      border:4px solid rgba(255,255,255,.85);
+      background:linear-gradient(180deg, var(--red-1) 0%, var(--red-2) 100%);
     }
 
     @keyframes bigStrikePop{
@@ -611,19 +610,19 @@
 
         <div id="audioChoiceBox" class="audio-choice-box">
           <div class="audio-choice-title">تفعيل الأصوات</div>
-          <div class="audio-choice-text">هل تريد تشغيل اصوات اللعبة</div>
+          <div class="audio-choice-text">هل تريد تشغيل أصوات اللعبة؟</div>
           <div class="audio-choice-actions">
             <button id="audioYesBtn" class="audio-choice-btn yes" type="button">نعم</button>
             <button id="audioNoBtn" class="audio-choice-btn no" type="button">لا</button>
           </div>
         </div>
 
-        <video id="answerSound" preload="auto" playsinline webkit-playsinline style="display:none">
-          <source src="answer.MP4" type="video/mp4">
-        </video>
+        <audio id="answerSound" preload="auto" playsinline webkit-playsinline>
+          <source src="answer.MP4" type="audio/mp4">
+        </audio>
 
         <audio id="wrongSound" preload="auto" playsinline webkit-playsinline>
-          <source src="rong.MP3" type="audio/mpeg">
+          <source src="rong.mp3" type="audio/mpeg">
         </audio>
 
       </div>
@@ -658,11 +657,12 @@
     const answersGrid = document.getElementById("answersGrid");
 
     const strikeEffectLayer = document.getElementById("strikeEffectLayer");
-    const answerSoundEl = document.getElementById("answerSound");
-    const wrongSoundEl = document.getElementById("wrongSound");
+
     const audioChoiceBox = document.getElementById("audioChoiceBox");
     const audioYesBtn = document.getElementById("audioYesBtn");
     const audioNoBtn = document.getElementById("audioNoBtn");
+    const answerSoundEl = document.getElementById("answerSound");
+    const wrongSoundEl = document.getElementById("wrongSound");
 
     const strikeRows = {
       team1: document.querySelectorAll("#teamOneStrikes .strike"),
@@ -685,12 +685,11 @@
     let teamNamesSynced = false;
 
     let previousStrikeSnapshot = null;
-    let previousAnswerRevealSnapshot = null;
+    let previousRevealedSnapshot = null;
     let strikeEffectTimers = [];
     let currentDisplayState = readDisplayState();
-
-    let audioChoiceMade = false;
     let audioEnabled = false;
+    let audioChoiceResolved = false;
 
     try {
       channel = new BroadcastChannel(DISPLAY_CHANNEL);
@@ -701,7 +700,7 @@
     lastPersistedSignature = JSON.stringify(currentDisplayState);
 
     persistRoomId(roomId);
-    setupAudioSystem();
+    initAudioChoice();
     renderDisplay();
     updateLayout();
     startRemoteSync();
@@ -755,98 +754,93 @@
     document.addEventListener("touchend", nudgeSafariBar, { passive: true });
     window.addEventListener("beforeunload", destroyLiveSync);
 
-    audioYesBtn.addEventListener("click", () => {
-      audioChoiceMade = true;
-      audioEnabled = true;
-      hideAudioChoiceBox();
+    function initAudioChoice() {
+      showAudioChoice();
 
-      primeMediaElement(answerSoundEl);
-      primeMediaElement(wrongSoundEl);
-    });
+      audioYesBtn.addEventListener("click", async () => {
+        audioEnabled = true;
+        audioChoiceResolved = true;
+        await unlockAllSounds();
+        hideAudioChoice();
+      });
 
-    audioNoBtn.addEventListener("click", () => {
-      audioChoiceMade = true;
-      audioEnabled = false;
-      hideAudioChoiceBox();
-      stopMedia(answerSoundEl);
-      stopMedia(wrongSoundEl);
-    });
-
-    function setupAudioSystem() {
-      [answerSoundEl, wrongSoundEl].forEach((media) => {
-        if (!media) return;
-        try { media.load(); } catch (e) {}
+      audioNoBtn.addEventListener("click", () => {
+        audioEnabled = false;
+        audioChoiceResolved = true;
+        stopAllGameSounds();
+        hideAudioChoice();
       });
     }
 
-    function hideAudioChoiceBox() {
-      audioChoiceBox.classList.add("hidden");
+    function showAudioChoice() {
+      audioChoiceBox.classList.add("show");
     }
 
-    function stopMedia(media) {
-      if (!media) return;
-      try { media.pause(); } catch (e) {}
-      try { media.currentTime = 0; } catch (e) {}
+    function hideAudioChoice() {
+      audioChoiceBox.classList.remove("show");
     }
 
-    function primeMediaElement(media) {
-      if (!media) return;
+    async function unlockAudioElement(audioEl) {
+      if (!audioEl) return;
+
+      const oldMuted = audioEl.muted;
+      const oldVolume = audioEl.volume;
 
       try {
-        media.muted = true;
-        media.currentTime = 0;
-
-        const playPromise = media.play();
-
-        if (playPromise && typeof playPromise.then === "function") {
-          playPromise.then(() => {
-            try { media.pause(); } catch (e) {}
-            try { media.currentTime = 0; } catch (e) {}
-            try { media.muted = false; } catch (e) {}
-          }).catch(() => {
-            try { media.pause(); } catch (e) {}
-            try { media.currentTime = 0; } catch (e) {}
-            try { media.muted = false; } catch (e) {}
-          });
-        } else {
-          try { media.pause(); } catch (e) {}
-          try { media.currentTime = 0; } catch (e) {}
-          try { media.muted = false; } catch (e) {}
-        }
-      } catch (e) {
-        try { media.pause(); } catch (err) {}
-        try { media.currentTime = 0; } catch (err) {}
-        try { media.muted = false; } catch (err) {}
-      }
-    }
-
-    function playManagedSound(type) {
-      if (!audioChoiceMade || !audioEnabled) return;
-
-      const media = type === "answer" ? answerSoundEl : wrongSoundEl;
-      const otherMedia = type === "answer" ? wrongSoundEl : answerSoundEl;
-
-      if (!media) return;
-
-      stopMedia(otherMedia);
-      stopMedia(media);
+        audioEl.pause();
+        audioEl.currentTime = 0;
+      } catch (e) {}
 
       try {
-        media.muted = false;
-        const playPromise = media.play();
+        audioEl.muted = true;
+        audioEl.volume = 0;
+        await audioEl.play();
+      } catch (e) {}
 
-        if (playPromise && typeof playPromise.catch === "function") {
-          playPromise.catch(() => {});
-        }
+      try {
+        audioEl.pause();
+        audioEl.currentTime = 0;
+      } catch (e) {}
+
+      audioEl.muted = oldMuted;
+      audioEl.volume = oldVolume;
+    }
+
+    async function unlockAllSounds() {
+      await unlockAudioElement(answerSoundEl);
+      await unlockAudioElement(wrongSoundEl);
+    }
+
+    function stopAllGameSounds() {
+      [answerSoundEl, wrongSoundEl].forEach((audioEl) => {
+        if (!audioEl) return;
+        try {
+          audioEl.pause();
+          audioEl.currentTime = 0;
+        } catch (e) {}
+      });
+    }
+
+    async function playExclusiveSound(audioEl) {
+      if (!audioEnabled || !audioChoiceResolved || !audioEl) return;
+
+      stopAllGameSounds();
+
+      try {
+        audioEl.currentTime = 0;
+      } catch (e) {}
+
+      try {
+        await audioEl.play();
       } catch (e) {}
     }
 
     function playAnswerSound() {
-      playManagedSound("answer");
+      playExclusiveSound(answerSoundEl);
     }
 
     function playWrongSound() {
-      playManagedSound("wrong");
+      playExclusiveSound(wrongSoundEl);
     }
 
     function readStored(key) {
@@ -1309,16 +1303,16 @@
     function detectAnswerRevealEffect(state) {
       const nextSnapshot = state.answers.map((answer) => !!answer.revealed);
 
-      if (!previousAnswerRevealSnapshot) {
-        previousAnswerRevealSnapshot = nextSnapshot;
+      if (!previousRevealedSnapshot) {
+        previousRevealedSnapshot = nextSnapshot;
         return;
       }
 
       const hasNewReveal = nextSnapshot.some((revealed, index) => {
-        return revealed && !previousAnswerRevealSnapshot[index];
+        return revealed && !previousRevealedSnapshot[index];
       });
 
-      previousAnswerRevealSnapshot = nextSnapshot;
+      previousRevealedSnapshot = nextSnapshot;
 
       if (hasNewReveal) {
         playAnswerSound();
@@ -1336,9 +1330,10 @@
     }
 
     function playStrikeEffect(strikeCount) {
+      playWrongSound();
+
       clearStrikeEffectTimers();
       resetStrikeEffectLayer();
-      playWrongSound();
 
       strikeEffectLayer.classList.add("show", "show-x");
 
