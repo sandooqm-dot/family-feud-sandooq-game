@@ -145,6 +145,15 @@
       white-space:nowrap;
       overflow:hidden;
       text-overflow:ellipsis;
+      opacity:1;
+      visibility:visible;
+    }
+
+    .question-text.is-hidden{
+      opacity:0 !important;
+      visibility:hidden !important;
+      color:transparent !important;
+      text-shadow:none !important;
     }
 
     .round-box{
@@ -207,24 +216,53 @@
       position:relative;
       width:100%;
       height:100%;
+      perspective:1200px;
+      border-radius:32px;
+    }
+
+    .answer-flip{
+      position:relative;
+      width:100%;
+      height:100%;
+      transform-style:preserve-3d;
+      border-radius:32px;
+    }
+
+    .answer-slot.is-revealed .answer-flip{
+      transform:rotateX(180deg);
+    }
+
+    .answer-slot.just-revealed .answer-flip{
+      animation:answerFlipReveal .72s cubic-bezier(.22,.9,.2,1) forwards;
+    }
+
+    .answer-face{
+      position:absolute;
+      inset:0;
+      width:100%;
+      height:100%;
       border-radius:32px;
       border:4px solid rgba(246,242,232,.96);
       background:linear-gradient(180deg, var(--answer-b) 0%, var(--answer-a) 100%);
       overflow:hidden;
       box-shadow: inset 0 0 0 1px rgba(255,255,255,.04);
+      backface-visibility:hidden;
+      -webkit-backface-visibility:hidden;
     }
 
-    .answer-slot.hidden-state{
+    .answer-front{
       display:flex;
       align-items:center;
       justify-content:center;
+      transform:rotateX(0deg);
     }
 
-    .answer-slot.revealed{
+    .answer-back{
       display:flex;
       align-items:center;
       justify-content:center;
       padding:0 84px 0 78px;
+      transform:rotateX(180deg);
     }
 
     .rank-circle{
@@ -260,6 +298,7 @@
       font-size:28px;
       font-weight:900;
       line-height:1;
+      z-index:2;
     }
 
     .answer-label{
@@ -510,6 +549,15 @@
       background:linear-gradient(180deg, var(--red-1) 0%, var(--red-2) 100%);
     }
 
+    @keyframes answerFlipReveal{
+      0%{
+        transform:rotateX(0deg);
+      }
+      100%{
+        transform:rotateX(180deg);
+      }
+    }
+
     @keyframes bigStrikePop{
       0%{
         opacity:0;
@@ -690,6 +738,7 @@
     let currentDisplayState = readDisplayState();
     let audioEnabled = false;
     let audioChoiceResolved = false;
+    let pendingRevealIndexes = new Set();
 
     try {
       channel = new BroadcastChannel(DISPLAY_CHANNEL);
@@ -1305,16 +1354,21 @@
 
       if (!previousRevealedSnapshot) {
         previousRevealedSnapshot = nextSnapshot;
+        pendingRevealIndexes.clear();
         return;
       }
 
-      const hasNewReveal = nextSnapshot.some((revealed, index) => {
-        return revealed && !previousRevealedSnapshot[index];
+      const newIndexes = [];
+      nextSnapshot.forEach((revealed, index) => {
+        if (revealed && !previousRevealedSnapshot[index]) {
+          newIndexes.push(index);
+        }
       });
 
       previousRevealedSnapshot = nextSnapshot;
+      pendingRevealIndexes = new Set(newIndexes);
 
-      if (hasNewReveal) {
+      if (newIndexes.length > 0) {
         playAnswerSound();
       }
     }
@@ -1364,24 +1418,34 @@
         { row: 3, col: 1 }
       ];
 
+      const revealIndexes = new Set(pendingRevealIndexes);
+      pendingRevealIndexes.clear();
+
       answersGrid.innerHTML = "";
 
       state.answers.forEach((answer, index) => {
         const slot = document.createElement("div");
         const revealed = !!answer.revealed;
+        const justRevealed = revealIndexes.has(index);
 
-        slot.className = "answer-slot " + (revealed ? "revealed" : "hidden-state");
+        slot.className = "answer-slot";
+        if (revealed) slot.classList.add("is-revealed");
+        if (justRevealed) slot.classList.add("just-revealed");
+
         slot.style.gridRow = positions[index].row;
         slot.style.gridColumn = positions[index].col;
 
-        if (revealed) {
-          slot.innerHTML = `
-            <div class="answer-points">${answer.points}</div>
-            <div class="answer-label auto-fit-answer">${answer.text || ""}</div>
-          `;
-        } else {
-          slot.innerHTML = `<div class="rank-circle">${index + 1}</div>`;
-        }
+        slot.innerHTML = `
+          <div class="answer-flip">
+            <div class="answer-face answer-front">
+              <div class="rank-circle">${index + 1}</div>
+            </div>
+            <div class="answer-face answer-back">
+              <div class="answer-points">${answer.points}</div>
+              <div class="answer-label auto-fit-answer">${answer.text || ""}</div>
+            </div>
+          </div>
+        `;
 
         answersGrid.appendChild(slot);
       });
@@ -1403,7 +1467,9 @@
       teamOneScoreEl.textContent = state.team1Score;
       teamTwoScoreEl.textContent = state.team2Score;
 
-      questionTextEl.textContent = state.showQuestion ? state.question : "";
+      questionTextEl.textContent = state.showQuestion ? state.question : " ";
+      questionTextEl.classList.toggle("is-hidden", !state.showQuestion);
+
       roundScoreEl.textContent = state.roundPoints;
 
       applyStrikeRow(strikeRows.team1, state.team1Strikes);
@@ -1431,7 +1497,12 @@
     }
 
     function applyAutoTextFitting() {
-      fitTextToBox(questionTextEl, 58, 26);
+      if (!questionTextEl.classList.contains("is-hidden")) {
+        fitTextToBox(questionTextEl, 58, 26);
+      } else {
+        questionTextEl.style.fontSize = "58px";
+      }
+
       fitTextToBox(teamOneNameEl, 48, 22);
       fitTextToBox(teamTwoNameEl, 48, 22);
 
