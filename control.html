@@ -944,6 +944,10 @@
         clearRoundClosedAfterSteal();
       } else {
         refreshRoundClosedAfterSteal();
+
+        if (isRoundClosedAfterSteal()) {
+          displayState.roundPoints = 0;
+        }
       }
 
       cleanupOptimisticReveals(questionChanged);
@@ -1022,6 +1026,9 @@
 
     function markRoundClosedAfterSteal() {
       roundClosedAfterSteal = true;
+      displayState.roundPoints = 0;
+      saveDisplayState();
+
       writeStored(ROUND_CLOSED_KEY, {
         closed: true,
         signature: getRoundSignature()
@@ -1111,6 +1118,8 @@
     }
 
     function calculateRoundPoints() {
+      if (isRoundClosedAfterSteal()) return 0;
+
       return (displayState.answers || []).reduce((sum, answer) => {
         return sum + (answer.revealed ? Number(answer.points || 0) : 0);
       }, 0);
