@@ -129,7 +129,7 @@ export class BuzzRoomDO {
       if (request.method === "GET" && url.pathname === "/api/buzz/state") {
         const state = await this.loadState(url.searchParams.get("room"));
         this.cleanupPlayers(state);
-        await this.saveState(state, false);
+        this.cache = state;
         return json({ ok: true, state: publicBuzzState(state) });
       }
 
@@ -250,7 +250,7 @@ export class BuzzRoomDO {
       if (request.method === "GET" && url.pathname === "/api/game/state") {
         const state = await this.loadState(url.searchParams.get("room"));
         this.cleanupPlayers(state);
-        await this.saveState(state, false);
+        this.cache = state;
         return json({ ok: true, state: publicGameState(state) });
       }
 
@@ -328,7 +328,6 @@ export class BuzzRoomDO {
 
     const stored = await this.state.storage.get("state");
     this.cache = migrateState(stored, room);
-    await this.state.storage.put("state", this.cache);
     return this.cache;
   }
 
