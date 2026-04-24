@@ -158,7 +158,7 @@
 
     .round-box{
       position:absolute;
-      top:210px;
+      top:194px;
       left:50%;
       transform:translateX(-50%);
       width:250px;
@@ -734,6 +734,7 @@
 
     let previousStrikeSnapshot = null;
     let previousRevealedSnapshot = null;
+    let previousDisplayErrorSeq = null;
     let strikeEffectTimers = [];
     let currentDisplayState = readDisplayState();
     let audioEnabled = false;
@@ -935,6 +936,10 @@
       return v.replace(/[^a-z0-9_-]/g, "").slice(0, 64);
     }
 
+    function normalizeEffectReason(value) {
+      return String(value || "").trim().toLowerCase().slice(0, 40);
+    }
+
     function resolveRoomId() {
       const url = new URL(window.location.href);
       const fromUrl = normalizeRoom(url.searchParams.get("room"));
@@ -981,6 +986,8 @@
         team1Strikes: 0,
         team2Strikes: 0,
         roundPoints: 0,
+        displayErrorSeq: 0,
+        displayErrorReason: "",
         answers: Array.from({ length: 6 }, () => ({
           text: "",
           points: 0,
@@ -1026,6 +1033,8 @@
         team1Strikes: normalizeStrikeCount(source.team1Strikes),
         team2Strikes: normalizeStrikeCount(source.team2Strikes),
         roundPoints: Math.max(0, normalizeNumber(source.roundPoints, 0)),
+        displayErrorSeq: Math.max(0, normalizeNumber(source.displayErrorSeq, 0)),
+        displayErrorReason: normalizeEffectReason(source.displayErrorReason),
         answers: normalizedAnswers
       };
     }
@@ -1255,7 +1264,12 @@
     function applyRemoteGameState(remoteState) {
       if (!remoteState || !remoteState.display) return false;
 
-      const nextState = normalizeState(remoteState.display);
+      const nextState = normalizeState({
+        ...remoteState.display,
+        displayErrorSeq: remoteState.effects?.displayErrorSeq,
+        displayErrorReason: remoteState.effects?.displayErrorReason
+      });
+
       const nextSignature = JSON.stringify(nextState);
 
       currentDisplayState = nextState;
@@ -1341,12 +1355,36 @@
       }
 
       if (nextSnapshot.team1 > previousStrikeSnapshot.team1) {
-        playStrikeEffect(nextSnapshot.team1);
+        playStrikeEffect({
+          showTransfer: nextSnapshot.team1 >= 3,
+          xDurationMs: 2000
+        });
       } else if (nextSnapshot.team2 > previousStrikeSnapshot.team2) {
-        playStrikeEffect(nextSnapshot.team2);
+        playStrikeEffect({
+          showTransfer: nextSnapshot.team2 >= 3,
+          xDurationMs: 2000
+        });
       }
 
       previousStrikeSnapshot = nextSnapshot;
+    }
+
+    function detectDisplayErrorEffect(state) {
+      const nextSeq = Math.max(0, normalizeNumber(state.displayErrorSeq, 0));
+
+      if (previousDisplayErrorSeq === null) {
+        previousDisplayErrorSeq = nextSeq;
+        return;
+      }
+
+      if (nextSeq > previousDisplayErrorSeq) {
+        playStrikeEffect({
+          showTransfer: false,
+          xDurationMs: 2000
+        });
+      }
+
+      previousDisplayErrorSeq = nextSeq;
     }
 
     function detectAnswerRevealEffect(state) {
@@ -1383,7 +1421,10 @@
       void strikeEffectLayer.offsetWidth;
     }
 
-    function playStrikeEffect(strikeCount) {
+    function playStrikeEffect(options = {}) {
+      const showTransfer = options.showTransfer === true;
+      const xDurationMs = Math.max(0, normalizeNumber(options.xDurationMs, 2000));
+
       playWrongSound();
 
       clearStrikeEffectTimers();
@@ -1391,20 +1432,20 @@
 
       strikeEffectLayer.classList.add("show", "show-x");
 
-      if (strikeCount >= 3) {
+      if (showTransfer) {
         strikeEffectTimers.push(setTimeout(() => {
           strikeEffectLayer.classList.remove("show-x");
           void strikeEffectLayer.offsetWidth;
           strikeEffectLayer.classList.add("show", "show-transfer");
-        }, 2000));
+        }, xDurationMs));
 
         strikeEffectTimers.push(setTimeout(() => {
           strikeEffectLayer.classList.remove("show", "show-x", "show-transfer");
-        }, 3900));
+        }, xDurationMs + 1900));
       } else {
         strikeEffectTimers.push(setTimeout(() => {
           strikeEffectLayer.classList.remove("show", "show-x", "show-transfer");
-        }, 2000));
+        }, xDurationMs));
       }
     }
 
@@ -1459,6 +1500,7 @@
       lastRenderedSignature = signature;
 
       detectStrikeEffect(state);
+      detectDisplayErrorEffect(state);
       detectAnswerRevealEffect(state);
 
       teamOneNameEl.textContent = state.team1Name;
