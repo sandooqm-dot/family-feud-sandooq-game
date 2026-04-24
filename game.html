@@ -361,6 +361,15 @@
       transform:translateY(-2px);
     }
 
+    .team-panel.turn-active{
+      border-color:var(--buzz-glow);
+      box-shadow:
+        inset 0 0 0 1px rgba(255,255,255,.06),
+        0 0 0 4px var(--buzz-glow-soft),
+        0 0 28px rgba(247,223,106,.34),
+        0 10px 22px rgba(0,0,0,.12);
+    }
+
     .team-name{
       margin-top:34px;
       width:calc(100% - 22px);
@@ -786,6 +795,7 @@
     let pendingRevealIndexes = new Set();
 
     let activeFirstBuzzTeam = "";
+    let activeTurnTeam = "";
     let firstBuzzHighlightTimer = null;
     let lastFirstBuzzToken = "";
 
@@ -1044,6 +1054,9 @@
         displayErrorReason: "",
         firstBuzzTeam: "",
         firstBuzzAt: 0,
+        phase: "idle",
+        currentTurnTeam: "",
+        stealingTeam: "",
         answers: Array.from({ length: 6 }, () => ({
           text: "",
           points: 0,
@@ -1067,6 +1080,10 @@
         points: Math.max(0, normalizeNumber(answer?.points, fallback?.points ?? 0)),
         revealed: !!answer?.revealed
       };
+    }
+
+    function normalizePhase(value) {
+      return String(value || "").trim().toLowerCase();
     }
 
     function normalizeState(raw) {
@@ -1093,6 +1110,9 @@
         displayErrorReason: normalizeEffectReason(source.displayErrorReason),
         firstBuzzTeam: normalizeTeam(source.firstBuzzTeam),
         firstBuzzAt: Math.max(0, normalizeNumber(source.firstBuzzAt, 0)),
+        phase: normalizePhase(source.phase),
+        currentTurnTeam: normalizeTeam(source.currentTurnTeam),
+        stealingTeam: normalizeTeam(source.stealingTeam),
         answers: normalizedAnswers
       };
     }
@@ -1329,7 +1349,10 @@
         displayErrorSeq: remoteState.effects?.displayErrorSeq,
         displayErrorReason: remoteState.effects?.displayErrorReason,
         firstBuzzTeam: remoteState.buzz?.firstBuzz?.team,
-        firstBuzzAt: remoteState.buzz?.firstBuzz?.at
+        firstBuzzAt: remoteState.buzz?.firstBuzz?.at,
+        phase: remoteState.control?.phase,
+        currentTurnTeam: remoteState.control?.currentTurnTeam,
+        stealingTeam: remoteState.control?.stealingTeam
       });
 
       const nextSignature = JSON.stringify(nextState);
@@ -1420,6 +1443,13 @@
       });
     }
 
+    function applyTurnHighlightVisuals() {
+      ["team1", "team2"].forEach((team) => {
+        const isActive = activeTurnTeam === team;
+        teamPanelEls[team]?.classList.toggle("turn-active", isActive);
+      });
+    }
+
     function startFirstBuzzHighlight(team, durationMs) {
       clearFirstBuzzHighlightTimer();
 
@@ -1448,6 +1478,20 @@
       if (remainingMs <= 0) return;
 
       startFirstBuzzHighlight(team, remainingMs);
+    }
+
+    function resolveTurnHighlightTeam(state) {
+      const phase = normalizePhase(state.phase);
+
+      if (phase === "main") {
+        return normalizeTeam(state.currentTurnTeam);
+      }
+
+      if (phase === "steal_result" || phase === "steal_pick") {
+        return normalizeTeam(state.stealingTeam);
+      }
+
+      return "";
     }
 
     function detectStrikeEffect(state) {
@@ -1602,7 +1646,9 @@
     function renderDisplay() {
       const state = currentDisplayState || readDisplayState();
 
+      activeTurnTeam = resolveTurnHighlightTeam(state);
       detectFirstBuzzHighlight(state);
+      applyTurnHighlightVisuals();
       applyFirstBuzzHighlightVisuals();
 
       const signature = JSON.stringify(state);
