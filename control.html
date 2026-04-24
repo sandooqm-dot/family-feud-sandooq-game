@@ -546,6 +546,10 @@
     const DEFAULT_ROOM = "family-feud-demo";
     const FALLBACK_POLL_MS = 3500;
 
+    const FAST_ACTION_GUARD_MS = 260;
+    const NORMAL_ACTION_GUARD_MS = 380;
+    const HEAVY_ACTION_GUARD_MS = 650;
+
     const root = document.documentElement;
 
     const questionNumberEl = document.getElementById("questionNumber");
@@ -575,6 +579,7 @@
     let initialAutoShowDone = false;
     let optimisticRevealedIndexes = new Set();
     let roundClosedAfterSteal = readRoundClosedAfterSteal();
+    let actionGuardUntil = new Map();
 
     try {
       channel = new BroadcastChannel(DISPLAY_CHANNEL);
@@ -633,47 +638,88 @@
     window.addEventListener("beforeunload", destroyLiveSync);
 
     bellToggleBtn.addEventListener("click", async () => {
-      if (isBusy) return;
+      await runGuardedAction("toggle-bell", async () => {
+        const previousVisible = !!controlState.buzzVisible;
+        const nextVisible = !previousVisible;
 
-      const nextVisible = !(controlState.buzzVisible === true);
+        controlState.buzzVisible = nextVisible;
+        saveControlState();
+        renderAll();
 
-      await sendGameAction("set_buzz_visible", {
-        visible: nextVisible
-      });
+        const ok = await sendGameAction("set_buzz_visible", {
+          visible: nextVisible
+        }, { skipBusy: true });
+
+        if (!ok) {
+          controlState.buzzVisible = previousVisible;
+          saveControlState();
+          renderAll();
+          await fetchRemoteGameState();
+        }
+      }, FAST_ACTION_GUARD_MS);
     });
 
     questionToggleBtn.addEventListener("click", async () => {
-      if (isBusy) return;
+      await runGuardedAction("toggle-question", async () => {
+        const previousVisible = !!displayState.showQuestion;
+        const nextVisible = !previousVisible;
 
-      const nextVisible = !(displayState.showQuestion === true);
+        displayState.showQuestion = nextVisible;
+        saveDisplayState();
+        renderAll();
 
-      await sendGameAction("show_question", {
-        visible: nextVisible
-      });
+        const ok = await sendGameAction("show_question", {
+          visible: nextVisible
+        }, { skipBusy: true });
+
+        if (!ok) {
+          displayState.showQuestion = previousVisible;
+          saveDisplayState();
+          renderAll();
+          await fetchRemoteGameState();
+        }
+      }, FAST_ACTION_GUARD_MS);
     });
 
     errorBtn.addEventListener("click", async () => {
-      if (isBusy) return;
       if (!canRegisterError()) return;
 
-      await sendGameAction("register_error", {
-        team: controlState.currentTurnTeam
-      });
+      await runGuardedAction("register-error", async () => {
+        await sendGameAction("register_error", {
+          team: controlState.currentTurnTeam
+        });
+      }, NORMAL_ACTION_GUARD_MS);
     });
 
     nextQuestionBtn.addEventListener("click", async () => {
-      if (isBusy) return;
-
-      optimisticRevealedIndexes.clear();
-      clearRoundClosedAfterSteal();
-
-      const ok = await sendGameAction("next_question");
-
-      if (ok) {
+      await runGuardedAction("next-question", async () => {
+        optimisticRevealedIndexes.clear();
         clearRoundClosedAfterSteal();
-        await sendGameAction("show_question", { visible: false });
-        await sendGameAction("set_buzz_visible", { visible: true });
-      }
+
+        const previousShowQuestion = !!displayState.showQuestion;
+        const previousBuzzVisible = !!controlState.buzzVisible;
+
+        displayState.showQuestion = false;
+        controlState.buzzVisible = true;
+        saveDisplayState();
+        saveControlState();
+        renderAll();
+
+        const ok = await runGameActions([
+          { action: "next_question", payload: {}, options: { skipBusy: true } },
+          { action: "show_question", payload: { visible: false }, options: { skipBusy: true } },
+          { action: "set_buzz_visible", payload: { visible: true }, options: { skipBusy: true } }
+        ]);
+
+        if (!ok) {
+          displayState.showQuestion = previousShowQuestion;
+          controlState.buzzVisible = previousBuzzVisible;
+          saveDisplayState();
+          saveControlState();
+          renderAll();
+          await fetchRemoteGameState();
+        }
+      }, HEAVY_ACTION_GUARD_MS);
     });
 
     function resolveRoomId() {
@@ -864,10 +910,14 @@
       return false;
     }
 
-    async function sendGameAction(action, extra = {}) {
+    async function sendGameAction(action, extra = {}, options = {}) {
       const bases = getApiBases();
-      isBusy = true;
-      renderAll();
+      const skipBusy = options.skipBusy === true;
+
+      if (!skipBusy) {
+        isBusy = true;
+        renderAll();
+      }
 
       try {
         for (const base of bases) {
@@ -902,18 +952,34 @@
 
         return false;
       } finally {
-        isBusy = false;
-        renderAll();
+        if (!skipBusy) {
+          isBusy = false;
+          renderAll();
+        }
       }
     }
 
     async function runGameActions(actions) {
       for (const item of actions) {
-        const ok = await sendGameAction(item.action, item.payload || {});
+        const ok = await sendGameAction(item.action, item.payload || {}, item.options || {});
         if (!ok) return false;
       }
 
       return true;
+    }
+
+    function isActionGuarded(key) {
+      return Date.now() < (actionGuardUntil.get(key) || 0);
+    }
+
+    function armActionGuard(key, durationMs) {
+      actionGuardUntil.set(key, Date.now() + durationMs);
+    }
+
+    async function runGuardedAction(key, task, durationMs) {
+      if (isActionGuarded(key)) return false;
+      armActionGuard(key, durationMs);
+      return await task();
     }
 
     function applyRemoteGameState(remoteState) {
@@ -1337,7 +1403,9 @@
       btn.className = "panel-btn";
       btn.textContent = text;
       btn.disabled = isBusy || stealAwardInProgress;
-      btn.addEventListener("click", onClick);
+      btn.addEventListener("click", async () => {
+        await runGuardedAction(`panel-blue-${text}`, onClick, NORMAL_ACTION_GUARD_MS);
+      });
       return btn;
     }
 
@@ -1347,7 +1415,9 @@
       btn.className = "panel-btn red";
       btn.textContent = text;
       btn.disabled = isBusy || stealAwardInProgress;
-      btn.addEventListener("click", onClick);
+      btn.addEventListener("click", async () => {
+        await runGuardedAction(`panel-red-${text}`, onClick, NORMAL_ACTION_GUARD_MS);
+      });
       return btn;
     }
 
@@ -1386,6 +1456,10 @@
         : null;
 
       if (!answer) return;
+
+      const guardKey = isStealStage() ? `steal-answer-${index}` : `answer-${index}`;
+      if (isActionGuarded(guardKey)) return;
+      armActionGuard(guardKey, isStealStage() ? NORMAL_ACTION_GUARD_MS : FAST_ACTION_GUARD_MS);
 
       if (isRoundClosedAfterSteal()) {
         if (answer.revealed) return;
@@ -1458,16 +1532,32 @@
       const ok = await sendGameAction("choose_play_or_pass", { decision });
 
       if (ok) {
-        await sendGameAction("set_buzz_visible", { visible: false });
+        controlState.buzzVisible = false;
+        saveControlState();
+        renderAll();
+        await sendGameAction("set_buzz_visible", { visible: false }, { skipBusy: true });
       }
     }
 
     async function cancelDuelAndOpenBuzzAgain() {
-      await runGameActions([
-        { action: "cancel_context" },
-        { action: "clear_first_buzz" },
-        { action: "set_buzz_visible", payload: { visible: true } }
+      const previousVisible = !!controlState.buzzVisible;
+
+      controlState.buzzVisible = true;
+      saveControlState();
+      renderAll();
+
+      const ok = await runGameActions([
+        { action: "cancel_context", payload: {} },
+        { action: "clear_first_buzz", payload: {} },
+        { action: "set_buzz_visible", payload: { visible: true }, options: { skipBusy: true } }
       ]);
+
+      if (!ok) {
+        controlState.buzzVisible = previousVisible;
+        saveControlState();
+        renderAll();
+        await fetchRemoteGameState();
+      }
     }
 
     function getCurrentViewport() {
