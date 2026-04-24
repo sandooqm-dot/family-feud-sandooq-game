@@ -164,7 +164,7 @@
       justify-content:center;
       padding:0 74px 0 72px;
       cursor:pointer;
-      transition:transform .12s ease, filter .12s ease, box-shadow .12s ease, opacity .12s ease;
+      transition:transform .12s ease, filter .12s ease, box-shadow .12s ease, opacity .12s ease, background .12s ease;
       box-shadow:0 6px 12px rgba(0,0,0,.12);
     }
 
@@ -178,9 +178,20 @@
     }
 
     .answer-card.revealed{
+      background:linear-gradient(180deg, #7d808b 0%, #585c67 100%);
       box-shadow:
-        0 0 0 3px rgba(241,203,74,.45),
+        0 0 0 3px rgba(241,203,74,.30),
         0 6px 14px rgba(0,0,0,.15);
+    }
+
+    .answer-card.revealed .answer-label{
+      color:#f3f0ea;
+    }
+
+    .answer-card.revealed .answer-points{
+      background:#d7d7d7;
+      color:#111;
+      border-color:#343434;
     }
 
     .answer-card.disabled{
@@ -849,6 +860,11 @@
     function applyRemoteGameState(remoteState) {
       if (!remoteState) return;
 
+      const previousResolvedQuestionId = String(controlState?.resolvedQuestionId || "");
+      const previousDisplayOnlyRevealIndexes = Array.isArray(controlState?.displayOnlyRevealIndexes)
+        ? controlState.displayOnlyRevealIndexes.filter((index) => Number.isInteger(index))
+        : [];
+
       const display = remoteState.display || {};
       const control = remoteState.control || {};
       const buzz = remoteState.buzz || {};
@@ -872,7 +888,7 @@
           : []
       };
 
-      controlState = {
+      controlState = normalizeControlState({
         currentQuestionIndex: Number(control.currentQuestionIndex || 0),
         totalQuestions: Number(control.totalQuestions || 0),
         stage: String(control.phase || "idle"),
@@ -881,8 +897,26 @@
         stealingTeam: String(control.stealingTeam || ""),
         firstBuzzName: String(buzz.firstBuzz?.name || ""),
         firstBuzzTeam: String(buzz.firstBuzz?.team || ""),
-        buzzVisible: !!buzz.enabled
-      };
+        buzzVisible: !!buzz.enabled,
+        resolvedQuestionId: "",
+        displayOnlyRevealIndexes: []
+      });
+
+      const currentQuestionId = buildQuestionId(controlState.currentQuestionIndex, displayState.question);
+      const keepResolvedState = previousResolvedQuestionId && previousResolvedQuestionId === currentQuestionId;
+
+      if (keepResolvedState) {
+        controlState.resolvedQuestionId = previousResolvedQuestionId;
+        controlState.displayOnlyRevealIndexes = previousDisplayOnlyRevealIndexes.filter((index) => (
+          index >= 0 && index < displayState.answers.length
+        ));
+
+        controlState.displayOnlyRevealIndexes.forEach((index) => {
+          if (displayState.answers[index]) {
+            displayState.answers[index].revealed = true;
+          }
+        });
+      }
 
       saveDisplayState();
       saveControlState();
@@ -909,6 +943,8 @@
         saveDisplayState();
       }
 
+      controlState = normalizeControlState(controlState);
+
       if (!controlState) {
         controlState = getDefaultControlState();
         saveControlState();
@@ -925,7 +961,32 @@
         stealingTeam: "",
         firstBuzzName: "",
         firstBuzzTeam: "",
-        buzzVisible: true
+        buzzVisible: true,
+        resolvedQuestionId: "",
+        displayOnlyRevealIndexes: []
+      };
+    }
+
+    function normalizeControlState(state) {
+      const base = getDefaultControlState();
+      const next = state && typeof state === "object" ? state : {};
+
+      return {
+        ...base,
+        ...next,
+        currentQuestionIndex: Number(next.currentQuestionIndex || 0),
+        totalQuestions: Number(next.totalQuestions || 0),
+        stage: String(next.stage || "idle"),
+        currentTurnTeam: String(next.currentTurnTeam || ""),
+        confrontationWinner: String(next.confrontationWinner || ""),
+        stealingTeam: String(next.stealingTeam || ""),
+        firstBuzzName: String(next.firstBuzzName || ""),
+        firstBuzzTeam: String(next.firstBuzzTeam || ""),
+        buzzVisible: !!next.buzzVisible,
+        resolvedQuestionId: String(next.resolvedQuestionId || ""),
+        displayOnlyRevealIndexes: Array.isArray(next.displayOnlyRevealIndexes)
+          ? next.displayOnlyRevealIndexes.filter((index) => Number.isInteger(index))
+          : []
       };
     }
 
@@ -981,7 +1042,7 @@
     function readControlState() {
       const raw = readStored(CONTROL_KEY);
       const parsed = safeParse(raw);
-      return parsed || getDefaultControlState();
+      return normalizeControlState(parsed || getDefaultControlState());
     }
 
     function saveDisplayState() {
@@ -990,13 +1051,32 @@
     }
 
     function saveControlState() {
+      controlState = normalizeControlState(controlState);
       writeStored(CONTROL_KEY, controlState);
     }
 
     function calculateRoundPoints() {
+      if (isQuestionResolved()) return 0;
+
       return (displayState.answers || []).reduce((sum, answer) => {
         return sum + (answer.revealed ? Number(answer.points || 0) : 0);
       }, 0);
+    }
+
+    function buildQuestionId(index = controlState.currentQuestionIndex, question = displayState.question) {
+      return `${Number(index || 0)}::${String(question || "").trim()}`;
+    }
+
+    function isQuestionResolved() {
+      const currentQuestionId = buildQuestionId();
+      return !!controlState.resolvedQuestionId && controlState.resolvedQuestionId === currentQuestionId;
+    }
+
+    function markQuestionResolved() {
+      controlState.resolvedQuestionId = buildQuestionId();
+      controlState.displayOnlyRevealIndexes = [];
+      saveControlState();
+      saveDisplayState();
     }
 
     function getTeamName(team) {
@@ -1015,6 +1095,7 @@
 
     function canRegisterError() {
       if (!controlState.currentTurnTeam) return false;
+      if (isQuestionResolved()) return false;
       if (controlState.stage === "steal_result") return false;
       if (controlState.stage === "steal_pick") return false;
       return true;
@@ -1067,7 +1148,10 @@
 
       answers.forEach((answer, index) => {
         const card = document.createElement("button");
-        const isBlockedRevealedAnswer = isStealStage() && !!answer.revealed;
+        const isBlockedRevealedAnswer =
+          isStealStage() &&
+          !isQuestionResolved() &&
+          !!answer.revealed;
 
         const shouldDisable =
           isBusy ||
@@ -1098,6 +1182,12 @@
     function renderPanel() {
       panelActionsEl.innerHTML = "";
 
+      if (isQuestionResolved()) {
+        panelTitleEl.textContent = ".";
+        panelTitleEl.classList.add("hint-hidden");
+        return;
+      }
+
       if (controlState.stage === "idle" || controlState.stage === "main") {
         panelTitleEl.textContent = ".";
         panelTitleEl.classList.add("hint-hidden");
@@ -1107,6 +1197,12 @@
       panelTitleEl.classList.remove("hint-hidden");
 
       if (controlState.stage === "duel_select") {
+        if (!controlState.firstBuzzName) {
+          panelTitleEl.textContent = ".";
+          panelTitleEl.classList.add("hint-hidden");
+          return;
+        }
+
         panelTitleEl.textContent = "مين جاوب؟";
 
         const row = buildRow([
@@ -1130,6 +1226,12 @@
       }
 
       if (controlState.stage === "play_or_pass") {
+        if (!controlState.confrontationWinner) {
+          panelTitleEl.textContent = ".";
+          panelTitleEl.classList.add("hint-hidden");
+          return;
+        }
+
         const winnerName = getTeamName(controlState.confrontationWinner);
         panelTitleEl.textContent = `الفريق ${winnerName} فاز بالسؤال ماذا تريد؟`;
 
@@ -1154,6 +1256,13 @@
       }
 
       if (isStealStage()) {
+        const stealOwner = controlState.stealingTeam || getOtherTeam(controlState.currentTurnTeam || "");
+        if (!stealOwner) {
+          panelTitleEl.textContent = ".";
+          panelTitleEl.classList.add("hint-hidden");
+          return;
+        }
+
         panelTitleEl.textContent = "اضغط على الجواب لمنح الفريق الاخر النقاط";
 
         const failRow = buildRow([
@@ -1181,7 +1290,7 @@
       btn.type = "button";
       btn.className = "panel-btn";
       btn.textContent = text;
-      btn.disabled = isBusy || stealAwardInProgress;
+      btn.disabled = isBusy || stealAwardInProgress || isQuestionResolved();
       btn.addEventListener("click", onClick);
       return btn;
     }
@@ -1191,14 +1300,20 @@
       btn.type = "button";
       btn.className = "panel-btn red";
       btn.textContent = text;
-      btn.disabled = isBusy || stealAwardInProgress;
+      btn.disabled = isBusy || stealAwardInProgress || isQuestionResolved();
       btn.addEventListener("click", onClick);
       return btn;
     }
 
     function buildFailStealButton() {
       const btn = buildRedButton("فشلت السرقة", async () => {
-        await sendGameAction("steal_result", { result: "fail" });
+        const ok = await sendGameAction("steal_result", { result: "fail" });
+
+        if (ok) {
+          markQuestionResolved();
+          await fetchRemoteGameState();
+          renderAll();
+        }
       });
       btn.classList.add("fail-only");
       return btn;
@@ -1212,6 +1327,21 @@
         : null;
 
       if (!answer) return;
+
+      if (isQuestionResolved()) {
+        if (answer.revealed) return;
+
+        displayState.answers[index].revealed = true;
+
+        const seen = new Set(controlState.displayOnlyRevealIndexes || []);
+        seen.add(index);
+        controlState.displayOnlyRevealIndexes = Array.from(seen).sort((a, b) => a - b);
+
+        saveControlState();
+        saveDisplayState();
+        renderAll();
+        return;
+      }
 
       if (isStealStage()) {
         if (answer.revealed) return;
@@ -1235,6 +1365,7 @@
           }
 
           if (awarded) {
+            markQuestionResolved();
             await fetchRemoteGameState();
           }
         } finally {
