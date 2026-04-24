@@ -164,7 +164,7 @@
       justify-content:center;
       padding:0 74px 0 72px;
       cursor:pointer;
-      transition:transform .12s ease, filter .12s ease, box-shadow .12s ease, opacity .12s ease;
+      transition:transform .12s ease, filter .12s ease, box-shadow .12s ease, opacity .12s ease, background .12s ease;
       box-shadow:0 6px 12px rgba(0,0,0,.12);
     }
 
@@ -178,9 +178,39 @@
     }
 
     .answer-card.revealed{
+      background:linear-gradient(180deg, #777b86 0%, #4f535d 100%);
+      opacity:.68;
+      filter:grayscale(.35) brightness(.88);
       box-shadow:
-        0 0 0 3px rgba(241,203,74,.45),
+        inset 0 0 0 999px rgba(0,0,0,.10),
+        0 0 0 3px rgba(255,255,255,.28),
         0 6px 14px rgba(0,0,0,.15);
+    }
+
+    .answer-card.revealed::after{
+      content:"مكشوفة";
+      position:absolute;
+      top:7px;
+      right:14px;
+      padding:3px 10px 4px;
+      border-radius:999px;
+      background:rgba(0,0,0,.34);
+      color:rgba(255,255,255,.88);
+      font-size:13px;
+      font-weight:900;
+      line-height:1;
+      pointer-events:none;
+    }
+
+    .answer-card.revealed .answer-label{
+      color:rgba(255,255,255,.78);
+    }
+
+    .answer-card.revealed .answer-points{
+      background:#d8d8d8;
+      color:#444;
+      border-color:#2d2d2d;
+      opacity:.9;
     }
 
     .answer-card.disabled{
@@ -190,11 +220,21 @@
       filter:none !important;
     }
 
+    .answer-card.revealed.disabled{
+      opacity:.68;
+      filter:grayscale(.35) brightness(.88) !important;
+    }
+
     .answer-card:disabled{
       opacity:.75;
       cursor:default;
       transform:none !important;
       filter:none !important;
+    }
+
+    .answer-card.revealed:disabled{
+      opacity:.68;
+      filter:grayscale(.35) brightness(.88) !important;
     }
 
     .answer-points{
@@ -515,6 +555,7 @@
     let syncStarted = false;
     let apiBase = normalizeBase(readStored(API_BASE_KEY) || readStored(BUZZ_API_BASE_KEY));
     let initialAutoShowDone = false;
+    let optimisticRevealedIndexes = new Set();
 
     try {
       channel = new BroadcastChannel(DISPLAY_CHANNEL);
@@ -591,6 +632,8 @@
 
     nextQuestionBtn.addEventListener("click", async () => {
       if (isBusy) return;
+
+      optimisticRevealedIndexes.clear();
 
       const ok = await sendGameAction("next_question");
 
@@ -849,6 +892,9 @@
     function applyRemoteGameState(remoteState) {
       if (!remoteState) return;
 
+      const previousQuestion = displayState ? String(displayState.question || "") : "";
+      const previousQuestionIndex = controlState ? Number(controlState.currentQuestionIndex || 0) : 0;
+
       const display = remoteState.display || {};
       const control = remoteState.control || {};
       const buzz = remoteState.buzz || {};
@@ -884,8 +930,29 @@
         buzzVisible: !!buzz.enabled
       };
 
+      const questionChanged =
+        previousQuestion !== displayState.question ||
+        previousQuestionIndex !== controlState.currentQuestionIndex;
+
+      cleanupOptimisticReveals(questionChanged);
+
       saveDisplayState();
       saveControlState();
+    }
+
+    function cleanupOptimisticReveals(questionChanged) {
+      if (questionChanged) {
+        optimisticRevealedIndexes.clear();
+        return;
+      }
+
+      const answers = Array.isArray(displayState.answers) ? displayState.answers : [];
+
+      Array.from(optimisticRevealedIndexes).forEach((index) => {
+        if (!answers[index] || answers[index].revealed) {
+          optimisticRevealedIndexes.delete(index);
+        }
+      });
     }
 
     function ensureInitialState() {
@@ -985,7 +1052,7 @@
     }
 
     function saveDisplayState() {
-      displayState.roundPoints = calculateRoundPoints();
+      displayState.roundPoints = Number(displayState.roundPoints || 0);
       writeStored(DISPLAY_KEY, displayState);
     }
 
@@ -1068,6 +1135,7 @@
       answers.forEach((answer, index) => {
         const card = document.createElement("button");
         const isBlockedRevealedAnswer = isStealStage() && !!answer.revealed;
+        const isVisuallyRevealed = !!answer.revealed || optimisticRevealedIndexes.has(index);
 
         const shouldDisable =
           isBusy ||
@@ -1075,7 +1143,7 @@
           isBlockedRevealedAnswer;
 
         card.type = "button";
-        card.className = "answer-card" + (answer.revealed ? " revealed" : "");
+        card.className = "answer-card" + (isVisuallyRevealed ? " revealed" : "");
         if (shouldDisable) card.classList.add("disabled");
         card.disabled = shouldDisable;
 
@@ -1198,10 +1266,28 @@
 
     function buildFailStealButton() {
       const btn = buildRedButton("فشلت السرقة", async () => {
-        await sendGameAction("steal_result", { result: "fail" });
+        await handleFailStealClick();
       });
       btn.classList.add("fail-only");
       return btn;
+    }
+
+    async function handleFailStealClick() {
+      if (isBusy || stealAwardInProgress) return;
+
+      stealAwardInProgress = true;
+      renderAll();
+
+      try {
+        const ok = await sendGameAction("steal_result", { result: "fail" });
+
+        if (ok) {
+          await fetchRemoteGameState();
+        }
+      } finally {
+        stealAwardInProgress = false;
+        renderAll();
+      }
     }
 
     async function handleAnswerClick(index) {
@@ -1216,6 +1302,7 @@
       if (isStealStage()) {
         if (answer.revealed) return;
 
+        optimisticRevealedIndexes.add(index);
         stealAwardInProgress = true;
         renderAll();
 
@@ -1227,7 +1314,11 @@
 
             if (!awarded) {
               const movedToPick = await sendGameAction("steal_result", { result: "success" });
-              if (!movedToPick) return;
+              if (!movedToPick) {
+                optimisticRevealedIndexes.delete(index);
+                return;
+              }
+
               awarded = await sendGameAction("award_steal", { answerIndex: index });
             }
           } else {
@@ -1236,6 +1327,8 @@
 
           if (awarded) {
             await fetchRemoteGameState();
+          } else {
+            optimisticRevealedIndexes.delete(index);
           }
         } finally {
           stealAwardInProgress = false;
@@ -1245,7 +1338,15 @@
         return;
       }
 
-      await sendGameAction("reveal_answer", { answerIndex: index });
+      optimisticRevealedIndexes.add(index);
+      renderAll();
+
+      const ok = await sendGameAction("reveal_answer", { answerIndex: index });
+
+      if (!ok) {
+        optimisticRevealedIndexes.delete(index);
+        renderAll();
+      }
     }
 
     async function choosePlayOrPass(decision) {
