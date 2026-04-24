@@ -533,8 +533,8 @@
           <div id="transferMessageBox" class="transfer-message-box">ينتقل السؤال إلى الفريق الآخر</div>
         </div>
 
-        <audio id="answerSound" src="answer.MP4" preload="auto"></audio>
-        <audio id="wrongSound" src="rong.MP3" preload="auto"></audio>
+        <audio id="answerSound" preload="auto" playsinline webkit-playsinline src="answer.MP4"></audio>
+        <audio id="wrongSound" preload="auto" playsinline webkit-playsinline src="rong.MP3"></audio>
 
       </div>
     </div>
@@ -596,6 +596,10 @@
     let strikeEffectTimers = [];
     let currentDisplayState = readDisplayState();
 
+    let audioUnlocked = false;
+    let audioUnlockListenersInstalled = false;
+    let pendingSoundType = "";
+
     try {
       channel = new BroadcastChannel(DISPLAY_CHANNEL);
     } catch (e) {
@@ -604,10 +608,8 @@
 
     lastPersistedSignature = JSON.stringify(currentDisplayState);
 
-    prepareAudio(answerSoundEl);
-    prepareAudio(wrongSoundEl);
-
     persistRoomId(roomId);
+    setupAudioSystem();
     renderDisplay();
     updateLayout();
     startRemoteSync();
@@ -661,35 +663,141 @@
     document.addEventListener("touchend", nudgeSafariBar, { passive: true });
     window.addEventListener("beforeunload", destroyLiveSync);
 
-    function prepareAudio(audioEl) {
-      if (!audioEl) return;
-      try {
-        audioEl.preload = "auto";
-        audioEl.load();
-      } catch (e) {}
+    function setupAudioSystem() {
+      [answerSoundEl, wrongSoundEl].forEach((media) => {
+        if (!media) return;
+        media.preload = "auto";
+        media.setAttribute("playsinline", "");
+        media.setAttribute("webkit-playsinline", "");
+        try { media.load(); } catch (e) {}
+      });
+
+      installAudioUnlockListeners();
     }
 
-    function stopAudio(audioEl) {
-      if (!audioEl) return;
-      try { audioEl.pause(); } catch (e) {}
-      try { audioEl.currentTime = 0; } catch (e) {}
+    function installAudioUnlockListeners() {
+      if (audioUnlockListenersInstalled) return;
+      audioUnlockListenersInstalled = true;
+
+      window.addEventListener("pointerdown", handleAudioUnlockEvent, { passive: true });
+      window.addEventListener("touchstart", handleAudioUnlockEvent, { passive: true });
+      window.addEventListener("click", handleAudioUnlockEvent, { passive: true });
+      window.addEventListener("keydown", handleAudioUnlockEvent);
     }
 
-    function playManagedSound(type) {
-      const target = type === "answer" ? answerSoundEl : wrongSoundEl;
-      const other = type === "answer" ? wrongSoundEl : answerSoundEl;
+    function removeAudioUnlockListeners() {
+      if (!audioUnlockListenersInstalled) return;
+      audioUnlockListenersInstalled = false;
 
-      if (!target) return;
+      window.removeEventListener("pointerdown", handleAudioUnlockEvent);
+      window.removeEventListener("touchstart", handleAudioUnlockEvent);
+      window.removeEventListener("click", handleAudioUnlockEvent);
+      window.removeEventListener("keydown", handleAudioUnlockEvent);
+    }
 
-      stopAudio(other);
-      stopAudio(target);
+    async function handleAudioUnlockEvent() {
+      await unlockAudioOnce();
+    }
 
-      try {
-        const promise = target.play();
-        if (promise && typeof promise.catch === "function") {
-          promise.catch(() => {});
+    async function unlockAudioOnce() {
+      if (audioUnlocked) return true;
+
+      const answerReady = await primeMediaElement(answerSoundEl);
+      const wrongReady = await primeMediaElement(wrongSoundEl);
+
+      if (!answerReady && !wrongReady) {
+        audioUnlocked = false;
+        installAudioUnlockListeners();
+        return false;
+      }
+
+      audioUnlocked = true;
+      removeAudioUnlockListeners();
+
+      if (pendingSoundType) {
+        const soundType = pendingSoundType;
+        pendingSoundType = "";
+
+        if (soundType === "answer") {
+          await playAnswerSound();
+        } else if (soundType === "wrong") {
+          await playWrongSound();
         }
-      } catch (e) {}
+      }
+
+      return true;
+    }
+
+    async function primeMediaElement(media) {
+      if (!media) return false;
+
+      try {
+        media.muted = true;
+        media.currentTime = 0;
+        const playPromise = media.play();
+
+        if (playPromise && typeof playPromise.then === "function") {
+          await playPromise;
+        }
+
+        media.pause();
+        media.currentTime = 0;
+        media.muted = false;
+        return true;
+      } catch (error) {
+        try {
+          media.pause();
+          media.currentTime = 0;
+          media.muted = false;
+        } catch (e) {}
+        return false;
+      }
+    }
+
+    function stopMedia(media) {
+      if (!media) return;
+      try { media.pause(); } catch (e) {}
+      try { media.currentTime = 0; } catch (e) {}
+    }
+
+    async function playManagedSound(type) {
+      const media = type === "answer" ? answerSoundEl : wrongSoundEl;
+      const otherMedia = type === "answer" ? wrongSoundEl : answerSoundEl;
+
+      if (!media) return false;
+
+      if (!audioUnlocked) {
+        pendingSoundType = type;
+        installAudioUnlockListeners();
+        return false;
+      }
+
+      stopMedia(otherMedia);
+      stopMedia(media);
+
+      try {
+        media.muted = false;
+        const playPromise = media.play();
+
+        if (playPromise && typeof playPromise.then === "function") {
+          await playPromise;
+        }
+
+        return true;
+      } catch (error) {
+        pendingSoundType = type;
+        audioUnlocked = false;
+        installAudioUnlockListeners();
+        return false;
+      }
+    }
+
+    async function playAnswerSound() {
+      return await playManagedSound("answer");
+    }
+
+    async function playWrongSound() {
+      return await playManagedSound("wrong");
     }
 
     function readStored(key) {
@@ -1150,26 +1258,22 @@
     }
 
     function detectAnswerRevealEffect(state) {
-      const nextSnapshot = {
-        question: String(state.question || ""),
-        revealed: state.answers.map((answer) => !!answer.revealed)
-      };
+      const nextSnapshot = state.answers.map((answer) => !!answer.revealed);
 
       if (!previousAnswerRevealSnapshot) {
         previousAnswerRevealSnapshot = nextSnapshot;
         return;
       }
 
-      const questionChanged = nextSnapshot.question !== previousAnswerRevealSnapshot.question;
-      const hasNewReveal = nextSnapshot.revealed.some((flag, index) => {
-        return flag && !previousAnswerRevealSnapshot.revealed[index];
+      const hasNewReveal = nextSnapshot.some((revealed, index) => {
+        return revealed && !previousAnswerRevealSnapshot[index];
       });
 
-      if (hasNewReveal && !questionChanged) {
-        playManagedSound("answer");
-      }
-
       previousAnswerRevealSnapshot = nextSnapshot;
+
+      if (hasNewReveal) {
+        playAnswerSound();
+      }
     }
 
     function clearStrikeEffectTimers() {
@@ -1185,7 +1289,7 @@
     function playStrikeEffect(strikeCount) {
       clearStrikeEffectTimers();
       resetStrikeEffectLayer();
-      playManagedSound("wrong");
+      playWrongSound();
 
       strikeEffectLayer.classList.add("show", "show-x");
 
