@@ -718,11 +718,7 @@
         saveControlState();
         renderAll();
 
-        const ok = await runGameActions([
-          { action: "next_question", payload: {}, options: { skipBusy: true } },
-          { action: "show_question", payload: { visible: false }, options: { skipBusy: true } },
-          { action: "set_buzz_visible", payload: { visible: true }, options: { skipBusy: true } }
-        ]);
+        const ok = await sendGameAction("next_question_bundle", {}, { skipBusy: true });
 
         if (!ok) {
           displayState.showQuestion = previousShowQuestion;
@@ -1599,13 +1595,19 @@
     }
 
     async function choosePlayOrPass(decision) {
-      const ok = await sendGameAction("choose_play_or_pass", { decision });
+      const previousVisible = !!controlState.buzzVisible;
 
-      if (ok) {
-        controlState.buzzVisible = false;
+      controlState.buzzVisible = false;
+      saveControlState();
+      renderAll();
+
+      const ok = await sendGameAction("choose_play_or_pass_bundle", { decision }, { skipBusy: true });
+
+      if (!ok) {
+        controlState.buzzVisible = previousVisible;
         saveControlState();
         renderAll();
-        await sendGameAction("set_buzz_visible", { visible: false }, { skipBusy: true });
+        await fetchRemoteGameState({ force: true });
       }
     }
 
@@ -1616,11 +1618,7 @@
       saveControlState();
       renderAll();
 
-      const ok = await runGameActions([
-        { action: "cancel_context", payload: {} },
-        { action: "clear_first_buzz", payload: {} },
-        { action: "set_buzz_visible", payload: { visible: true }, options: { skipBusy: true } }
-      ]);
+      const ok = await sendGameAction("cancel_duel_open_buzz", {}, { skipBusy: true });
 
       if (!ok) {
         controlState.buzzVisible = previousVisible;
