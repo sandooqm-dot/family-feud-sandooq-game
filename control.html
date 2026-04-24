@@ -444,6 +444,12 @@
       filter:none !important;
     }
 
+    .question-toggle-btn{
+      position:absolute;
+      right:58px;
+      bottom:72px;
+    }
+
     .home-btn{
       position:absolute;
       left:16px;
@@ -501,6 +507,8 @@
           <button id="nextQuestionBtn" class="main-btn blue" type="button">تغيير السؤال</button>
         </div>
 
+        <button id="questionToggleBtn" class="main-btn blue question-toggle-btn" type="button">إظهار السؤال</button>
+
         <a class="home-btn" href="index.html" aria-label="الصفحة الرئيسية">
           <svg viewBox="0 0 24 24" aria-hidden="true">
             <path d="M12 3.2 2.5 11.1l1.3 1.6L5 11.8V20h5.7v-5.1h2.6V20H19v-8.2l1.2.9 1.3-1.6L12 3.2z"/>
@@ -541,6 +549,7 @@
     const bellToggleBtn = document.getElementById("bellToggleBtn");
     const errorBtn = document.getElementById("errorBtn");
     const nextQuestionBtn = document.getElementById("nextQuestionBtn");
+    const questionToggleBtn = document.getElementById("questionToggleBtn");
 
     let stableViewport = { width: window.innerWidth, height: window.innerHeight };
     let roomId = resolveRoomId();
@@ -625,6 +634,16 @@
       });
     });
 
+    questionToggleBtn.addEventListener("click", async () => {
+      if (isBusy) return;
+
+      const nextVisible = !(displayState.showQuestion === true);
+
+      await sendGameAction("show_question", {
+        visible: nextVisible
+      });
+    });
+
     errorBtn.addEventListener("click", async () => {
       if (isBusy) return;
       if (!canRegisterError()) return;
@@ -644,7 +663,7 @@
 
       if (ok) {
         clearRoundClosedAfterSteal();
-        await sendGameAction("show_question", { visible: true });
+        await sendGameAction("show_question", { visible: false });
         await sendGameAction("set_buzz_visible", { visible: true });
       }
     });
@@ -802,13 +821,7 @@
 
     async function maybeInitialAutoShowQuestion() {
       if (initialAutoShowDone) return;
-      if (!displayState.question) return;
-
       initialAutoShowDone = true;
-
-      if (!displayState.showQuestion) {
-        await sendGameAction("show_question", { visible: true });
-      }
     }
 
     async function fetchRemoteGameState() {
@@ -1169,8 +1182,10 @@
       questionTextEl.textContent = displayState.question || "نص السؤال";
       firstPlayerBoxEl.textContent = getFirstBuzzLabel();
       bellToggleBtn.textContent = controlState.buzzVisible ? "إخفاء الجرس" : "إظهار الجرس";
+      questionToggleBtn.textContent = displayState.showQuestion ? "إخفاء السؤال" : "إظهار السؤال";
 
       bellToggleBtn.disabled = isBusy || stealAwardInProgress;
+      questionToggleBtn.disabled = isBusy || stealAwardInProgress;
       errorBtn.disabled = isBusy || stealAwardInProgress || !canRegisterError();
       nextQuestionBtn.disabled = isBusy || stealAwardInProgress;
 
