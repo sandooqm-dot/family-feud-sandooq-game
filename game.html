@@ -435,6 +435,71 @@
       animation:transferMessagePop 1.85s ease forwards;
     }
 
+    .audio-unlock-overlay{
+      position:absolute;
+      inset:0;
+      z-index:120;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      background:rgba(7,23,62,.72);
+      backdrop-filter:blur(6px);
+      -webkit-backdrop-filter:blur(6px);
+    }
+
+    .audio-unlock-overlay.hidden{
+      display:none;
+    }
+
+    .audio-unlock-card{
+      width:560px;
+      max-width:90%;
+      min-height:220px;
+      border-radius:34px;
+      border:6px solid var(--gold);
+      background:linear-gradient(180deg, #0a1d56 0%, #08173d 100%);
+      box-shadow:0 22px 46px rgba(0,0,0,.35);
+      display:flex;
+      flex-direction:column;
+      align-items:center;
+      justify-content:center;
+      text-align:center;
+      padding:28px 30px;
+    }
+
+    .audio-unlock-title{
+      color:var(--gold);
+      font-size:40px;
+      font-weight:900;
+      line-height:1.1;
+      margin-bottom:14px;
+    }
+
+    .audio-unlock-text{
+      color:var(--white);
+      font-size:28px;
+      font-weight:900;
+      line-height:1.4;
+      margin-bottom:22px;
+    }
+
+    .audio-unlock-btn{
+      min-width:250px;
+      height:76px;
+      border:none;
+      border-radius:28px;
+      background:linear-gradient(180deg, #3150c6 0%, #2341a8 100%);
+      border:4px solid rgba(255,255,255,.88);
+      color:var(--white);
+      font-size:28px;
+      font-weight:900;
+      cursor:pointer;
+    }
+
+    .audio-unlock-btn:active{
+      transform:scale(.99);
+    }
+
     @keyframes bigStrikePop{
       0%{
         opacity:0;
@@ -533,8 +598,21 @@
           <div id="transferMessageBox" class="transfer-message-box">ينتقل السؤال إلى الفريق الآخر</div>
         </div>
 
-        <audio id="answerSound" preload="auto" playsinline webkit-playsinline src="answer.MP4"></audio>
-        <audio id="wrongSound" preload="auto" playsinline webkit-playsinline src="rong.MP3"></audio>
+        <div id="audioUnlockOverlay" class="audio-unlock-overlay">
+          <div class="audio-unlock-card">
+            <div class="audio-unlock-title">تفعيل الصوت</div>
+            <div id="audioUnlockText" class="audio-unlock-text">اضغط الزر مرة واحدة لتفعيل أصوات اللعبة</div>
+            <button id="audioUnlockBtn" class="audio-unlock-btn" type="button">تفعيل الصوت</button>
+          </div>
+        </div>
+
+        <video id="answerSound" preload="auto" playsinline webkit-playsinline style="display:none">
+          <source src="answer.MP4" type="video/mp4">
+        </video>
+
+        <audio id="wrongSound" preload="auto" playsinline webkit-playsinline>
+          <source src="rong.MP3" type="audio/mpeg">
+        </audio>
 
       </div>
     </div>
@@ -570,6 +648,9 @@
     const strikeEffectLayer = document.getElementById("strikeEffectLayer");
     const answerSoundEl = document.getElementById("answerSound");
     const wrongSoundEl = document.getElementById("wrongSound");
+    const audioUnlockOverlay = document.getElementById("audioUnlockOverlay");
+    const audioUnlockBtn = document.getElementById("audioUnlockBtn");
+    const audioUnlockText = document.getElementById("audioUnlockText");
 
     const strikeRows = {
       team1: document.querySelectorAll("#teamOneStrikes .strike"),
@@ -596,9 +677,8 @@
     let strikeEffectTimers = [];
     let currentDisplayState = readDisplayState();
 
-    let audioUnlocked = false;
-    let audioUnlockListenersInstalled = false;
-    let pendingSoundType = "";
+    let audioReady = false;
+    let audioUnlockBusy = false;
 
     try {
       channel = new BroadcastChannel(DISPLAY_CHANNEL);
@@ -663,69 +743,48 @@
     document.addEventListener("touchend", nudgeSafariBar, { passive: true });
     window.addEventListener("beforeunload", destroyLiveSync);
 
+    audioUnlockBtn.addEventListener("click", async () => {
+      await unlockGameAudio();
+    });
+
     function setupAudioSystem() {
       [answerSoundEl, wrongSoundEl].forEach((media) => {
         if (!media) return;
-        media.preload = "auto";
-        media.setAttribute("playsinline", "");
-        media.setAttribute("webkit-playsinline", "");
         try { media.load(); } catch (e) {}
       });
-
-      installAudioUnlockListeners();
     }
 
-    function installAudioUnlockListeners() {
-      if (audioUnlockListenersInstalled) return;
-      audioUnlockListenersInstalled = true;
-
-      window.addEventListener("pointerdown", handleAudioUnlockEvent, { passive: true });
-      window.addEventListener("touchstart", handleAudioUnlockEvent, { passive: true });
-      window.addEventListener("click", handleAudioUnlockEvent, { passive: true });
-      window.addEventListener("keydown", handleAudioUnlockEvent);
-    }
-
-    function removeAudioUnlockListeners() {
-      if (!audioUnlockListenersInstalled) return;
-      audioUnlockListenersInstalled = false;
-
-      window.removeEventListener("pointerdown", handleAudioUnlockEvent);
-      window.removeEventListener("touchstart", handleAudioUnlockEvent);
-      window.removeEventListener("click", handleAudioUnlockEvent);
-      window.removeEventListener("keydown", handleAudioUnlockEvent);
-    }
-
-    async function handleAudioUnlockEvent() {
-      await unlockAudioOnce();
-    }
-
-    async function unlockAudioOnce() {
-      if (audioUnlocked) return true;
-
-      const answerReady = await primeMediaElement(answerSoundEl);
-      const wrongReady = await primeMediaElement(wrongSoundEl);
-
-      if (!answerReady && !wrongReady) {
-        audioUnlocked = false;
-        installAudioUnlockListeners();
-        return false;
+    function showAudioUnlock(message) {
+      if (audioUnlockText) {
+        audioUnlockText.textContent = message || "اضغط الزر مرة واحدة لتفعيل أصوات اللعبة";
       }
+      audioUnlockOverlay.classList.remove("hidden");
+    }
 
-      audioUnlocked = true;
-      removeAudioUnlockListeners();
+    function hideAudioUnlock() {
+      audioUnlockOverlay.classList.add("hidden");
+    }
 
-      if (pendingSoundType) {
-        const soundType = pendingSoundType;
-        pendingSoundType = "";
+    async function unlockGameAudio() {
+      if (audioUnlockBusy) return;
+      audioUnlockBusy = true;
+      showAudioUnlock("جارٍ تفعيل الصوت...");
 
-        if (soundType === "answer") {
-          await playAnswerSound();
-        } else if (soundType === "wrong") {
-          await playWrongSound();
+      try {
+        const answerReady = await primeMediaElement(answerSoundEl);
+        const wrongReady = await primeMediaElement(wrongSoundEl);
+
+        if (!answerReady && !wrongReady) {
+          audioReady = false;
+          showAudioUnlock("المتصفح لم يفعّل الصوت بعد، اضغط مرة أخرى");
+          return;
         }
-      }
 
-      return true;
+        audioReady = true;
+        hideAudioUnlock();
+      } finally {
+        audioUnlockBusy = false;
+      }
     }
 
     async function primeMediaElement(media) {
@@ -734,8 +793,8 @@
       try {
         media.muted = true;
         media.currentTime = 0;
-        const playPromise = media.play();
 
+        const playPromise = media.play();
         if (playPromise && typeof playPromise.then === "function") {
           await playPromise;
         }
@@ -766,9 +825,8 @@
 
       if (!media) return false;
 
-      if (!audioUnlocked) {
-        pendingSoundType = type;
-        installAudioUnlockListeners();
+      if (!audioReady) {
+        showAudioUnlock("فعّل الصوت أولًا من هذه الصفحة");
         return false;
       }
 
@@ -778,26 +836,23 @@
       try {
         media.muted = false;
         const playPromise = media.play();
-
         if (playPromise && typeof playPromise.then === "function") {
           await playPromise;
         }
-
         return true;
       } catch (error) {
-        pendingSoundType = type;
-        audioUnlocked = false;
-        installAudioUnlockListeners();
+        audioReady = false;
+        showAudioUnlock("الصوت يحتاج تفعيل مرة أخرى");
         return false;
       }
     }
 
-    async function playAnswerSound() {
-      return await playManagedSound("answer");
+    function playAnswerSound() {
+      playManagedSound("answer");
     }
 
-    async function playWrongSound() {
-      return await playManagedSound("wrong");
+    function playWrongSound() {
+      playManagedSound("wrong");
     }
 
     function readStored(key) {
