@@ -29,6 +29,11 @@
       --button-red-2:#b90514;
 
       --stroke:#ece8e0;
+
+      --first-player-bg:#102a86;
+      --first-player-bg-2:#0a1f66;
+      --first-player-active:#1739ad;
+      --first-player-active-2:#102b85;
     }
 
     *{
@@ -383,22 +388,42 @@
       left:18px;
       right:18px;
       bottom:18px;
-      height:68px;
+      height:78px;
       border-radius:28px;
       border:4px solid rgba(255,255,255,.92);
-      background:transparent;
+      background:linear-gradient(180deg, var(--first-player-bg) 0%, var(--first-player-bg-2) 100%);
       color:var(--white);
       display:flex;
       align-items:center;
       justify-content:center;
       text-align:center;
-      font-size:24px;
+      font-size:30px;
       font-weight:900;
       line-height:1.2;
-      padding:0 18px;
+      padding:0 20px;
       white-space:nowrap;
       overflow:hidden;
       text-overflow:ellipsis;
+      box-shadow:
+        inset 0 0 0 1px rgba(255,255,255,.06),
+        0 8px 18px rgba(0,0,0,.22);
+      transition:
+        background .14s ease,
+        border-color .14s ease,
+        box-shadow .14s ease,
+        transform .14s ease,
+        font-size .14s ease;
+    }
+
+    .player-box.active{
+      background:linear-gradient(180deg, var(--first-player-active) 0%, var(--first-player-active-2) 100%);
+      border-color:var(--gold-soft);
+      box-shadow:
+        inset 0 0 0 1px rgba(255,255,255,.08),
+        0 0 0 3px rgba(241,203,74,.20),
+        0 10px 22px rgba(0,0,0,.28);
+      font-size:34px;
+      transform:translateY(-1px);
     }
 
     .bottom-actions{
@@ -582,6 +607,7 @@
 
     let pusher = null;
     let gameChannel = null;
+    let buzzChannel = null;
     let fallbackPoll = null;
     let currentPollMs = 0;
     let usingPusherRealtime = false;
@@ -878,7 +904,13 @@
         try { pusher.unsubscribe(gameChannel.name); } catch (e) {}
       }
 
+      if (buzzChannel && pusher) {
+        try { buzzChannel.unbind_all(); } catch (e) {}
+        try { pusher.unsubscribe(buzzChannel.name); } catch (e) {}
+      }
+
       gameChannel = null;
+      buzzChannel = null;
 
       if (pusher) {
         try { pusher.disconnect(); } catch (e) {}
@@ -894,31 +926,50 @@
     async function initPusher() {
       if (!window.Pusher) return;
       if (!apiBase) return;
-      if (pusher || gameChannel) return;
+      if (pusher || gameChannel || buzzChannel) return;
 
       try {
-        const res = await fetch(`${apiBase}/api/game/pusher-config?room=${encodeURIComponent(roomId)}`, {
-          method: "GET",
-          cache: "no-store",
-          headers: {
-            "Cache-Control": "no-cache",
-            "Pragma": "no-cache"
-          }
-        });
+        const [gameRes, buzzRes] = await Promise.all([
+          fetch(`${apiBase}/api/game/pusher-config?room=${encodeURIComponent(roomId)}`, {
+            method: "GET",
+            cache: "no-store",
+            headers: {
+              "Cache-Control": "no-cache",
+              "Pragma": "no-cache"
+            }
+          }),
+          fetch(`${apiBase}/api/buzz/pusher-config?room=${encodeURIComponent(roomId)}`, {
+            method: "GET",
+            cache: "no-store",
+            headers: {
+              "Cache-Control": "no-cache",
+              "Pragma": "no-cache"
+            }
+          })
+        ]);
 
-        const data = await res.json().catch(() => null);
-        if (!res.ok || !data || !data.ok || !data.key || !data.cluster || !data.channel) return;
+        const gameData = await gameRes.json().catch(() => null);
+        const buzzData = await buzzRes.json().catch(() => null);
 
-        const authEndpoint = String(data.authEndpoint || "").startsWith("http")
-          ? data.authEndpoint
-          : `${apiBase}${data.authEndpoint}`;
+        if (
+          !gameRes.ok || !gameData || !gameData.ok || !gameData.key || !gameData.cluster || !gameData.channel ||
+          !buzzRes.ok || !buzzData || !buzzData.ok || !buzzData.key || !buzzData.cluster || !buzzData.channel
+        ) return;
+
+        const gameAuthEndpoint = String(gameData.authEndpoint || "").startsWith("http")
+          ? gameData.authEndpoint
+          : `${apiBase}${gameData.authEndpoint}`;
+
+        const buzzAuthEndpoint = String(buzzData.authEndpoint || "").startsWith("http")
+          ? buzzData.authEndpoint
+          : `${apiBase}${buzzData.authEndpoint}`;
 
         window.Pusher.logToConsole = false;
 
-        pusher = new window.Pusher(data.key, {
-          cluster: data.cluster,
+        pusher = new window.Pusher(gameData.key, {
+          cluster: gameData.cluster,
           channelAuthorization: {
-            endpoint: authEndpoint,
+            endpoint: gameAuthEndpoint,
             transport: "ajax"
           }
         });
@@ -940,7 +991,8 @@
           });
         }
 
-        gameChannel = pusher.subscribe(data.channel);
+        gameChannel = pusher.subscribe(gameData.channel);
+        buzzChannel = pusher.subscribe(buzzData.channel);
 
         gameChannel.bind("pusher:subscription_succeeded", async () => {
           usingPusherRealtime = true;
@@ -950,6 +1002,11 @@
 
         gameChannel.bind("game-updated", (payload) => {
           applyRemoteGameState(payload);
+          renderAll();
+        });
+
+        buzzChannel.bind("buzz-updated", (payload) => {
+          applyRemoteBuzzState(payload);
           renderAll();
         });
       } catch (error) {}
@@ -1109,8 +1166,8 @@
         currentTurnTeam: String(control.currentTurnTeam || ""),
         confrontationWinner: String(control.confrontationWinner || ""),
         stealingTeam: String(control.stealingTeam || ""),
-        firstBuzzName: String(buzz.firstBuzz?.name || ""),
-        firstBuzzTeam: String(buzz.firstBuzz?.team || ""),
+        firstBuzzName: String(buzz.firstBuzz?.name || controlState.firstBuzzName || ""),
+        firstBuzzTeam: String(buzz.firstBuzz?.team || controlState.firstBuzzTeam || ""),
         buzzVisible: !!buzz.enabled
       };
 
@@ -1131,6 +1188,20 @@
       cleanupOptimisticReveals(questionChanged);
 
       saveDisplayState();
+      saveControlState();
+    }
+
+    function applyRemoteBuzzState(remoteBuzzState) {
+      if (!remoteBuzzState) return;
+
+      lastRemoteStateAt = Date.now();
+
+      const firstBuzz = remoteBuzzState.firstBuzz || null;
+
+      controlState.firstBuzzName = String(firstBuzz?.name || "");
+      controlState.firstBuzzTeam = String(firstBuzz?.team || "");
+      controlState.buzzVisible = !!remoteBuzzState.enabled;
+
       saveControlState();
     }
 
@@ -1381,6 +1452,8 @@
 
       questionTextEl.textContent = displayState.question || "نص السؤال";
       firstPlayerBoxEl.textContent = getFirstBuzzLabel();
+      firstPlayerBoxEl.classList.toggle("active", !!controlState.firstBuzzName);
+
       bellToggleBtn.textContent = controlState.buzzVisible ? "إخفاء الجرس" : "إظهار الجرس";
       questionToggleBtn.textContent = displayState.showQuestion ? "إخفاء السؤال" : "إظهار السؤال";
 
