@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-  <title>Family Feud - Game Display</title>
+  <title>Family Feud - Control</title>
 
   <style>
     :root{
@@ -11,22 +11,24 @@
       --app-scale:1;
       --safari-nudge:34px;
 
-      --bg-1:#2347a5;
-      --bg-2:#2d43a2;
-      --dot:#96aae7;
-
-      --gold:#f1d14f;
-      --board-gold:#e5c13f;
-      --panel-border:#111111;
+      --bg:#0b1457;
+      --gold:#d3a91f;
+      --gold-soft:#f1cb4a;
       --white:#f6f2e8;
-      --dark:#07173e;
-      --score-black:#000000;
 
       --answer-a:#2633DB;
       --answer-b:#217DFF;
 
-      --strike-off:#8d8d8d;
-      --strike-on:#ff2c3f;
+      --panel-dark:#2b2c30;
+      --panel-blue:#314fb3;
+      --panel-red:#cf0617;
+
+      --button-blue:#314fb3;
+      --button-blue-2:#2845a8;
+      --button-red:#d10618;
+      --button-red-2:#b90514;
+
+      --stroke:#ece8e0;
     }
 
     *{
@@ -39,12 +41,12 @@
 
     html{
       min-height:100%;
-      background:var(--bg-2);
+      background:var(--bg);
     }
 
     body{
       min-height:100%;
-      background:var(--bg-2);
+      background:var(--bg);
       font-family:Arial, "Helvetica Neue", sans-serif;
       -webkit-text-size-adjust:100%;
       text-size-adjust:100%;
@@ -52,14 +54,13 @@
       overflow-y:auto;
       -webkit-overflow-scrolling:touch;
       overscroll-behavior-y:auto;
+      color:var(--white);
     }
 
     .page{
       width:100%;
       min-height:calc(var(--app-height) + var(--safari-nudge));
-      background:
-        radial-gradient(circle, rgba(150,170,231,.95) 0 4px, transparent 4.6px) 0 0 / 48px 48px,
-        linear-gradient(180deg, var(--bg-1) 0%, var(--bg-2) 100%);
+      background:var(--bg);
     }
 
     .fit-root{
@@ -86,391 +87,349 @@
       direction:rtl;
     }
 
-    .store-logo{
+    .question-number{
       position:absolute;
-      top:12px;
-      left:16px;
-      width:145px;
-      height:92px;
-      object-fit:contain;
+      top:18px;
+      right:36px;
+      color:var(--white);
+      font-size:44px;
+      font-weight:900;
+      line-height:1;
       z-index:5;
-    }
-
-    .game-logo{
-      position:absolute;
-      top:10px;
-      right:16px;
-      width:150px;
-      height:88px;
-      object-fit:contain;
-      z-index:5;
+      white-space:nowrap;
     }
 
     .question-box{
       position:absolute;
-      top:34px;
-      left:50%;
-      transform:translateX(-50%);
-      width:888px;
-      height:150px;
+      top:20px;
+      left:78px;
+      width:1340px;
+      height:86px;
       border-radius:34px;
       border:6px solid var(--gold);
-      background:linear-gradient(180deg, #0a1d56 0%, #08173d 100%);
+      background:#0e1f6c;
       display:flex;
       align-items:center;
       justify-content:center;
-      box-shadow:
-        inset 0 0 0 1px rgba(255,255,255,.04),
-        0 10px 20px rgba(0,0,0,.08);
       overflow:hidden;
     }
 
     .question-text{
       width:100%;
       height:100%;
-      padding:0 32px;
       display:flex;
       align-items:center;
       justify-content:center;
       text-align:center;
+      padding:0 40px;
       color:var(--white);
-      font-size:58px;
-      line-height:1.1;
+      font-size:46px;
       font-weight:900;
+      line-height:1.15;
       white-space:nowrap;
       overflow:hidden;
       text-overflow:ellipsis;
     }
 
-    .round-box{
+    .answers-panel{
       position:absolute;
-      top:210px;
-      left:50%;
-      transform:translateX(-50%);
-      width:250px;
-      height:112px;
-      border-radius:30px;
-      border:6px solid var(--gold);
-      background:linear-gradient(180deg, #0a1d56 0%, #08173d 100%);
-      display:flex;
-      flex-direction:column;
-      align-items:center;
-      justify-content:center;
-      z-index:4;
-      box-shadow:0 8px 16px rgba(0,0,0,.08);
-    }
-
-    .round-label{
-      color:var(--white);
-      font-size:24px;
-      line-height:1;
-      font-weight:900;
-      margin-bottom:8px;
-    }
-
-    .round-score{
-      color:var(--gold);
-      font-size:60px;
-      line-height:1;
-      font-weight:900;
-    }
-
-    .board{
-      position:absolute;
-      top:288px;
-      left:50%;
-      transform:translateX(-50%);
-      width:888px;
+      top:144px;
+      left:78px;
+      width:854px;
       height:372px;
-      border-radius:36px;
-      border:7px solid var(--board-gold);
-      background:#2b47ad;
-      box-shadow: inset 0 0 0 1px rgba(255,255,255,.04);
+      border-radius:34px;
+      border:7px solid var(--gold-soft);
+      background:#132977;
+      padding:24px 16px;
     }
 
     .answers-grid{
-      position:absolute;
-      inset:24px 22px 24px 22px;
+      width:100%;
+      height:100%;
       display:grid;
       grid-template-columns:1fr 1fr;
       grid-template-rows:repeat(3, 1fr);
-      gap:16px 24px;
+      gap:18px 18px;
       direction:ltr;
     }
 
-    .answer-slot{
+    .answer-card{
       position:relative;
-      width:100%;
-      height:100%;
       border-radius:32px;
-      border:4px solid rgba(246,242,232,.96);
+      border:4px solid var(--stroke);
       background:linear-gradient(180deg, var(--answer-b) 0%, var(--answer-a) 100%);
       overflow:hidden;
-      box-shadow: inset 0 0 0 1px rgba(255,255,255,.04);
-    }
-
-    .answer-slot.hidden-state{
       display:flex;
       align-items:center;
       justify-content:center;
+      padding:0 74px 0 72px;
+      cursor:pointer;
+      transition:transform .12s ease, filter .12s ease, box-shadow .12s ease, opacity .12s ease;
+      box-shadow:0 6px 12px rgba(0,0,0,.12);
     }
 
-    .answer-slot.revealed{
-      display:flex;
-      align-items:center;
-      justify-content:center;
-      padding:0 84px 0 78px;
+    .answer-card:hover{
+      transform:translateY(-1px);
+      filter:brightness(1.03);
     }
 
-    .rank-circle{
-      width:60px;
-      height:60px;
-      border-radius:50%;
-      border:4px solid #d9d9d9;
-      display:flex;
-      align-items:center;
-      justify-content:center;
-      color:var(--white);
-      font-size:30px;
-      font-weight:900;
-      background:rgba(7,23,62,.14);
-      box-shadow: inset 0 0 0 1px rgba(255,255,255,.03);
-      line-height:1;
+    .answer-card:active{
+      transform:scale(.99);
+    }
+
+    .answer-card.revealed{
+      box-shadow:
+        0 0 0 3px rgba(241,203,74,.45),
+        0 6px 14px rgba(0,0,0,.15);
+    }
+
+    .answer-card.disabled{
+      opacity:.75;
+      cursor:default;
+      transform:none !important;
+      filter:none !important;
+    }
+
+    .answer-card:disabled{
+      opacity:.75;
+      cursor:default;
+      transform:none !important;
+      filter:none !important;
     }
 
     .answer-points{
       position:absolute;
-      left:14px;
+      left:18px;
       top:50%;
       transform:translateY(-50%);
-      width:58px;
-      height:58px;
+      width:52px;
+      height:52px;
       border-radius:50%;
-      border:4px solid #171717;
-      background:var(--gold);
-      color:#000;
+      border:4px solid #121212;
+      background:#f4c83c;
+      color:#111;
       display:flex;
       align-items:center;
       justify-content:center;
-      font-size:28px;
+      font-size:22px;
       font-weight:900;
       line-height:1;
     }
 
     .answer-label{
       width:100%;
-      height:100%;
-      display:flex;
-      align-items:center;
-      justify-content:center;
       text-align:center;
       color:var(--white);
-      font-size:38px;
-      line-height:1.15;
+      font-size:28px;
       font-weight:900;
+      line-height:1.12;
       white-space:nowrap;
       overflow:hidden;
       text-overflow:ellipsis;
-      padding:0 10px;
+      padding:2px 8px 0;
     }
 
-    .team-panel{
+    .right-panel{
       position:absolute;
-      top:126px;
-      width:252px;
-      height:494px;
-      border-radius:36px;
-      border:8px solid var(--panel-border);
-      background:linear-gradient(180deg, #0b2270 0%, #091f64 100%);
-      box-shadow:
-        inset 0 0 0 1px rgba(255,255,255,.04),
-        0 10px 22px rgba(0,0,0,.10);
+      top:144px;
+      right:78px;
+      width:500px;
+      height:372px;
+      border-radius:34px;
+      border:7px solid var(--gold-soft);
+      background:var(--panel-dark);
+      padding:22px 18px 18px;
+    }
+
+    .panel-title{
+      min-height:54px;
+      text-align:center;
+      color:var(--white);
+      font-size:28px;
+      font-weight:900;
+      line-height:1.3;
+      margin-bottom:18px;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      white-space:normal;
+    }
+
+    .panel-actions{
+      min-height:166px;
       display:flex;
       flex-direction:column;
       align-items:center;
+      justify-content:flex-start;
     }
 
-    .team-panel.left{
-      left:26px;
-    }
-
-    .team-panel.right{
-      right:26px;
-    }
-
-    .team-name{
-      margin-top:34px;
+    .panel-row{
       width:100%;
-      height:74px;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      gap:18px;
+      margin-bottom:16px;
+    }
+
+    .panel-row.single-fail{
+      justify-content:center;
+    }
+
+    .panel-btn{
+      min-width:184px;
+      height:62px;
+      border:none;
+      border-radius:26px;
+      background:var(--panel-blue);
+      color:var(--white);
+      font-size:22px;
+      font-weight:900;
+      cursor:pointer;
+      border:2px solid rgba(255,255,255,.82);
+      transition:transform .12s ease, filter .12s ease, opacity .12s ease;
       padding:0 14px;
+      white-space:nowrap;
+    }
+
+    .panel-btn:hover{
+      transform:translateY(-1px);
+      filter:brightness(1.03);
+    }
+
+    .panel-btn:active{
+      transform:scale(.99);
+    }
+
+    .panel-btn.red{
+      min-width:190px;
+      background:linear-gradient(180deg, var(--button-red) 0%, var(--button-red-2) 100%);
+    }
+
+    .panel-btn.fail-only{
+      min-width:232px;
+      height:70px;
+      font-size:24px;
+      transform:translateX(10px);
+    }
+
+    .panel-btn.fail-only:hover{
+      transform:translateX(10px) translateY(-1px);
+    }
+
+    .panel-btn.fail-only:active{
+      transform:translateX(10px) scale(.99);
+    }
+
+    .panel-btn:disabled{
+      opacity:.65;
+      cursor:default;
+      transform:none !important;
+      filter:none !important;
+    }
+
+    .panel-btn.fail-only:disabled{
+      transform:translateX(10px) !important;
+    }
+
+    .player-box{
+      position:absolute;
+      left:18px;
+      right:18px;
+      bottom:18px;
+      height:68px;
+      border-radius:28px;
+      border:4px solid rgba(255,255,255,.92);
+      background:transparent;
+      color:var(--white);
       display:flex;
       align-items:center;
       justify-content:center;
       text-align:center;
-      color:var(--white);
-      font-size:48px;
-      line-height:1.1;
+      font-size:24px;
       font-weight:900;
+      line-height:1.2;
+      padding:0 18px;
       white-space:nowrap;
       overflow:hidden;
       text-overflow:ellipsis;
     }
 
-    .team-score-box{
-      margin-top:28px;
-      width:184px;
-      height:112px;
+    .bottom-actions{
+      position:absolute;
+      left:0;
+      right:0;
+      bottom:72px;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      gap:42px;
+    }
+
+    .main-btn{
+      width:280px;
+      height:84px;
+      border:none;
       border-radius:32px;
-      border:5px solid var(--gold);
-      background:var(--score-black);
-      display:flex;
-      align-items:center;
-      justify-content:center;
-      box-shadow: inset 0 0 0 1px rgba(255,255,255,.03);
-    }
-
-    .team-score{
-      color:var(--gold);
-      font-size:86px;
-      line-height:1;
-      font-weight:900;
-      transform:translateY(-2px);
-    }
-
-    .strikes-label{
-      margin-top:58px;
       color:var(--white);
-      font-size:22px;
-      line-height:1.1;
+      font-size:26px;
       font-weight:900;
-      opacity:.95;
+      cursor:pointer;
+      border:4px solid rgba(255,255,255,.88);
+      transition:transform .12s ease, filter .12s ease, opacity .12s ease;
     }
 
-    .strikes-row{
-      margin-top:20px;
-      display:flex;
-      gap:16px;
-      align-items:center;
-      justify-content:center;
-      direction:ltr;
+    .main-btn:hover{
+      transform:translateY(-1px);
+      filter:brightness(1.03);
     }
 
-    .strike{
-      font-size:84px;
-      line-height:1;
-      font-weight:900;
-      color:var(--strike-off);
-      transform:scale(.95);
-      text-shadow:0 2px 0 rgba(0,0,0,.10);
+    .main-btn:active{
+      transform:scale(.99);
     }
 
-    .strike.active{
-      color:var(--strike-on);
-      text-shadow:
-        0 0 10px rgba(255,44,63,.35),
-        0 3px 0 rgba(0,0,0,.15);
+    .main-btn.blue{
+      background:linear-gradient(180deg, var(--button-blue) 0%, var(--button-blue-2) 100%);
     }
 
-    .strike-effect-layer{
+    .main-btn.red{
+      background:linear-gradient(180deg, var(--button-red) 0%, var(--button-red-2) 100%);
+      font-size:34px;
+    }
+
+    .main-btn:disabled{
+      opacity:.65;
+      cursor:default;
+      transform:none !important;
+      filter:none !important;
+    }
+
+    .home-btn{
       position:absolute;
-      inset:0;
-      z-index:60;
-      pointer-events:none;
-      display:flex;
-      align-items:center;
-      justify-content:center;
-      opacity:0;
-    }
-
-    .strike-effect-layer.show{
-      opacity:1;
-    }
-
-    .big-strike-x{
-      position:absolute;
-      left:50%;
-      top:50%;
-      transform:translate(-50%, -50%) scale(.65);
-      color:#ff2638;
-      font-size:310px;
-      font-weight:900;
-      line-height:1;
-      opacity:0;
-      text-shadow:
-        0 0 18px rgba(255,255,255,.55),
-        0 0 42px rgba(255,38,56,.65),
-        0 12px 0 rgba(0,0,0,.25);
-    }
-
-    .strike-effect-layer.show-x .big-strike-x{
-      animation:bigStrikePop .95s ease forwards;
-    }
-
-    .transfer-message-box{
-      position:absolute;
-      left:50%;
-      top:50%;
-      width:760px;
-      min-height:154px;
-      transform:translate(-50%, -50%) scale(.9);
-      border-radius:34px;
-      border:7px solid var(--gold);
-      background:linear-gradient(180deg, #0a1d56 0%, #08173d 100%);
-      color:var(--white);
+      left:16px;
+      bottom:44px;
+      width:64px;
+      height:64px;
+      border:none;
+      border-radius:50%;
+      background:#d3a91f;
       display:flex;
       align-items:center;
       justify-content:center;
-      text-align:center;
-      padding:20px 32px;
-      font-size:52px;
-      line-height:1.25;
-      font-weight:900;
-      opacity:0;
-      box-shadow:
-        0 18px 40px rgba(0,0,0,.35),
-        inset 0 0 0 1px rgba(255,255,255,.05);
+      cursor:pointer;
+      box-shadow:0 8px 14px rgba(0,0,0,.18);
+      text-decoration:none;
     }
 
-    .strike-effect-layer.show-transfer .transfer-message-box{
-      animation:transferMessagePop 1.85s ease forwards;
+    .home-btn svg{
+      width:38px;
+      height:38px;
+      display:block;
+      fill:#fff;
     }
 
-    @keyframes bigStrikePop{
-      0%{
-        opacity:0;
-        transform:translate(-50%, -50%) scale(.45) rotate(-6deg);
-      }
-      18%{
-        opacity:1;
-        transform:translate(-50%, -50%) scale(1.08) rotate(0deg);
-      }
-      55%{
-        opacity:1;
-        transform:translate(-50%, -50%) scale(1);
-      }
-      100%{
-        opacity:0;
-        transform:translate(-50%, -50%) scale(.86);
-      }
-    }
-
-    @keyframes transferMessagePop{
-      0%{
-        opacity:0;
-        transform:translate(-50%, -50%) scale(.84);
-      }
-      14%{
-        opacity:1;
-        transform:translate(-50%, -50%) scale(1.03);
-      }
-      78%{
-        opacity:1;
-        transform:translate(-50%, -50%) scale(1);
-      }
-      100%{
-        opacity:0;
-        transform:translate(-50%, -50%) scale(.94);
-      }
+    .hint-hidden{
+      visibility:hidden;
     }
   </style>
 </head>
@@ -480,58 +439,33 @@
     <div class="fit-root">
       <div class="game-shell">
 
-        <img id="storeLogo" class="store-logo" src="logo.PNG" alt="صندوق المسابقات">
-        <img id="gameLogo" class="game-logo" src="logo-family-feud.PNG" alt="فاميلي فيود">
+        <div id="questionNumber" class="question-number">سؤال 1</div>
 
         <div class="question-box">
-          <div id="questionText" class="question-text"></div>
+          <div id="questionText" class="question-text">نص السؤال</div>
         </div>
 
-        <div class="round-box">
-          <div class="round-label">نقاط الجولة</div>
-          <div id="roundScore" class="round-score">0</div>
-        </div>
-
-        <aside class="team-panel left">
-          <div id="teamTwoName" class="team-name">الفريق الثاني</div>
-
-          <div class="team-score-box">
-            <div id="teamTwoScore" class="team-score">0</div>
-          </div>
-
-          <div class="strikes-label">الأخطاء</div>
-
-          <div id="teamTwoStrikes" class="strikes-row">
-            <div class="strike">X</div>
-            <div class="strike">X</div>
-            <div class="strike">X</div>
-          </div>
-        </aside>
-
-        <div class="board">
+        <section class="answers-panel">
           <div id="answersGrid" class="answers-grid"></div>
+        </section>
+
+        <section class="right-panel">
+          <div id="panelTitle" class="panel-title hint-hidden">.</div>
+          <div id="panelActions" class="panel-actions"></div>
+          <div id="firstPlayerBox" class="player-box">اسم اللاعب الذي يضغط أولًا</div>
+        </section>
+
+        <div class="bottom-actions">
+          <button id="bellToggleBtn" class="main-btn blue" type="button">إخفاء الجرس</button>
+          <button id="errorBtn" class="main-btn red" type="button">خطأ</button>
+          <button id="nextQuestionBtn" class="main-btn blue" type="button">تغيير السؤال</button>
         </div>
 
-        <aside class="team-panel right">
-          <div id="teamOneName" class="team-name">الفريق الأول</div>
-
-          <div class="team-score-box">
-            <div id="teamOneScore" class="team-score">0</div>
-          </div>
-
-          <div class="strikes-label">الأخطاء</div>
-
-          <div id="teamOneStrikes" class="strikes-row">
-            <div class="strike">X</div>
-            <div class="strike">X</div>
-            <div class="strike">X</div>
-          </div>
-        </aside>
-
-        <div id="strikeEffectLayer" class="strike-effect-layer" aria-hidden="true">
-          <div id="bigStrikeX" class="big-strike-x">X</div>
-          <div id="transferMessageBox" class="transfer-message-box">ينتقل السؤال إلى الفريق الآخر</div>
-        </div>
+        <a class="home-btn" href="index.html" aria-label="الصفحة الرئيسية">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M12 3.2 2.5 11.1l1.3 1.6L5 11.8V20h5.7v-5.1h2.6V20H19v-8.2l1.2.9 1.3-1.6L12 3.2z"/>
+          </svg>
+        </a>
 
       </div>
     </div>
@@ -545,6 +479,7 @@
     const DESIGN_HEIGHT = 768;
 
     const DISPLAY_KEY = "familyfeud_display_state_v1";
+    const CONTROL_KEY = "familyfeud_control_state_v1";
     const ROOM_KEY = "familyfeud_room_id";
     const BUZZ_ROOM_KEY = "familyfeud_buzz_room";
     const API_BASE_KEY = "familyfeud_api_base";
@@ -552,39 +487,34 @@
     const DISPLAY_CHANNEL = "familyfeud_display_channel_v1";
 
     const DEFAULT_ROOM = "family-feud-demo";
-    const FALLBACK_POLL_MS = 700;
+    const FALLBACK_POLL_MS = 3500;
 
     const root = document.documentElement;
 
-    const teamOneNameEl = document.getElementById("teamOneName");
-    const teamTwoNameEl = document.getElementById("teamTwoName");
-    const teamOneScoreEl = document.getElementById("teamOneScore");
-    const teamTwoScoreEl = document.getElementById("teamTwoScore");
-    const roundScoreEl = document.getElementById("roundScore");
+    const questionNumberEl = document.getElementById("questionNumber");
     const questionTextEl = document.getElementById("questionText");
-    const answersGrid = document.getElementById("answersGrid");
-
-    const strikeEffectLayer = document.getElementById("strikeEffectLayer");
-
-    const strikeRows = {
-      team1: document.querySelectorAll("#teamOneStrikes .strike"),
-      team2: document.querySelectorAll("#teamTwoStrikes .strike")
-    };
+    const answersGridEl = document.getElementById("answersGrid");
+    const panelTitleEl = document.getElementById("panelTitle");
+    const panelActionsEl = document.getElementById("panelActions");
+    const firstPlayerBoxEl = document.getElementById("firstPlayerBox");
+    const bellToggleBtn = document.getElementById("bellToggleBtn");
+    const errorBtn = document.getElementById("errorBtn");
+    const nextQuestionBtn = document.getElementById("nextQuestionBtn");
 
     let stableViewport = { width: window.innerWidth, height: window.innerHeight };
-    let lastStateSignature = "";
     let roomId = resolveRoomId();
+    let displayState = readDisplayState();
+    let controlState = readControlState();
     let channel = null;
 
-    let apiBase = normalizeBase(readStored(API_BASE_KEY) || readStored(BUZZ_API_BASE_KEY));
+    let isBusy = false;
+    let stealAwardInProgress = false;
     let pusher = null;
     let gameChannel = null;
     let fallbackPoll = null;
     let syncStarted = false;
-    let teamNamesSynced = false;
-
-    let previousStrikeSnapshot = null;
-    let strikeEffectTimers = [];
+    let apiBase = normalizeBase(readStored(API_BASE_KEY) || readStored(BUZZ_API_BASE_KEY));
+    let initialAutoShowDone = false;
 
     try {
       channel = new BroadcastChannel(DISPLAY_CHANNEL);
@@ -593,34 +523,34 @@
     }
 
     persistRoomId(roomId);
-    renderDisplay();
+    ensureInitialState();
+    renderAll();
     updateLayout();
     startRemoteSync();
 
     if (channel) {
       channel.onmessage = () => {
-        renderDisplay();
+        displayState = readDisplayState();
+        controlState = readControlState();
+        renderAll();
       };
     }
 
-    window.addEventListener("storage", renderDisplay);
-
-    window.addEventListener("pageshow", async () => {
-      await fetchRemoteGameState();
-      renderDisplay();
-      updateLayout();
+    window.addEventListener("storage", () => {
+      displayState = readDisplayState();
+      controlState = readControlState();
+      renderAll();
     });
 
     window.addEventListener("focus", async () => {
       await fetchRemoteGameState();
-      renderDisplay();
-      updateLayout();
+      renderAll();
     });
 
     window.addEventListener("load", () => {
-      renderDisplay();
       setTimeout(updateLayout, 60);
       setTimeout(updateLayout, 220);
+      renderAll();
     }, { passive: true });
 
     window.addEventListener("resize", updateLayout, { passive: true });
@@ -640,48 +570,35 @@
     document.addEventListener("touchend", nudgeSafariBar, { passive: true });
     window.addEventListener("beforeunload", destroyLiveSync);
 
-    function readStored(key) {
-      try {
-        const localValue = localStorage.getItem(key);
-        if (localValue) return localValue;
-      } catch (e) {}
+    bellToggleBtn.addEventListener("click", async () => {
+      if (isBusy) return;
 
-      try {
-        const sessionValue = sessionStorage.getItem(key);
-        if (sessionValue) return sessionValue;
-      } catch (e) {}
+      const nextVisible = !(controlState.buzzVisible === true);
 
-      return "";
-    }
+      await sendGameAction("set_buzz_visible", {
+        visible: nextVisible
+      });
+    });
 
-    function writeStored(key, value) {
-      const stringValue = typeof value === "string" ? value : JSON.stringify(value);
+    errorBtn.addEventListener("click", async () => {
+      if (isBusy) return;
+      if (!canRegisterError()) return;
 
-      try { localStorage.setItem(key, stringValue); } catch (e) {}
-      try { sessionStorage.setItem(key, stringValue); } catch (e) {}
+      await sendGameAction("register_error", {
+        team: controlState.currentTurnTeam
+      });
+    });
 
-      if (channel) {
-        try { channel.postMessage({ key }); } catch (e) {}
+    nextQuestionBtn.addEventListener("click", async () => {
+      if (isBusy) return;
+
+      const ok = await sendGameAction("next_question");
+
+      if (ok) {
+        await sendGameAction("show_question", { visible: true });
+        await sendGameAction("set_buzz_visible", { visible: true });
       }
-    }
-
-    function safeParse(json) {
-      try {
-        return JSON.parse(json);
-      } catch (e) {
-        return null;
-      }
-    }
-
-    function normalizeBase(base) {
-      return String(base || "").trim().replace(/\/+$/, "");
-    }
-
-    function normalizeRoom(value) {
-      const v = String(value || "").trim().toLowerCase();
-      if (!v) return "";
-      return v.replace(/[^a-z0-9_-]/g, "").slice(0, 64);
-    }
+    });
 
     function resolveRoomId() {
       const url = new URL(window.location.href);
@@ -697,9 +614,9 @@
 
     function getApiBases() {
       const seen = new Set();
-      const result = [];
+      const bases = [];
 
-      const candidates = [
+      const rawBases = [
         apiBase,
         readStored(API_BASE_KEY),
         readStored(BUZZ_API_BASE_KEY),
@@ -708,84 +625,41 @@
         "https://z.sandooq-m.workers.dev"
       ];
 
-      candidates.forEach((base) => {
+      rawBases.forEach((base) => {
         const normalized = normalizeBase(base);
         if (!normalized || seen.has(normalized)) return;
         seen.add(normalized);
-        result.push(normalized);
+        bases.push(normalized);
       });
 
-      return result;
+      return bases;
     }
 
-    function getDefaultState() {
-      return {
-        showQuestion: false,
-        question: "",
-        team1Name: readStored("familyfeud_team1") || "الفريق الأول",
-        team2Name: readStored("familyfeud_team2") || "الفريق الثاني",
-        team1Score: 0,
-        team2Score: 0,
-        team1Strikes: 0,
-        team2Strikes: 0,
-        roundPoints: 0,
-        answers: Array.from({ length: 6 }, () => ({
-          text: "",
-          points: 0,
-          revealed: false
-        }))
-      };
-    }
+    async function detectApiBase() {
+      const bases = getApiBases();
 
-    function normalizeNumber(value, fallback = 0) {
-      const n = Number(value);
-      return Number.isFinite(n) ? n : fallback;
-    }
+      for (const base of bases) {
+        try {
+          const res = await fetch(`${base}/api/game/state?room=${encodeURIComponent(roomId)}`, {
+            method: "GET",
+            cache: "no-store",
+            headers: {
+              "Cache-Control": "no-cache",
+              "Pragma": "no-cache"
+            }
+          });
 
-    function normalizeStrikeCount(value) {
-      return Math.max(0, Math.min(3, normalizeNumber(value, 0)));
-    }
+          const data = await res.json().catch(() => null);
+          if (!res.ok || !data || !data.ok || !data.state) continue;
 
-    function normalizeAnswer(answer, fallback) {
-      return {
-        text: String(answer?.text ?? fallback?.text ?? "").trim(),
-        points: Math.max(0, normalizeNumber(answer?.points, fallback?.points ?? 0)),
-        revealed: !!answer?.revealed
-      };
-    }
-
-    function normalizeState(raw) {
-      const defaults = getDefaultState();
-      const source = raw || defaults;
-      const answers = Array.isArray(source.answers) ? source.answers : defaults.answers;
-
-      const normalizedAnswers = [];
-      for (let i = 0; i < 6; i++) {
-        normalizedAnswers.push(normalizeAnswer(answers[i], defaults.answers[i]));
+          apiBase = base;
+          writeStored(API_BASE_KEY, base);
+          writeStored(BUZZ_API_BASE_KEY, base);
+          return true;
+        } catch (error) {}
       }
 
-      return {
-        showQuestion: typeof source.showQuestion === "boolean" ? source.showQuestion : defaults.showQuestion,
-        question: String(source.question || defaults.question).trim(),
-        team1Name: String(source.team1Name || defaults.team1Name).trim() || defaults.team1Name,
-        team2Name: String(source.team2Name || defaults.team2Name).trim() || defaults.team2Name,
-        team1Score: Math.max(0, normalizeNumber(source.team1Score, defaults.team1Score)),
-        team2Score: Math.max(0, normalizeNumber(source.team2Score, defaults.team2Score)),
-        team1Strikes: normalizeStrikeCount(source.team1Strikes),
-        team2Strikes: normalizeStrikeCount(source.team2Strikes),
-        roundPoints: Math.max(0, normalizeNumber(source.roundPoints, 0)),
-        answers: normalizedAnswers
-      };
-    }
-
-    function readDisplayState() {
-      const raw = readStored(DISPLAY_KEY);
-      if (!raw) return normalizeState(getDefaultState());
-
-      const parsed = safeParse(raw);
-      if (!parsed) return normalizeState(getDefaultState());
-
-      return normalizeState(parsed);
+      return false;
     }
 
     async function startRemoteSync() {
@@ -795,8 +669,8 @@
       const ok = await detectApiBase();
 
       if (ok) {
-        await syncTeamNamesToRemote();
         await fetchRemoteGameState();
+        await maybeInitialAutoShowQuestion();
         await initPusher();
       }
 
@@ -806,8 +680,8 @@
     function startFallbackPoll() {
       if (fallbackPoll) clearInterval(fallbackPoll);
 
-      fallbackPoll = setInterval(async () => {
-        await fetchRemoteGameState();
+      fallbackPoll = setInterval(() => {
+        fetchRemoteGameState();
       }, FALLBACK_POLL_MS);
     }
 
@@ -830,35 +704,6 @@
 
       pusher = null;
       syncStarted = false;
-    }
-
-    async function detectApiBase() {
-      const bases = getApiBases();
-
-      for (const base of bases) {
-        try {
-          const res = await fetch(`${base}/api/game/state?room=${encodeURIComponent(roomId)}`, {
-            method: "GET",
-            cache: "no-store",
-            headers: {
-              "Cache-Control": "no-cache",
-              "Pragma": "no-cache"
-            }
-          });
-
-          const data = await res.json().catch(() => null);
-          if (!res.ok || !data || !data.ok || !data.state || !data.state.display) continue;
-
-          apiBase = base;
-          writeStored(API_BASE_KEY, base);
-          writeStored(BUZZ_API_BASE_KEY, base);
-          applyRemoteGameState(data.state);
-          renderDisplay();
-          return true;
-        } catch (error) {}
-      }
-
-      return false;
     }
 
     async function initPusher() {
@@ -887,8 +732,6 @@
 
         pusher = new window.Pusher(data.key, {
           cluster: data.cluster,
-          authEndpoint,
-          authTransport: "ajax",
           channelAuthorization: {
             endpoint: authEndpoint,
             transport: "ajax"
@@ -903,9 +746,20 @@
 
         gameChannel.bind("game-updated", (payload) => {
           applyRemoteGameState(payload);
-          renderDisplay();
+          renderAll();
         });
       } catch (error) {}
+    }
+
+    async function maybeInitialAutoShowQuestion() {
+      if (initialAutoShowDone) return;
+      if (!displayState.question) return;
+
+      initialAutoShowDone = true;
+
+      if (!displayState.showQuestion) {
+        await sendGameAction("show_question", { visible: true });
+      }
     }
 
     async function fetchRemoteGameState() {
@@ -925,14 +779,14 @@
           if (!res.ok) continue;
 
           const data = await res.json().catch(() => null);
-          if (!data || !data.ok || !data.state || !data.state.display) continue;
+          if (!data || !data.ok || !data.state) continue;
 
           apiBase = base;
           writeStored(API_BASE_KEY, base);
           writeStored(BUZZ_API_BASE_KEY, base);
 
           applyRemoteGameState(data.state);
-          renderDisplay();
+          renderAll();
           return true;
         } catch (error) {}
       }
@@ -942,58 +796,472 @@
 
     async function sendGameAction(action, extra = {}) {
       const bases = getApiBases();
+      isBusy = true;
+      renderAll();
 
-      for (const base of bases) {
-        try {
-          const res = await fetch(`${base}/api/game/action?room=${encodeURIComponent(roomId)}`, {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              "Cache-Control": "no-cache",
-              "Pragma": "no-cache"
-            },
-            body: JSON.stringify({
-              action,
-              ...extra
-            })
-          });
+      try {
+        for (const base of bases) {
+          try {
+            const res = await fetch(`${base}/api/game/action?room=${encodeURIComponent(roomId)}`, {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                "Cache-Control": "no-cache",
+                "Pragma": "no-cache"
+              },
+              body: JSON.stringify({
+                action,
+                ...extra
+              })
+            });
 
-          const data = await res.json().catch(() => null);
-          if (!res.ok || !data || !data.ok || !data.state) continue;
+            if (!res.ok) continue;
 
-          apiBase = base;
-          writeStored(API_BASE_KEY, base);
-          writeStored(BUZZ_API_BASE_KEY, base);
+            const data = await res.json().catch(() => null);
+            if (!data || !data.ok || !data.state) continue;
 
-          applyRemoteGameState(data.state);
-          renderDisplay();
-          return true;
-        } catch (error) {}
+            apiBase = base;
+            writeStored(API_BASE_KEY, base);
+            writeStored(BUZZ_API_BASE_KEY, base);
+
+            applyRemoteGameState(data.state);
+            renderAll();
+            return true;
+          } catch (error) {}
+        }
+
+        return false;
+      } finally {
+        isBusy = false;
+        renderAll();
       }
-
-      return false;
     }
 
-    async function syncTeamNamesToRemote() {
-      if (teamNamesSynced) return;
-      teamNamesSynced = true;
+    async function runGameActions(actions) {
+      for (const item of actions) {
+        const ok = await sendGameAction(item.action, item.payload || {});
+        if (!ok) return false;
+      }
 
-      const team1Name = String(readStored("familyfeud_team1") || "").trim();
-      const team2Name = String(readStored("familyfeud_team2") || "").trim();
-
-      if (!team1Name && !team2Name) return;
-
-      await sendGameAction("set_team_names", {
-        team1Name: team1Name || undefined,
-        team2Name: team2Name || undefined
-      });
+      return true;
     }
 
     function applyRemoteGameState(remoteState) {
-      if (!remoteState || !remoteState.display) return;
+      if (!remoteState) return;
 
-      const nextState = normalizeState(remoteState.display);
-      writeStored(DISPLAY_KEY, nextState);
+      const display = remoteState.display || {};
+      const control = remoteState.control || {};
+      const buzz = remoteState.buzz || {};
+
+      displayState = {
+        showQuestion: !!display.showQuestion,
+        question: String(display.question || ""),
+        team1Name: String(display.team1Name || readStored("familyfeud_team1") || "الفريق الأول"),
+        team2Name: String(display.team2Name || readStored("familyfeud_team2") || "الفريق الثاني"),
+        team1Score: Number(display.team1Score || 0),
+        team2Score: Number(display.team2Score || 0),
+        team1Strikes: Number(display.team1Strikes || 0),
+        team2Strikes: Number(display.team2Strikes || 0),
+        roundPoints: Number(display.roundPoints || 0),
+        answers: Array.isArray(display.answers)
+          ? display.answers.map((answer) => ({
+              text: String(answer?.text || ""),
+              points: Number(answer?.points || 0),
+              revealed: !!answer?.revealed
+            }))
+          : []
+      };
+
+      controlState = {
+        currentQuestionIndex: Number(control.currentQuestionIndex || 0),
+        totalQuestions: Number(control.totalQuestions || 0),
+        stage: String(control.phase || "idle"),
+        currentTurnTeam: String(control.currentTurnTeam || ""),
+        confrontationWinner: String(control.confrontationWinner || ""),
+        stealingTeam: String(control.stealingTeam || ""),
+        firstBuzzName: String(buzz.firstBuzz?.name || ""),
+        firstBuzzTeam: String(buzz.firstBuzz?.team || ""),
+        buzzVisible: !!buzz.enabled
+      };
+
+      saveDisplayState();
+      saveControlState();
+    }
+
+    function ensureInitialState() {
+      if (!displayState || !Array.isArray(displayState.answers)) {
+        displayState = {
+          showQuestion: false,
+          question: "",
+          team1Name: readStored("familyfeud_team1") || "الفريق الأول",
+          team2Name: readStored("familyfeud_team2") || "الفريق الثاني",
+          team1Score: 0,
+          team2Score: 0,
+          team1Strikes: 0,
+          team2Strikes: 0,
+          roundPoints: 0,
+          answers: Array.from({ length: 6 }, () => ({
+            text: "",
+            points: 0,
+            revealed: false
+          }))
+        };
+        saveDisplayState();
+      }
+
+      if (!controlState) {
+        controlState = getDefaultControlState();
+        saveControlState();
+      }
+    }
+
+    function getDefaultControlState() {
+      return {
+        currentQuestionIndex: 0,
+        totalQuestions: 0,
+        stage: "idle",
+        currentTurnTeam: "",
+        confrontationWinner: "",
+        stealingTeam: "",
+        firstBuzzName: "",
+        firstBuzzTeam: "",
+        buzzVisible: true
+      };
+    }
+
+    function readStored(key) {
+      try {
+        const localValue = localStorage.getItem(key);
+        if (localValue) return localValue;
+      } catch (e) {}
+
+      try {
+        const sessionValue = sessionStorage.getItem(key);
+        if (sessionValue) return sessionValue;
+      } catch (e) {}
+
+      return "";
+    }
+
+    function writeStored(key, value) {
+      const stringValue = typeof value === "string" ? value : JSON.stringify(value);
+
+      try { localStorage.setItem(key, stringValue); } catch (e) {}
+      try { sessionStorage.setItem(key, stringValue); } catch (e) {}
+
+      if (channel) {
+        try { channel.postMessage({ key }); } catch (e) {}
+      }
+    }
+
+    function safeParse(value) {
+      try {
+        return JSON.parse(value);
+      } catch (e) {
+        return null;
+      }
+    }
+
+    function normalizeBase(base) {
+      return String(base || "").trim().replace(/\/+$/, "");
+    }
+
+    function normalizeRoom(value) {
+      const v = String(value || "").trim().toLowerCase();
+      if (!v) return "";
+      return v.replace(/[^a-z0-9_-]/g, "").slice(0, 64);
+    }
+
+    function readDisplayState() {
+      const raw = readStored(DISPLAY_KEY);
+      const parsed = safeParse(raw);
+      return parsed || null;
+    }
+
+    function readControlState() {
+      const raw = readStored(CONTROL_KEY);
+      const parsed = safeParse(raw);
+      return parsed || getDefaultControlState();
+    }
+
+    function saveDisplayState() {
+      displayState.roundPoints = calculateRoundPoints();
+      writeStored(DISPLAY_KEY, displayState);
+    }
+
+    function saveControlState() {
+      writeStored(CONTROL_KEY, controlState);
+    }
+
+    function calculateRoundPoints() {
+      return (displayState.answers || []).reduce((sum, answer) => {
+        return sum + (answer.revealed ? Number(answer.points || 0) : 0);
+      }, 0);
+    }
+
+    function getTeamName(team) {
+      if (team === "team1") return displayState.team1Name || "الفريق الأول";
+      if (team === "team2") return displayState.team2Name || "الفريق الثاني";
+      return "";
+    }
+
+    function getOtherTeam(team) {
+      return team === "team1" ? "team2" : "team1";
+    }
+
+    function isStealStage() {
+      return controlState.stage === "steal_result" || controlState.stage === "steal_pick";
+    }
+
+    function canRegisterError() {
+      if (!controlState.currentTurnTeam) return false;
+      if (controlState.stage === "steal_result") return false;
+      if (controlState.stage === "steal_pick") return false;
+      return true;
+    }
+
+    function getFirstBuzzLabel() {
+      if (!controlState.firstBuzzName) {
+        return "اسم اللاعب الذي يضغط أولًا";
+      }
+
+      const teamName = getTeamName(controlState.firstBuzzTeam);
+      if (teamName) {
+        return `${controlState.firstBuzzName} - ${teamName}`;
+      }
+
+      return controlState.firstBuzzName;
+    }
+
+    function renderAll() {
+      const totalQuestions = controlState.totalQuestions > 0 ? controlState.totalQuestions : "";
+      questionNumberEl.textContent = totalQuestions
+        ? `سؤال ${controlState.currentQuestionIndex + 1} / ${totalQuestions}`
+        : `سؤال ${controlState.currentQuestionIndex + 1}`;
+
+      questionTextEl.textContent = displayState.question || "نص السؤال";
+      firstPlayerBoxEl.textContent = getFirstBuzzLabel();
+      bellToggleBtn.textContent = controlState.buzzVisible ? "إخفاء الجرس" : "إظهار الجرس";
+
+      bellToggleBtn.disabled = isBusy || stealAwardInProgress;
+      errorBtn.disabled = isBusy || stealAwardInProgress || !canRegisterError();
+      nextQuestionBtn.disabled = isBusy || stealAwardInProgress;
+
+      renderAnswers();
+      renderPanel();
+    }
+
+    function renderAnswers() {
+      const positions = [
+        { row: 1, col: 2 },
+        { row: 1, col: 1 },
+        { row: 2, col: 2 },
+        { row: 2, col: 1 },
+        { row: 3, col: 2 },
+        { row: 3, col: 1 }
+      ];
+
+      answersGridEl.innerHTML = "";
+
+      const answers = Array.isArray(displayState.answers) ? displayState.answers : [];
+
+      answers.forEach((answer, index) => {
+        const card = document.createElement("button");
+        const isBlockedRevealedAnswer = isStealStage() && !!answer.revealed;
+
+        const shouldDisable =
+          isBusy ||
+          stealAwardInProgress ||
+          isBlockedRevealedAnswer;
+
+        card.type = "button";
+        card.className = "answer-card" + (answer.revealed ? " revealed" : "");
+        if (shouldDisable) card.classList.add("disabled");
+        card.disabled = shouldDisable;
+
+        card.style.gridRow = positions[index]?.row || "auto";
+        card.style.gridColumn = positions[index]?.col || "auto";
+
+        card.innerHTML = `
+          <div class="answer-points">${answer.points}</div>
+          <div class="answer-label">${answer.text}</div>
+        `;
+
+        card.addEventListener("click", async () => {
+          await handleAnswerClick(index);
+        });
+
+        answersGridEl.appendChild(card);
+      });
+    }
+
+    function renderPanel() {
+      panelActionsEl.innerHTML = "";
+
+      if (controlState.stage === "idle" || controlState.stage === "main") {
+        panelTitleEl.textContent = ".";
+        panelTitleEl.classList.add("hint-hidden");
+        return;
+      }
+
+      panelTitleEl.classList.remove("hint-hidden");
+
+      if (controlState.stage === "duel_select") {
+        panelTitleEl.textContent = "مين جاوب؟";
+
+        const row = buildRow([
+          buildBlueButton(getTeamName("team1"), async () => {
+            await sendGameAction("set_duel_winner", { team: "team1" });
+          }),
+          buildBlueButton(getTeamName("team2"), async () => {
+            await sendGameAction("set_duel_winner", { team: "team2" });
+          })
+        ]);
+
+        const cancelRow = buildRow([
+          buildRedButton("إلغاء", async () => {
+            await cancelDuelAndOpenBuzzAgain();
+          })
+        ]);
+
+        panelActionsEl.appendChild(row);
+        panelActionsEl.appendChild(cancelRow);
+        return;
+      }
+
+      if (controlState.stage === "play_or_pass") {
+        const winnerName = getTeamName(controlState.confrontationWinner);
+        panelTitleEl.textContent = `الفريق ${winnerName} فاز بالسؤال ماذا تريد؟`;
+
+        const row = buildRow([
+          buildBlueButton("نلعب", async () => {
+            await choosePlayOrPass("play");
+          }),
+          buildBlueButton("نمرر للفريق الآخر", async () => {
+            await choosePlayOrPass("pass");
+          })
+        ]);
+
+        const cancelRow = buildRow([
+          buildRedButton("إلغاء", async () => {
+            await sendGameAction("cancel_context");
+          })
+        ]);
+
+        panelActionsEl.appendChild(row);
+        panelActionsEl.appendChild(cancelRow);
+        return;
+      }
+
+      if (isStealStage()) {
+        panelTitleEl.textContent = "اضغط على الجواب لمنح الفريق الاخر النقاط";
+
+        const failRow = buildRow([
+          buildFailStealButton()
+        ]);
+        failRow.classList.add("single-fail");
+
+        panelActionsEl.appendChild(failRow);
+        return;
+      }
+
+      panelTitleEl.textContent = ".";
+      panelTitleEl.classList.add("hint-hidden");
+    }
+
+    function buildRow(buttons) {
+      const row = document.createElement("div");
+      row.className = "panel-row";
+      buttons.forEach(btn => row.appendChild(btn));
+      return row;
+    }
+
+    function buildBlueButton(text, onClick) {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "panel-btn";
+      btn.textContent = text;
+      btn.disabled = isBusy || stealAwardInProgress;
+      btn.addEventListener("click", onClick);
+      return btn;
+    }
+
+    function buildRedButton(text, onClick) {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "panel-btn red";
+      btn.textContent = text;
+      btn.disabled = isBusy || stealAwardInProgress;
+      btn.addEventListener("click", onClick);
+      return btn;
+    }
+
+    function buildFailStealButton() {
+      const btn = buildRedButton("فشلت السرقة", async () => {
+        await sendGameAction("steal_result", { result: "fail" });
+      });
+      btn.classList.add("fail-only");
+      return btn;
+    }
+
+    async function handleAnswerClick(index) {
+      if (isBusy || stealAwardInProgress) return;
+
+      const answer = Array.isArray(displayState.answers)
+        ? displayState.answers[index]
+        : null;
+
+      if (!answer) return;
+
+      if (isStealStage()) {
+        if (answer.revealed) return;
+
+        stealAwardInProgress = true;
+        renderAll();
+
+        try {
+          let awarded = false;
+
+          if (controlState.stage === "steal_result") {
+            awarded = await sendGameAction("award_steal", { answerIndex: index });
+
+            if (!awarded) {
+              const movedToPick = await sendGameAction("steal_result", { result: "success" });
+              if (!movedToPick) return;
+              awarded = await sendGameAction("award_steal", { answerIndex: index });
+            }
+          } else {
+            awarded = await sendGameAction("award_steal", { answerIndex: index });
+          }
+
+          if (awarded) {
+            await fetchRemoteGameState();
+          }
+        } finally {
+          stealAwardInProgress = false;
+          renderAll();
+        }
+
+        return;
+      }
+
+      await sendGameAction("reveal_answer", { answerIndex: index });
+    }
+
+    async function choosePlayOrPass(decision) {
+      const ok = await sendGameAction("choose_play_or_pass", { decision });
+
+      if (ok) {
+        await sendGameAction("set_buzz_visible", { visible: false });
+      }
+    }
+
+    async function cancelDuelAndOpenBuzzAgain() {
+      await runGameActions([
+        { action: "cancel_context" },
+        { action: "clear_first_buzz" },
+        { action: "set_buzz_visible", payload: { visible: true } }
+      ]);
     }
 
     function getCurrentViewport() {
@@ -1045,164 +1313,9 @@
 
       requestAnimationFrame(() => {
         fitGameToViewport();
-        applyAutoTextFitting();
         nudgeSafariBar();
       });
     }
-
-    function applyStrikeRow(elements, activeCount) {
-      elements.forEach((el, index) => {
-        el.classList.toggle("active", index < activeCount);
-      });
-    }
-
-    function detectStrikeEffect(state) {
-      const nextSnapshot = {
-        team1: normalizeStrikeCount(state.team1Strikes),
-        team2: normalizeStrikeCount(state.team2Strikes)
-      };
-
-      if (!previousStrikeSnapshot) {
-        previousStrikeSnapshot = nextSnapshot;
-        return;
-      }
-
-      if (nextSnapshot.team1 > previousStrikeSnapshot.team1) {
-        playStrikeEffect(nextSnapshot.team1);
-      } else if (nextSnapshot.team2 > previousStrikeSnapshot.team2) {
-        playStrikeEffect(nextSnapshot.team2);
-      }
-
-      previousStrikeSnapshot = nextSnapshot;
-    }
-
-    function clearStrikeEffectTimers() {
-      strikeEffectTimers.forEach((timer) => clearTimeout(timer));
-      strikeEffectTimers = [];
-    }
-
-    function resetStrikeEffectLayer() {
-      strikeEffectLayer.classList.remove("show", "show-x", "show-transfer");
-      void strikeEffectLayer.offsetWidth;
-    }
-
-    function playStrikeEffect(strikeCount) {
-      clearStrikeEffectTimers();
-      resetStrikeEffectLayer();
-
-      strikeEffectLayer.classList.add("show", "show-x");
-
-      if (strikeCount >= 3) {
-        strikeEffectTimers.push(setTimeout(() => {
-          strikeEffectLayer.classList.remove("show-x");
-          void strikeEffectLayer.offsetWidth;
-          strikeEffectLayer.classList.add("show", "show-transfer");
-        }, 850));
-
-        strikeEffectTimers.push(setTimeout(() => {
-          strikeEffectLayer.classList.remove("show", "show-x", "show-transfer");
-        }, 2850));
-      } else {
-        strikeEffectTimers.push(setTimeout(() => {
-          strikeEffectLayer.classList.remove("show", "show-x", "show-transfer");
-        }, 1000));
-      }
-    }
-
-    function renderAnswers(state) {
-      const positions = [
-        { row: 1, col: 2 },
-        { row: 1, col: 1 },
-        { row: 2, col: 2 },
-        { row: 2, col: 1 },
-        { row: 3, col: 2 },
-        { row: 3, col: 1 }
-      ];
-
-      answersGrid.innerHTML = "";
-
-      state.answers.forEach((answer, index) => {
-        const slot = document.createElement("div");
-        const revealed = !!answer.revealed;
-
-        slot.className = "answer-slot " + (revealed ? "revealed" : "hidden-state");
-        slot.style.gridRow = positions[index].row;
-        slot.style.gridColumn = positions[index].col;
-
-        if (revealed) {
-          slot.innerHTML = `
-            <div class="answer-points">${answer.points}</div>
-            <div class="answer-label auto-fit-answer">${answer.text || ""}</div>
-          `;
-        } else {
-          slot.innerHTML = `<div class="rank-circle">${index + 1}</div>`;
-        }
-
-        answersGrid.appendChild(slot);
-      });
-    }
-
-    function renderDisplay() {
-      const state = readDisplayState();
-      const signature = JSON.stringify(state);
-
-      if (signature === lastStateSignature) return;
-      lastStateSignature = signature;
-
-      detectStrikeEffect(state);
-
-      teamOneNameEl.textContent = state.team1Name;
-      teamTwoNameEl.textContent = state.team2Name;
-
-      teamOneScoreEl.textContent = state.team1Score;
-      teamTwoScoreEl.textContent = state.team2Score;
-
-      questionTextEl.textContent = state.showQuestion ? state.question : "";
-      roundScoreEl.textContent = state.roundPoints;
-
-      applyStrikeRow(strikeRows.team1, state.team1Strikes);
-      applyStrikeRow(strikeRows.team2, state.team2Strikes);
-
-      renderAnswers(state);
-      requestAnimationFrame(applyAutoTextFitting);
-    }
-
-    function fitTextToBox(element, maxSize, minSize) {
-      if (!element) return;
-
-      element.style.fontSize = maxSize + "px";
-
-      let current = maxSize;
-      while (current > minSize) {
-        const tooWide = element.scrollWidth > element.clientWidth + 1;
-        const tooTall = element.scrollHeight > element.clientHeight + 1;
-
-        if (!tooWide && !tooTall) break;
-
-        current -= 1;
-        element.style.fontSize = current + "px";
-      }
-    }
-
-    function applyAutoTextFitting() {
-      fitTextToBox(questionTextEl, 58, 26);
-      fitTextToBox(teamOneNameEl, 48, 22);
-      fitTextToBox(teamTwoNameEl, 48, 22);
-
-      document.querySelectorAll(".auto-fit-answer").forEach(el => {
-        fitTextToBox(el, 38, 18);
-      });
-    }
-
-    const storeLogo = document.getElementById("storeLogo");
-    storeLogo.addEventListener("error", () => {
-      storeLogo.style.display = "none";
-    });
-
-    const gameLogo = document.getElementById("gameLogo");
-    gameLogo.addEventListener("error", () => {
-      gameLogo.style.display = "none";
-    });
   </script>
 </body>
 </html>
