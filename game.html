@@ -408,7 +408,7 @@
     }
 
     .strike-effect-layer.show-x .big-strike-x{
-      animation:bigStrikePop .95s ease forwards;
+      animation:bigStrikePop 2s ease forwards;
     }
 
     .transfer-message-box{
@@ -515,17 +515,17 @@
         opacity:0;
         transform:translate(-50%, -50%) scale(.45) rotate(-6deg);
       }
-      18%{
+      12%{
         opacity:1;
         transform:translate(-50%, -50%) scale(1.08) rotate(0deg);
       }
-      55%{
+      78%{
         opacity:1;
         transform:translate(-50%, -50%) scale(1);
       }
       100%{
         opacity:0;
-        transform:translate(-50%, -50%) scale(.86);
+        transform:translate(-50%, -50%) scale(.92);
       }
     }
 
@@ -1342,15 +1342,15 @@
           strikeEffectLayer.classList.remove("show-x");
           void strikeEffectLayer.offsetWidth;
           strikeEffectLayer.classList.add("show", "show-transfer");
-        }, 850));
+        }, 2000));
 
         strikeEffectTimers.push(setTimeout(() => {
           strikeEffectLayer.classList.remove("show", "show-x", "show-transfer");
-        }, 2850));
+        }, 3900));
       } else {
         strikeEffectTimers.push(setTimeout(() => {
           strikeEffectLayer.classList.remove("show", "show-x", "show-transfer");
-        }, 1000));
+        }, 2000));
       }
     }
 
