@@ -525,6 +525,7 @@
     const API_BASE_KEY = "familyfeud_api_base";
     const BUZZ_API_BASE_KEY = "familyfeud_buzz_api_base";
     const DISPLAY_CHANNEL = "familyfeud_display_channel_v1";
+    const ROUND_CLOSED_KEY = "familyfeud_round_closed_after_steal_v1";
 
     const DEFAULT_ROOM = "family-feud-demo";
     const FALLBACK_POLL_MS = 3500;
@@ -556,6 +557,7 @@
     let apiBase = normalizeBase(readStored(API_BASE_KEY) || readStored(BUZZ_API_BASE_KEY));
     let initialAutoShowDone = false;
     let optimisticRevealedIndexes = new Set();
+    let roundClosedAfterSteal = readRoundClosedAfterSteal();
 
     try {
       channel = new BroadcastChannel(DISPLAY_CHANNEL);
@@ -573,6 +575,7 @@
       channel.onmessage = () => {
         displayState = readDisplayState();
         controlState = readControlState();
+        roundClosedAfterSteal = readRoundClosedAfterSteal();
         renderAll();
       };
     }
@@ -580,6 +583,7 @@
     window.addEventListener("storage", () => {
       displayState = readDisplayState();
       controlState = readControlState();
+      roundClosedAfterSteal = readRoundClosedAfterSteal();
       renderAll();
     });
 
@@ -634,10 +638,12 @@
       if (isBusy) return;
 
       optimisticRevealedIndexes.clear();
+      clearRoundClosedAfterSteal();
 
       const ok = await sendGameAction("next_question");
 
       if (ok) {
+        clearRoundClosedAfterSteal();
         await sendGameAction("show_question", { visible: true });
         await sendGameAction("set_buzz_visible", { visible: true });
       }
@@ -934,6 +940,12 @@
         previousQuestion !== displayState.question ||
         previousQuestionIndex !== controlState.currentQuestionIndex;
 
+      if (questionChanged) {
+        clearRoundClosedAfterSteal();
+      } else {
+        refreshRoundClosedAfterSteal();
+      }
+
       cleanupOptimisticReveals(questionChanged);
 
       saveDisplayState();
@@ -994,6 +1006,44 @@
         firstBuzzTeam: "",
         buzzVisible: true
       };
+    }
+
+    function getRoundSignature() {
+      const question = displayState ? String(displayState.question || "") : "";
+      const index = controlState ? Number(controlState.currentQuestionIndex || 0) : 0;
+      return `${roomId}::${index}::${question}`;
+    }
+
+    function readRoundClosedAfterSteal() {
+      const parsed = safeParse(readStored(ROUND_CLOSED_KEY));
+      if (!parsed || parsed.closed !== true) return false;
+      return parsed.signature === getRoundSignature();
+    }
+
+    function markRoundClosedAfterSteal() {
+      roundClosedAfterSteal = true;
+      writeStored(ROUND_CLOSED_KEY, {
+        closed: true,
+        signature: getRoundSignature()
+      });
+    }
+
+    function clearRoundClosedAfterSteal() {
+      roundClosedAfterSteal = false;
+      try { localStorage.removeItem(ROUND_CLOSED_KEY); } catch (e) {}
+      try { sessionStorage.removeItem(ROUND_CLOSED_KEY); } catch (e) {}
+
+      if (channel) {
+        try { channel.postMessage({ key: ROUND_CLOSED_KEY }); } catch (e) {}
+      }
+    }
+
+    function refreshRoundClosedAfterSteal() {
+      roundClosedAfterSteal = readRoundClosedAfterSteal();
+    }
+
+    function isRoundClosedAfterSteal() {
+      return roundClosedAfterSteal === true && readRoundClosedAfterSteal() === true;
     }
 
     function readStored(key) {
@@ -1081,6 +1131,7 @@
     }
 
     function canRegisterError() {
+      if (isRoundClosedAfterSteal()) return false;
       if (!controlState.currentTurnTeam) return false;
       if (controlState.stage === "steal_result") return false;
       if (controlState.stage === "steal_pick") return false;
@@ -1134,7 +1185,7 @@
 
       answers.forEach((answer, index) => {
         const card = document.createElement("button");
-        const isBlockedRevealedAnswer = isStealStage() && !!answer.revealed;
+        const isBlockedRevealedAnswer = isStealStage() && !isRoundClosedAfterSteal() && !!answer.revealed;
         const isVisuallyRevealed = !!answer.revealed || optimisticRevealedIndexes.has(index);
 
         const shouldDisable =
@@ -1165,6 +1216,12 @@
 
     function renderPanel() {
       panelActionsEl.innerHTML = "";
+
+      if (isRoundClosedAfterSteal()) {
+        panelTitleEl.textContent = ".";
+        panelTitleEl.classList.add("hint-hidden");
+        return;
+      }
 
       if (controlState.stage === "idle" || controlState.stage === "main") {
         panelTitleEl.textContent = ".";
@@ -1282,6 +1339,7 @@
         const ok = await sendGameAction("steal_result", { result: "fail" });
 
         if (ok) {
+          markRoundClosedAfterSteal();
           await fetchRemoteGameState();
         }
       } finally {
@@ -1298,6 +1356,22 @@
         : null;
 
       if (!answer) return;
+
+      if (isRoundClosedAfterSteal()) {
+        if (answer.revealed) return;
+
+        optimisticRevealedIndexes.add(index);
+        renderAll();
+
+        const ok = await sendGameAction("reveal_answer", { answerIndex: index });
+
+        if (!ok) {
+          optimisticRevealedIndexes.delete(index);
+          renderAll();
+        }
+
+        return;
+      }
 
       if (isStealStage()) {
         if (answer.revealed) return;
@@ -1326,6 +1400,7 @@
           }
 
           if (awarded) {
+            markRoundClosedAfterSteal();
             await fetchRemoteGameState();
           } else {
             optimisticRevealedIndexes.delete(index);
