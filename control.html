@@ -545,6 +545,9 @@
 
     const DEFAULT_ROOM = "family-feud-demo";
     const FALLBACK_POLL_MS = 3500;
+    const PUSHER_FALLBACK_POLL_MS = 9000;
+    const MIN_STATE_FETCH_GAP_MS = 700;
+    const PUSHER_RECENT_GRACE_MS = 2400;
 
     const FAST_ACTION_GUARD_MS = 260;
     const NORMAL_ACTION_GUARD_MS = 380;
@@ -574,6 +577,11 @@
     let pusher = null;
     let gameChannel = null;
     let fallbackPoll = null;
+    let currentPollMs = 0;
+    let usingPusherRealtime = false;
+    let stateFetchInFlight = null;
+    let lastRemoteStateAt = 0;
+
     let syncStarted = false;
     let apiBase = normalizeBase(readStored(API_BASE_KEY) || readStored(BUZZ_API_BASE_KEY));
     let initialAutoShowDone = false;
@@ -610,7 +618,12 @@
     });
 
     window.addEventListener("focus", async () => {
-      await fetchRemoteGameState();
+      if (Date.now() - lastRemoteStateAt < MIN_STATE_FETCH_GAP_MS) {
+        renderAll();
+        return;
+      }
+
+      await fetchRemoteGameState({ force: true });
       renderAll();
     });
 
@@ -654,7 +667,7 @@
           controlState.buzzVisible = previousVisible;
           saveControlState();
           renderAll();
-          await fetchRemoteGameState();
+          await fetchRemoteGameState({ force: true });
         }
       }, FAST_ACTION_GUARD_MS);
     });
@@ -676,7 +689,7 @@
           displayState.showQuestion = previousVisible;
           saveDisplayState();
           renderAll();
-          await fetchRemoteGameState();
+          await fetchRemoteGameState({ force: true });
         }
       }, FAST_ACTION_GUARD_MS);
     });
@@ -717,7 +730,7 @@
           saveDisplayState();
           saveControlState();
           renderAll();
-          await fetchRemoteGameState();
+          await fetchRemoteGameState({ force: true });
         }
       }, HEAVY_ACTION_GUARD_MS);
     });
@@ -791,7 +804,7 @@
       const ok = await detectApiBase();
 
       if (ok) {
-        await fetchRemoteGameState();
+        await fetchRemoteGameState({ force: true });
         await maybeInitialAutoShowQuestion();
         await initPusher();
       }
@@ -799,12 +812,31 @@
       startFallbackPoll();
     }
 
-    function startFallbackPoll() {
-      if (fallbackPoll) clearInterval(fallbackPoll);
+    function startFallbackPoll(intervalMs = usingPusherRealtime ? PUSHER_FALLBACK_POLL_MS : FALLBACK_POLL_MS) {
+      if (fallbackPoll && currentPollMs === intervalMs) return;
+
+      if (fallbackPoll) {
+        clearInterval(fallbackPoll);
+        fallbackPoll = null;
+      }
+
+      currentPollMs = intervalMs;
 
       fallbackPoll = setInterval(() => {
-        fetchRemoteGameState();
-      }, FALLBACK_POLL_MS);
+        maybePollRemoteGameState();
+      }, intervalMs);
+    }
+
+    function maybePollRemoteGameState() {
+      if (stateFetchInFlight) return;
+
+      const now = Date.now();
+
+      if (usingPusherRealtime && now - lastRemoteStateAt < PUSHER_RECENT_GRACE_MS) {
+        return;
+      }
+
+      fetchRemoteGameState();
     }
 
     function destroyLiveSync() {
@@ -826,6 +858,9 @@
 
       pusher = null;
       syncStarted = false;
+      usingPusherRealtime = false;
+      currentPollMs = 0;
+      stateFetchInFlight = null;
     }
 
     async function initPusher() {
@@ -860,10 +895,29 @@
           }
         });
 
+        if (pusher.connection) {
+          pusher.connection.bind("state_change", (states) => {
+            const currentState = String(states?.current || "");
+
+            if (currentState === "connected") {
+              usingPusherRealtime = true;
+              startFallbackPoll(PUSHER_FALLBACK_POLL_MS);
+              return;
+            }
+
+            if (currentState === "disconnected" || currentState === "unavailable" || currentState === "failed") {
+              usingPusherRealtime = false;
+              startFallbackPoll(FALLBACK_POLL_MS);
+            }
+          });
+        }
+
         gameChannel = pusher.subscribe(data.channel);
 
         gameChannel.bind("pusher:subscription_succeeded", async () => {
-          await fetchRemoteGameState();
+          usingPusherRealtime = true;
+          startFallbackPoll(PUSHER_FALLBACK_POLL_MS);
+          await fetchRemoteGameState({ force: true });
         });
 
         gameChannel.bind("game-updated", (payload) => {
@@ -878,36 +932,52 @@
       initialAutoShowDone = true;
     }
 
-    async function fetchRemoteGameState() {
-      const bases = getApiBases();
+    async function fetchRemoteGameState(options = {}) {
+      const force = options.force === true;
+      const now = Date.now();
 
-      for (const base of bases) {
-        try {
-          const res = await fetch(`${base}/api/game/state?room=${encodeURIComponent(roomId)}`, {
-            method: "GET",
-            cache: "no-store",
-            headers: {
-              "Cache-Control": "no-cache",
-              "Pragma": "no-cache"
-            }
-          });
-
-          if (!res.ok) continue;
-
-          const data = await res.json().catch(() => null);
-          if (!data || !data.ok || !data.state) continue;
-
-          apiBase = base;
-          writeStored(API_BASE_KEY, base);
-          writeStored(BUZZ_API_BASE_KEY, base);
-
-          applyRemoteGameState(data.state);
-          renderAll();
-          return true;
-        } catch (error) {}
+      if (!force) {
+        if (stateFetchInFlight) return stateFetchInFlight;
+        if (now - lastRemoteStateAt < MIN_STATE_FETCH_GAP_MS) return true;
       }
 
-      return false;
+      stateFetchInFlight = (async () => {
+        const bases = getApiBases();
+
+        for (const base of bases) {
+          try {
+            const res = await fetch(`${base}/api/game/state?room=${encodeURIComponent(roomId)}`, {
+              method: "GET",
+              cache: "no-store",
+              headers: {
+                "Cache-Control": "no-cache",
+                "Pragma": "no-cache"
+              }
+            });
+
+            if (!res.ok) continue;
+
+            const data = await res.json().catch(() => null);
+            if (!data || !data.ok || !data.state) continue;
+
+            apiBase = base;
+            writeStored(API_BASE_KEY, base);
+            writeStored(BUZZ_API_BASE_KEY, base);
+
+            applyRemoteGameState(data.state);
+            renderAll();
+            return true;
+          } catch (error) {}
+        }
+
+        return false;
+      })();
+
+      try {
+        return await stateFetchInFlight;
+      } finally {
+        stateFetchInFlight = null;
+      }
     }
 
     async function sendGameAction(action, extra = {}, options = {}) {
@@ -984,6 +1054,8 @@
 
     function applyRemoteGameState(remoteState) {
       if (!remoteState) return;
+
+      lastRemoteStateAt = Date.now();
 
       const previousQuestion = displayState ? String(displayState.question || "") : "";
       const previousQuestionIndex = controlState ? Number(controlState.currentQuestionIndex || 0) : 0;
@@ -1440,7 +1512,6 @@
 
         if (ok) {
           markRoundClosedAfterSteal();
-          await fetchRemoteGameState();
         }
       } finally {
         stealAwardInProgress = false;
@@ -1505,7 +1576,6 @@
 
           if (awarded) {
             markRoundClosedAfterSteal();
-            await fetchRemoteGameState();
           } else {
             optimisticRevealedIndexes.delete(index);
           }
@@ -1556,7 +1626,7 @@
         controlState.buzzVisible = previousVisible;
         saveControlState();
         renderAll();
-        await fetchRemoteGameState();
+        await fetchRemoteGameState({ force: true });
       }
     }
 
