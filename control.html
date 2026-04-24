@@ -29,11 +29,6 @@
       --button-red-2:#b90514;
 
       --stroke:#ece8e0;
-
-      --first-player-bg:#102a86;
-      --first-player-bg-2:#0a1f66;
-      --first-player-active:#1739ad;
-      --first-player-active-2:#102b85;
     }
 
     *{
@@ -388,41 +383,41 @@
       left:18px;
       right:18px;
       bottom:18px;
-      height:78px;
+      height:68px;
       border-radius:28px;
       border:4px solid rgba(255,255,255,.92);
-      background:linear-gradient(180deg, var(--first-player-bg) 0%, var(--first-player-bg-2) 100%);
-      color:var(--white);
+      background:linear-gradient(180deg, #223254 0%, #1a2338 100%);
+      color:rgba(255,255,255,.86);
       display:flex;
       align-items:center;
       justify-content:center;
       text-align:center;
-      font-size:30px;
+      font-size:24px;
       font-weight:900;
-      line-height:1.2;
-      padding:0 20px;
+      line-height:1.1;
+      padding:0 18px;
       white-space:nowrap;
       overflow:hidden;
       text-overflow:ellipsis;
       box-shadow:
         inset 0 0 0 1px rgba(255,255,255,.06),
-        0 8px 18px rgba(0,0,0,.22);
+        0 8px 16px rgba(0,0,0,.18);
       transition:
-        background .14s ease,
-        border-color .14s ease,
-        box-shadow .14s ease,
-        transform .14s ease,
-        font-size .14s ease;
+        background .16s ease,
+        box-shadow .16s ease,
+        color .16s ease,
+        font-size .16s ease,
+        transform .16s ease;
     }
 
     .player-box.active{
-      background:linear-gradient(180deg, var(--first-player-active) 0%, var(--first-player-active-2) 100%);
-      border-color:var(--gold-soft);
+      background:linear-gradient(180deg, #1d55ca 0%, #153c94 100%);
+      color:#ffffff;
+      font-size:32px;
       box-shadow:
         inset 0 0 0 1px rgba(255,255,255,.08),
-        0 0 0 3px rgba(241,203,74,.20),
-        0 10px 22px rgba(0,0,0,.28);
-      font-size:34px;
+        0 0 0 3px rgba(255,255,255,.10),
+        0 10px 22px rgba(0,0,0,.24);
       transform:translateY(-1px);
     }
 
@@ -571,6 +566,8 @@
     const DEFAULT_ROOM = "family-feud-demo";
     const FALLBACK_POLL_MS = 3500;
     const PUSHER_FALLBACK_POLL_MS = 9000;
+    const BUZZ_FALLBACK_POLL_MS = 700;
+    const BUZZ_PUSHER_FALLBACK_POLL_MS = 1800;
     const MIN_STATE_FETCH_GAP_MS = 700;
     const PUSHER_RECENT_GRACE_MS = 2400;
 
@@ -607,12 +604,22 @@
 
     let pusher = null;
     let gameChannel = null;
+    let buzzPusher = null;
     let buzzChannel = null;
+
     let fallbackPoll = null;
+    let buzzFallbackPoll = null;
     let currentPollMs = 0;
+    let currentBuzzPollMs = 0;
+
     let usingPusherRealtime = false;
+    let usingBuzzPusherRealtime = false;
+
     let stateFetchInFlight = null;
+    let buzzStateFetchInFlight = null;
+
     let lastRemoteStateAt = 0;
+    let lastRemoteBuzzStateAt = 0;
 
     let syncStarted = false;
     let apiBase = normalizeBase(readStored(API_BASE_KEY) || readStored(BUZZ_API_BASE_KEY));
@@ -651,12 +658,22 @@
     });
 
     window.addEventListener("focus", async () => {
-      if (Date.now() - lastRemoteStateAt < MIN_STATE_FETCH_GAP_MS) {
+      const gameRecent = Date.now() - lastRemoteStateAt < MIN_STATE_FETCH_GAP_MS;
+      const buzzRecent = Date.now() - lastRemoteBuzzStateAt < MIN_STATE_FETCH_GAP_MS;
+
+      if (gameRecent && buzzRecent) {
         renderAll();
         return;
       }
 
-      await fetchRemoteGameState({ force: true });
+      const tasks = [];
+      if (!gameRecent) tasks.push(fetchRemoteGameState({ force: true }));
+      if (!buzzRecent) tasks.push(fetchRemoteBuzzState({ force: true }));
+
+      if (tasks.length) {
+        await Promise.all(tasks);
+      }
+
       renderAll();
     });
 
@@ -703,6 +720,7 @@
             controlState.buzzVisible = previousVisible;
             renderAll();
             await fetchRemoteGameState({ force: true });
+            await fetchRemoteBuzzState({ force: true });
           }
         } finally {
           toggleActionInFlight = false;
@@ -773,7 +791,6 @@
         controlState.buzzVisible = true;
         controlState.firstBuzzName = "";
         controlState.firstBuzzTeam = "";
-        saveControlState();
         renderAll();
 
         try {
@@ -784,6 +801,7 @@
             controlState.buzzVisible = previousBuzzVisible;
             renderAll();
             await fetchRemoteGameState({ force: true });
+            await fetchRemoteBuzzState({ force: true });
           }
         } finally {
           nextQuestionInFlight = false;
@@ -862,11 +880,14 @@
 
       if (ok) {
         await fetchRemoteGameState({ force: true });
+        await fetchRemoteBuzzState({ force: true });
         await maybeInitialAutoShowQuestion();
         await initPusher();
+        await initBuzzPusher();
       }
 
       startFallbackPoll();
+      startBuzzFallbackPoll();
     }
 
     function startFallbackPoll(intervalMs = usingPusherRealtime ? PUSHER_FALLBACK_POLL_MS : FALLBACK_POLL_MS) {
@@ -884,6 +905,21 @@
       }, intervalMs);
     }
 
+    function startBuzzFallbackPoll(intervalMs = usingBuzzPusherRealtime ? BUZZ_PUSHER_FALLBACK_POLL_MS : BUZZ_FALLBACK_POLL_MS) {
+      if (buzzFallbackPoll && currentBuzzPollMs === intervalMs) return;
+
+      if (buzzFallbackPoll) {
+        clearInterval(buzzFallbackPoll);
+        buzzFallbackPoll = null;
+      }
+
+      currentBuzzPollMs = intervalMs;
+
+      buzzFallbackPoll = setInterval(() => {
+        maybePollRemoteBuzzState();
+      }, intervalMs);
+    }
+
     function maybePollRemoteGameState() {
       if (stateFetchInFlight) return;
 
@@ -896,10 +932,27 @@
       fetchRemoteGameState();
     }
 
+    function maybePollRemoteBuzzState() {
+      if (buzzStateFetchInFlight) return;
+
+      const now = Date.now();
+
+      if (usingBuzzPusherRealtime && now - lastRemoteBuzzStateAt < PUSHER_RECENT_GRACE_MS) {
+        return;
+      }
+
+      fetchRemoteBuzzState();
+    }
+
     function destroyLiveSync() {
       if (fallbackPoll) {
         clearInterval(fallbackPoll);
         fallbackPoll = null;
+      }
+
+      if (buzzFallbackPoll) {
+        clearInterval(buzzFallbackPoll);
+        buzzFallbackPoll = null;
       }
 
       if (gameChannel && pusher) {
@@ -907,9 +960,9 @@
         try { pusher.unsubscribe(gameChannel.name); } catch (e) {}
       }
 
-      if (buzzChannel && pusher) {
+      if (buzzChannel && buzzPusher) {
         try { buzzChannel.unbind_all(); } catch (e) {}
-        try { pusher.unsubscribe(buzzChannel.name); } catch (e) {}
+        try { buzzPusher.unsubscribe(buzzChannel.name); } catch (e) {}
       }
 
       gameChannel = null;
@@ -919,60 +972,50 @@
         try { pusher.disconnect(); } catch (e) {}
       }
 
+      if (buzzPusher) {
+        try { buzzPusher.disconnect(); } catch (e) {}
+      }
+
       pusher = null;
+      buzzPusher = null;
+
       syncStarted = false;
       usingPusherRealtime = false;
+      usingBuzzPusherRealtime = false;
       currentPollMs = 0;
+      currentBuzzPollMs = 0;
       stateFetchInFlight = null;
+      buzzStateFetchInFlight = null;
     }
 
     async function initPusher() {
       if (!window.Pusher) return;
       if (!apiBase) return;
-      if (pusher || gameChannel || buzzChannel) return;
+      if (pusher || gameChannel) return;
 
       try {
-        const [gameRes, buzzRes] = await Promise.all([
-          fetch(`${apiBase}/api/game/pusher-config?room=${encodeURIComponent(roomId)}`, {
-            method: "GET",
-            cache: "no-store",
-            headers: {
-              "Cache-Control": "no-cache",
-              "Pragma": "no-cache"
-            }
-          }),
-          fetch(`${apiBase}/api/buzz/pusher-config?room=${encodeURIComponent(roomId)}`, {
-            method: "GET",
-            cache: "no-store",
-            headers: {
-              "Cache-Control": "no-cache",
-              "Pragma": "no-cache"
-            }
-          })
-        ]);
+        const res = await fetch(`${apiBase}/api/game/pusher-config?room=${encodeURIComponent(roomId)}`, {
+          method: "GET",
+          cache: "no-store",
+          headers: {
+            "Cache-Control": "no-cache",
+            "Pragma": "no-cache"
+          }
+        });
 
-        const gameData = await gameRes.json().catch(() => null);
-        const buzzData = await buzzRes.json().catch(() => null);
+        const data = await res.json().catch(() => null);
+        if (!res.ok || !data || !data.ok || !data.key || !data.cluster || !data.channel) return;
 
-        if (
-          !gameRes.ok || !gameData || !gameData.ok || !gameData.key || !gameData.cluster || !gameData.channel ||
-          !buzzRes.ok || !buzzData || !buzzData.ok || !buzzData.key || !buzzData.cluster || !buzzData.channel
-        ) return;
-
-        const gameAuthEndpoint = String(gameData.authEndpoint || "").startsWith("http")
-          ? gameData.authEndpoint
-          : `${apiBase}${gameData.authEndpoint}`;
-
-        const buzzAuthEndpoint = String(buzzData.authEndpoint || "").startsWith("http")
-          ? buzzData.authEndpoint
-          : `${apiBase}${buzzData.authEndpoint}`;
+        const authEndpoint = String(data.authEndpoint || "").startsWith("http")
+          ? data.authEndpoint
+          : `${apiBase}${data.authEndpoint}`;
 
         window.Pusher.logToConsole = false;
 
-        pusher = new window.Pusher(gameData.key, {
-          cluster: gameData.cluster,
+        pusher = new window.Pusher(data.key, {
+          cluster: data.cluster,
           channelAuthorization: {
-            endpoint: gameAuthEndpoint,
+            endpoint: authEndpoint,
             transport: "ajax"
           }
         });
@@ -994,8 +1037,7 @@
           });
         }
 
-        gameChannel = pusher.subscribe(gameData.channel);
-        buzzChannel = pusher.subscribe(buzzData.channel);
+        gameChannel = pusher.subscribe(data.channel);
 
         gameChannel.bind("pusher:subscription_succeeded", async () => {
           usingPusherRealtime = true;
@@ -1006,6 +1048,65 @@
         gameChannel.bind("game-updated", (payload) => {
           applyRemoteGameState(payload);
           renderAll();
+        });
+      } catch (error) {}
+    }
+
+    async function initBuzzPusher() {
+      if (!window.Pusher) return;
+      if (!apiBase) return;
+      if (buzzPusher || buzzChannel) return;
+
+      try {
+        const res = await fetch(`${apiBase}/api/buzz/pusher-config?room=${encodeURIComponent(roomId)}`, {
+          method: "GET",
+          cache: "no-store",
+          headers: {
+            "Cache-Control": "no-cache",
+            "Pragma": "no-cache"
+          }
+        });
+
+        const data = await res.json().catch(() => null);
+        if (!res.ok || !data || !data.ok || !data.key || !data.cluster || !data.channel) return;
+
+        const authEndpoint = String(data.authEndpoint || "").startsWith("http")
+          ? data.authEndpoint
+          : `${apiBase}${data.authEndpoint}`;
+
+        window.Pusher.logToConsole = false;
+
+        buzzPusher = new window.Pusher(data.key, {
+          cluster: data.cluster,
+          channelAuthorization: {
+            endpoint: authEndpoint,
+            transport: "ajax"
+          }
+        });
+
+        if (buzzPusher.connection) {
+          buzzPusher.connection.bind("state_change", (states) => {
+            const currentState = String(states?.current || "");
+
+            if (currentState === "connected") {
+              usingBuzzPusherRealtime = true;
+              startBuzzFallbackPoll(BUZZ_PUSHER_FALLBACK_POLL_MS);
+              return;
+            }
+
+            if (currentState === "disconnected" || currentState === "unavailable" || currentState === "failed") {
+              usingBuzzPusherRealtime = false;
+              startBuzzFallbackPoll(BUZZ_FALLBACK_POLL_MS);
+            }
+          });
+        }
+
+        buzzChannel = buzzPusher.subscribe(data.channel);
+
+        buzzChannel.bind("pusher:subscription_succeeded", async () => {
+          usingBuzzPusherRealtime = true;
+          startBuzzFallbackPoll(BUZZ_PUSHER_FALLBACK_POLL_MS);
+          await fetchRemoteBuzzState({ force: true });
         });
 
         buzzChannel.bind("buzz-updated", (payload) => {
@@ -1065,6 +1166,54 @@
         return await stateFetchInFlight;
       } finally {
         stateFetchInFlight = null;
+      }
+    }
+
+    async function fetchRemoteBuzzState(options = {}) {
+      const force = options.force === true;
+      const now = Date.now();
+
+      if (!force) {
+        if (buzzStateFetchInFlight) return buzzStateFetchInFlight;
+        if (now - lastRemoteBuzzStateAt < MIN_STATE_FETCH_GAP_MS) return true;
+      }
+
+      buzzStateFetchInFlight = (async () => {
+        const bases = getApiBases();
+
+        for (const base of bases) {
+          try {
+            const res = await fetch(`${base}/api/buzz/state?room=${encodeURIComponent(roomId)}`, {
+              method: "GET",
+              cache: "no-store",
+              headers: {
+                "Cache-Control": "no-cache",
+                "Pragma": "no-cache"
+              }
+            });
+
+            if (!res.ok) continue;
+
+            const data = await res.json().catch(() => null);
+            if (!data || !data.ok || !data.state) continue;
+
+            apiBase = base;
+            writeStored(API_BASE_KEY, base);
+            writeStored(BUZZ_API_BASE_KEY, base);
+
+            applyRemoteBuzzState(data.state);
+            renderAll();
+            return true;
+          } catch (error) {}
+        }
+
+        return false;
+      })();
+
+      try {
+        return await buzzStateFetchInFlight;
+      } finally {
+        buzzStateFetchInFlight = null;
       }
     }
 
@@ -1131,6 +1280,31 @@
       return await task();
     }
 
+    function applyRemoteBuzzState(remoteBuzzState) {
+      if (!remoteBuzzState) return;
+
+      lastRemoteBuzzStateAt = Date.now();
+
+      const nextName = String(remoteBuzzState.firstBuzz?.name || "");
+      const nextTeam = String(remoteBuzzState.firstBuzz?.team || "");
+      const nextVisible = typeof remoteBuzzState.enabled === "boolean"
+        ? !!remoteBuzzState.enabled
+        : !!controlState.buzzVisible;
+
+      const changed =
+        controlState.firstBuzzName !== nextName ||
+        controlState.firstBuzzTeam !== nextTeam ||
+        controlState.buzzVisible !== nextVisible;
+
+      controlState.firstBuzzName = nextName;
+      controlState.firstBuzzTeam = nextTeam;
+      controlState.buzzVisible = nextVisible;
+
+      if (changed) {
+        saveControlState();
+      }
+    }
+
     function applyRemoteGameState(remoteState) {
       if (!remoteState) return;
 
@@ -1194,20 +1368,6 @@
       saveControlState();
     }
 
-    function applyRemoteBuzzState(remoteBuzzState) {
-      if (!remoteBuzzState) return;
-
-      lastRemoteStateAt = Date.now();
-
-      const firstBuzz = remoteBuzzState.firstBuzz || null;
-
-      controlState.firstBuzzName = String(firstBuzz?.name || "");
-      controlState.firstBuzzTeam = String(firstBuzz?.team || "");
-      controlState.buzzVisible = !!remoteBuzzState.enabled;
-
-      saveControlState();
-    }
-
     function cleanupOptimisticReveals(questionChanged) {
       if (questionChanged) {
         optimisticRevealedIndexes.clear();
@@ -1253,11 +1413,8 @@
 
       if (!controlState) {
         controlState = getDefaultControlState();
+        saveControlState();
       }
-
-      controlState.firstBuzzName = "";
-      controlState.firstBuzzTeam = "";
-      saveControlState();
     }
 
     function getDefaultControlState() {
@@ -1786,6 +1943,7 @@
         controlState.buzzVisible = previousVisible;
         renderAll();
         await fetchRemoteGameState({ force: true });
+        await fetchRemoteBuzzState({ force: true });
       }
     }
 
@@ -1795,7 +1953,6 @@
       controlState.buzzVisible = true;
       controlState.firstBuzzName = "";
       controlState.firstBuzzTeam = "";
-      saveControlState();
       renderAll();
 
       const ok = await sendGameAction("cancel_duel_open_buzz", {}, { skipBusy: true });
@@ -1804,6 +1961,7 @@
         controlState.buzzVisible = previousVisible;
         renderAll();
         await fetchRemoteGameState({ force: true });
+        await fetchRemoteBuzzState({ force: true });
       }
     }
 
