@@ -533,6 +533,9 @@
           <div id="transferMessageBox" class="transfer-message-box">ينتقل السؤال إلى الفريق الآخر</div>
         </div>
 
+        <audio id="answerSound" src="answer.MP4" preload="auto"></audio>
+        <audio id="wrongSound" src="rong.MP3" preload="auto"></audio>
+
       </div>
     </div>
 
@@ -565,6 +568,8 @@
     const answersGrid = document.getElementById("answersGrid");
 
     const strikeEffectLayer = document.getElementById("strikeEffectLayer");
+    const answerSoundEl = document.getElementById("answerSound");
+    const wrongSoundEl = document.getElementById("wrongSound");
 
     const strikeRows = {
       team1: document.querySelectorAll("#teamOneStrikes .strike"),
@@ -587,6 +592,7 @@
     let teamNamesSynced = false;
 
     let previousStrikeSnapshot = null;
+    let previousAnswerRevealSnapshot = null;
     let strikeEffectTimers = [];
     let currentDisplayState = readDisplayState();
 
@@ -597,6 +603,9 @@
     }
 
     lastPersistedSignature = JSON.stringify(currentDisplayState);
+
+    prepareAudio(answerSoundEl);
+    prepareAudio(wrongSoundEl);
 
     persistRoomId(roomId);
     renderDisplay();
@@ -651,6 +660,37 @@
     document.addEventListener("touchstart", nudgeSafariBar, { passive: true });
     document.addEventListener("touchend", nudgeSafariBar, { passive: true });
     window.addEventListener("beforeunload", destroyLiveSync);
+
+    function prepareAudio(audioEl) {
+      if (!audioEl) return;
+      try {
+        audioEl.preload = "auto";
+        audioEl.load();
+      } catch (e) {}
+    }
+
+    function stopAudio(audioEl) {
+      if (!audioEl) return;
+      try { audioEl.pause(); } catch (e) {}
+      try { audioEl.currentTime = 0; } catch (e) {}
+    }
+
+    function playManagedSound(type) {
+      const target = type === "answer" ? answerSoundEl : wrongSoundEl;
+      const other = type === "answer" ? wrongSoundEl : answerSoundEl;
+
+      if (!target) return;
+
+      stopAudio(other);
+      stopAudio(target);
+
+      try {
+        const promise = target.play();
+        if (promise && typeof promise.catch === "function") {
+          promise.catch(() => {});
+        }
+      } catch (e) {}
+    }
 
     function readStored(key) {
       try {
@@ -1109,6 +1149,29 @@
       previousStrikeSnapshot = nextSnapshot;
     }
 
+    function detectAnswerRevealEffect(state) {
+      const nextSnapshot = {
+        question: String(state.question || ""),
+        revealed: state.answers.map((answer) => !!answer.revealed)
+      };
+
+      if (!previousAnswerRevealSnapshot) {
+        previousAnswerRevealSnapshot = nextSnapshot;
+        return;
+      }
+
+      const questionChanged = nextSnapshot.question !== previousAnswerRevealSnapshot.question;
+      const hasNewReveal = nextSnapshot.revealed.some((flag, index) => {
+        return flag && !previousAnswerRevealSnapshot.revealed[index];
+      });
+
+      if (hasNewReveal && !questionChanged) {
+        playManagedSound("answer");
+      }
+
+      previousAnswerRevealSnapshot = nextSnapshot;
+    }
+
     function clearStrikeEffectTimers() {
       strikeEffectTimers.forEach((timer) => clearTimeout(timer));
       strikeEffectTimers = [];
@@ -1122,6 +1185,7 @@
     function playStrikeEffect(strikeCount) {
       clearStrikeEffectTimers();
       resetStrikeEffectLayer();
+      playManagedSound("wrong");
 
       strikeEffectLayer.classList.add("show", "show-x");
 
@@ -1183,6 +1247,7 @@
       lastRenderedSignature = signature;
 
       detectStrikeEffect(state);
+      detectAnswerRevealEffect(state);
 
       teamOneNameEl.textContent = state.team1Name;
       teamTwoNameEl.textContent = state.team2Name;
