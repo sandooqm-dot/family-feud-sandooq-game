@@ -485,10 +485,9 @@ function applyGameAction(state, action, body) {
       return { ok: true };
     }
 
-    case "next_question": {
-      const nextIndex = normalizeQuestionIndex(state.game.currentQuestionIndex + 1);
-      loadQuestionIntoRound(state, nextIndex, { preserveScores: true, preserveNames: true });
-      return { ok: true };
+    case "next_question":
+    case "next_question_bundle": {
+      return applyNextQuestionBundle(state);
     }
 
     case "previous_question": {
@@ -598,6 +597,10 @@ function applyGameAction(state, action, body) {
       return { ok: true };
     }
 
+    case "cancel_duel_open_buzz": {
+      return applyCancelDuelOpenBuzz(state);
+    }
+
     case "clear_duel": {
       state.game.phase = "idle";
       state.game.needsDuelChoice = false;
@@ -605,22 +608,10 @@ function applyGameAction(state, action, body) {
       return { ok: true };
     }
 
-    case "choose_play_or_pass": {
+    case "choose_play_or_pass":
+    case "choose_play_or_pass_bundle": {
       const decision = String(body.decision || "").trim().toLowerCase();
-      const winner = normalizeTeam(state.game.confrontationWinner);
-
-      if (!winner) {
-        return { ok: false, error: "CONFRONTATION_WINNER_NOT_SET" };
-      }
-
-      if (decision !== "play" && decision !== "pass") {
-        return { ok: false, error: "DECISION_INVALID" };
-      }
-
-      state.game.currentTurnTeam = decision === "play" ? winner : getOtherTeam(winner);
-      state.game.phase = "main";
-      state.game.needsDuelChoice = false;
-      return { ok: true };
+      return applyChoosePlayOrPassDecision(state, decision);
     }
 
     case "register_error": {
@@ -744,6 +735,45 @@ function applyGameAction(state, action, body) {
     default:
       return { ok: false, error: "ACTION_NOT_SUPPORTED" };
   }
+}
+
+function applyNextQuestionBundle(state) {
+  const nextIndex = normalizeQuestionIndex(state.game.currentQuestionIndex + 1);
+  loadQuestionIntoRound(state, nextIndex, { preserveScores: true, preserveNames: true });
+  state.game.showQuestion = false;
+  state.enabled = true;
+  state.firstBuzz = null;
+  return { ok: true };
+}
+
+function applyChoosePlayOrPassDecision(state, decision) {
+  const winner = normalizeTeam(state.game.confrontationWinner);
+
+  if (!winner) {
+    return { ok: false, error: "CONFRONTATION_WINNER_NOT_SET" };
+  }
+
+  if (decision !== "play" && decision !== "pass") {
+    return { ok: false, error: "DECISION_INVALID" };
+  }
+
+  state.game.currentTurnTeam = decision === "play" ? winner : getOtherTeam(winner);
+  state.game.phase = "main";
+  state.game.needsDuelChoice = false;
+  state.enabled = false;
+  state.firstBuzz = null;
+
+  return { ok: true };
+}
+
+function applyCancelDuelOpenBuzz(state) {
+  state.game.phase = "idle";
+  state.game.needsDuelChoice = true;
+  state.game.confrontationWinner = "";
+  state.game.currentTurnTeam = "";
+  state.enabled = true;
+  state.firstBuzz = null;
+  return { ok: true };
 }
 
 function awardRoundToTeam(state, team) {
