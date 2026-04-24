@@ -274,6 +274,7 @@ export class BuzzRoomDO {
         state.game.questionText = snapshot.questionText;
         state.game.answers = snapshot.answers;
         state.game.roundPoints = 0;
+        state.game.roundClosedAfterSteal = false;
         state.game.team1Name = normalizeTeamLabel(body.team1Name || state.game.team1Name || "الفريق الأول");
         state.game.team2Name = normalizeTeamLabel(body.team2Name || state.game.team2Name || "الفريق الثاني");
         state.game.team1Score = 0;
@@ -519,6 +520,13 @@ function applyGameAction(state, action, body) {
         return { ok: false, error: "ANSWER_NOT_FOUND" };
       }
 
+      if (state.game.roundClosedAfterSteal) {
+        if (!answer.revealed) {
+          answer.revealed = true;
+        }
+        return { ok: true };
+      }
+
       if (!answer.revealed) {
         answer.revealed = true;
         updateRoundPoints(state);
@@ -530,7 +538,7 @@ function applyGameAction(state, action, body) {
           return { ok: false, error: "STEALING_TEAM_NOT_SET" };
         }
 
-        awardRoundToTeam(state, stealTeam);
+        awardRoundToTeam(state, stealTeam, { closeRoundAfterSteal: true });
         return { ok: true };
       }
 
@@ -664,7 +672,7 @@ function applyGameAction(state, action, body) {
         }
 
         bumpDisplayErrorEffect(state, "steal_fail");
-        awardRoundToTeam(state, originalTeam);
+        awardRoundToTeam(state, originalTeam, { closeRoundAfterSteal: true });
         return { ok: true };
       }
 
@@ -693,7 +701,7 @@ function applyGameAction(state, action, body) {
         updateRoundPoints(state);
       }
 
-      awardRoundToTeam(state, stealTeam);
+      awardRoundToTeam(state, stealTeam, { closeRoundAfterSteal: true });
       return { ok: true };
     }
 
@@ -730,6 +738,7 @@ function applyGameAction(state, action, body) {
       state.game.team2Score = 0;
       state.game.displayErrorSeq = 0;
       state.game.displayErrorReason = "";
+      state.game.roundClosedAfterSteal = false;
       state.enabled = true;
       state.firstBuzz = null;
 
@@ -746,6 +755,7 @@ function applyNextQuestionBundle(state) {
   loadQuestionIntoRound(state, nextIndex, { preserveScores: true, preserveNames: true });
   state.game.showQuestion = false;
   state.game.displayErrorReason = "";
+  state.game.roundClosedAfterSteal = false;
   state.enabled = true;
   state.firstBuzz = null;
   return { ok: true };
@@ -786,13 +796,16 @@ function bumpDisplayErrorEffect(state, reason = "general") {
   state.game.displayErrorReason = normalizeEffectReason(reason);
 }
 
-function awardRoundToTeam(state, team) {
+function awardRoundToTeam(state, team, options = {}) {
+  const closeRoundAfterSteal = options.closeRoundAfterSteal === true;
+
   updateRoundPoints(state);
+  const awardedPoints = Math.max(0, normalizeNumber(state.game.roundPoints, 0));
 
   if (team === "team1") {
-    state.game.team1Score += state.game.roundPoints;
+    state.game.team1Score += awardedPoints;
   } else if (team === "team2") {
-    state.game.team2Score += state.game.roundPoints;
+    state.game.team2Score += awardedPoints;
   }
 
   state.game.phase = "idle";
@@ -802,6 +815,11 @@ function awardRoundToTeam(state, team) {
   state.game.needsDuelChoice = false;
   state.game.team1Strikes = 0;
   state.game.team2Strikes = 0;
+  state.game.roundClosedAfterSteal = closeRoundAfterSteal;
+
+  if (closeRoundAfterSteal) {
+    state.game.roundPoints = 0;
+  }
 
   state.enabled = false;
   state.firstBuzz = null;
@@ -836,6 +854,7 @@ function resetRoundState(state, options = {}) {
   state.game.questionText = snapshot.questionText;
   state.game.answers = snapshot.answers;
   state.game.roundPoints = 0;
+  state.game.roundClosedAfterSteal = false;
   state.game.displayErrorReason = "";
 
   state.enabled = true;
@@ -870,6 +889,7 @@ function loadQuestionIntoRound(state, questionIndex, options = {}) {
   state.game.questionText = snapshot.questionText;
   state.game.answers = snapshot.answers;
   state.game.roundPoints = 0;
+  state.game.roundClosedAfterSteal = false;
   state.game.displayErrorReason = "";
 
   state.enabled = true;
@@ -918,6 +938,7 @@ function createDefaultGameState() {
     questionText: snapshot.questionText,
     answers: snapshot.answers,
     roundPoints: 0,
+    roundClosedAfterSteal: false,
     displayErrorSeq: 0,
     displayErrorReason: ""
   };
@@ -966,6 +987,7 @@ function migrateState(stored, room) {
     questionText: normalizeQuestionText(stored?.game?.questionText || snapshot.questionText),
     answers: mergeAnswers(stored?.game?.answers, snapshot.answers),
     roundPoints: Math.max(0, normalizeNumber(stored?.game?.roundPoints, 0)),
+    roundClosedAfterSteal: !!stored?.game?.roundClosedAfterSteal,
     displayErrorSeq: Math.max(0, normalizeNumber(stored?.game?.displayErrorSeq, 0)),
     displayErrorReason: normalizeEffectReason(stored?.game?.displayErrorReason)
   };
@@ -1075,6 +1097,7 @@ function publicGameState(state) {
       team1Strikes: state.game.team1Strikes,
       team2Strikes: state.game.team2Strikes,
       roundPoints: state.game.roundPoints,
+      roundClosedAfterSteal: !!state.game.roundClosedAfterSteal,
       answers: state.game.answers.map((a) => ({
         text: a.text,
         points: a.points,
@@ -1257,6 +1280,11 @@ function normalizePlayers(players) {
 }
 
 function updateRoundPoints(state) {
+  if (state?.game?.roundClosedAfterSteal) {
+    state.game.roundPoints = 0;
+    return;
+  }
+
   state.game.roundPoints = state.game.answers.reduce((sum, answer) => {
     return sum + (answer.revealed ? Math.max(0, normalizeNumber(answer.points, 0)) : 0);
   }, 0);
