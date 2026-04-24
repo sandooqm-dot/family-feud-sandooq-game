@@ -771,6 +771,9 @@
         nextQuestionInFlight = true;
         displayState.showQuestion = false;
         controlState.buzzVisible = true;
+        controlState.firstBuzzName = "";
+        controlState.firstBuzzTeam = "";
+        saveControlState();
         renderAll();
 
         try {
@@ -1166,8 +1169,8 @@
         currentTurnTeam: String(control.currentTurnTeam || ""),
         confrontationWinner: String(control.confrontationWinner || ""),
         stealingTeam: String(control.stealingTeam || ""),
-        firstBuzzName: String(buzz.firstBuzz?.name || controlState.firstBuzzName || ""),
-        firstBuzzTeam: String(buzz.firstBuzz?.team || controlState.firstBuzzTeam || ""),
+        firstBuzzName: String(buzz.firstBuzz?.name || ""),
+        firstBuzzTeam: String(buzz.firstBuzz?.team || ""),
         buzzVisible: !!buzz.enabled
       };
 
@@ -1250,8 +1253,11 @@
 
       if (!controlState) {
         controlState = getDefaultControlState();
-        saveControlState();
       }
+
+      controlState.firstBuzzName = "";
+      controlState.firstBuzzTeam = "";
+      saveControlState();
     }
 
     function getDefaultControlState() {
@@ -1787,6 +1793,9 @@
       const previousVisible = !!controlState.buzzVisible;
 
       controlState.buzzVisible = true;
+      controlState.firstBuzzName = "";
+      controlState.firstBuzzTeam = "";
+      saveControlState();
       renderAll();
 
       const ok = await sendGameAction("cancel_duel_open_buzz", {}, { skipBusy: true });
