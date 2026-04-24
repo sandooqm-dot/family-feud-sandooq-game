@@ -552,7 +552,10 @@
     const DISPLAY_CHANNEL = "familyfeud_display_channel_v1";
 
     const DEFAULT_ROOM = "family-feud-demo";
-    const FALLBACK_POLL_MS = 700;
+    const FALLBACK_POLL_MS = 3500;
+    const PUSHER_FALLBACK_POLL_MS = 9000;
+    const MIN_STATE_FETCH_GAP_MS = 700;
+    const PUSHER_RECENT_GRACE_MS = 2400;
 
     const root = document.documentElement;
 
@@ -572,7 +575,8 @@
     };
 
     let stableViewport = { width: window.innerWidth, height: window.innerHeight };
-    let lastStateSignature = "";
+    let lastRenderedSignature = "";
+    let lastPersistedSignature = "";
     let roomId = resolveRoomId();
     let channel = null;
 
@@ -580,17 +584,25 @@
     let pusher = null;
     let gameChannel = null;
     let fallbackPoll = null;
+    let currentPollMs = 0;
+    let usingPusherRealtime = false;
+    let stateFetchInFlight = null;
+    let lastRemoteStateAt = 0;
+
     let syncStarted = false;
     let teamNamesSynced = false;
 
     let previousStrikeSnapshot = null;
     let strikeEffectTimers = [];
+    let currentDisplayState = readDisplayState();
 
     try {
       channel = new BroadcastChannel(DISPLAY_CHANNEL);
     } catch (e) {
       channel = null;
     }
+
+    lastPersistedSignature = JSON.stringify(currentDisplayState);
 
     persistRoomId(roomId);
     renderDisplay();
@@ -599,20 +611,32 @@
 
     if (channel) {
       channel.onmessage = () => {
+        currentDisplayState = readDisplayState();
+        lastPersistedSignature = JSON.stringify(currentDisplayState);
         renderDisplay();
       };
     }
 
-    window.addEventListener("storage", renderDisplay);
+    window.addEventListener("storage", () => {
+      currentDisplayState = readDisplayState();
+      lastPersistedSignature = JSON.stringify(currentDisplayState);
+      renderDisplay();
+    });
 
     window.addEventListener("pageshow", async () => {
-      await fetchRemoteGameState();
+      await fetchRemoteGameState({ force: true });
       renderDisplay();
       updateLayout();
     });
 
     window.addEventListener("focus", async () => {
-      await fetchRemoteGameState();
+      if (Date.now() - lastRemoteStateAt < MIN_STATE_FETCH_GAP_MS) {
+        renderDisplay();
+        updateLayout();
+        return;
+      }
+
+      await fetchRemoteGameState({ force: true });
       renderDisplay();
       updateLayout();
     });
@@ -796,19 +820,38 @@
 
       if (ok) {
         await syncTeamNamesToRemote();
-        await fetchRemoteGameState();
+        await fetchRemoteGameState({ force: true });
         await initPusher();
       }
 
       startFallbackPoll();
     }
 
-    function startFallbackPoll() {
-      if (fallbackPoll) clearInterval(fallbackPoll);
+    function startFallbackPoll(intervalMs = usingPusherRealtime ? PUSHER_FALLBACK_POLL_MS : FALLBACK_POLL_MS) {
+      if (fallbackPoll && currentPollMs === intervalMs) return;
 
-      fallbackPoll = setInterval(async () => {
-        await fetchRemoteGameState();
-      }, FALLBACK_POLL_MS);
+      if (fallbackPoll) {
+        clearInterval(fallbackPoll);
+        fallbackPoll = null;
+      }
+
+      currentPollMs = intervalMs;
+
+      fallbackPoll = setInterval(() => {
+        maybePollRemoteGameState();
+      }, intervalMs);
+    }
+
+    function maybePollRemoteGameState() {
+      if (stateFetchInFlight) return;
+
+      const now = Date.now();
+
+      if (usingPusherRealtime && now - lastRemoteStateAt < PUSHER_RECENT_GRACE_MS) {
+        return;
+      }
+
+      fetchRemoteGameState();
     }
 
     function destroyLiveSync() {
@@ -830,6 +873,9 @@
 
       pusher = null;
       syncStarted = false;
+      usingPusherRealtime = false;
+      currentPollMs = 0;
+      stateFetchInFlight = null;
     }
 
     async function detectApiBase() {
@@ -895,10 +941,29 @@
           }
         });
 
+        if (pusher.connection) {
+          pusher.connection.bind("state_change", (states) => {
+            const currentState = String(states?.current || "");
+
+            if (currentState === "connected") {
+              usingPusherRealtime = true;
+              startFallbackPoll(PUSHER_FALLBACK_POLL_MS);
+              return;
+            }
+
+            if (currentState === "disconnected" || currentState === "unavailable" || currentState === "failed") {
+              usingPusherRealtime = false;
+              startFallbackPoll(FALLBACK_POLL_MS);
+            }
+          });
+        }
+
         gameChannel = pusher.subscribe(data.channel);
 
         gameChannel.bind("pusher:subscription_succeeded", async () => {
-          await fetchRemoteGameState();
+          usingPusherRealtime = true;
+          startFallbackPoll(PUSHER_FALLBACK_POLL_MS);
+          await fetchRemoteGameState({ force: true });
         });
 
         gameChannel.bind("game-updated", (payload) => {
@@ -908,36 +973,56 @@
       } catch (error) {}
     }
 
-    async function fetchRemoteGameState() {
-      const bases = getApiBases();
+    async function maybeInitialAutoShowQuestion() {
+      return;
+    }
 
-      for (const base of bases) {
-        try {
-          const res = await fetch(`${base}/api/game/state?room=${encodeURIComponent(roomId)}`, {
-            method: "GET",
-            cache: "no-store",
-            headers: {
-              "Cache-Control": "no-cache",
-              "Pragma": "no-cache"
-            }
-          });
+    async function fetchRemoteGameState(options = {}) {
+      const force = options.force === true;
+      const now = Date.now();
 
-          if (!res.ok) continue;
-
-          const data = await res.json().catch(() => null);
-          if (!data || !data.ok || !data.state || !data.state.display) continue;
-
-          apiBase = base;
-          writeStored(API_BASE_KEY, base);
-          writeStored(BUZZ_API_BASE_KEY, base);
-
-          applyRemoteGameState(data.state);
-          renderDisplay();
-          return true;
-        } catch (error) {}
+      if (!force) {
+        if (stateFetchInFlight) return stateFetchInFlight;
+        if (now - lastRemoteStateAt < MIN_STATE_FETCH_GAP_MS) return true;
       }
 
-      return false;
+      stateFetchInFlight = (async () => {
+        const bases = getApiBases();
+
+        for (const base of bases) {
+          try {
+            const res = await fetch(`${base}/api/game/state?room=${encodeURIComponent(roomId)}`, {
+              method: "GET",
+              cache: "no-store",
+              headers: {
+                "Cache-Control": "no-cache",
+                "Pragma": "no-cache"
+              }
+            });
+
+            if (!res.ok) continue;
+
+            const data = await res.json().catch(() => null);
+            if (!data || !data.ok || !data.state || !data.state.display) continue;
+
+            apiBase = base;
+            writeStored(API_BASE_KEY, base);
+            writeStored(BUZZ_API_BASE_KEY, base);
+
+            applyRemoteGameState(data.state);
+            renderDisplay();
+            return true;
+          } catch (error) {}
+        }
+
+        return false;
+      })();
+
+      try {
+        return await stateFetchInFlight;
+      } finally {
+        stateFetchInFlight = null;
+      }
     }
 
     async function sendGameAction(action, extra = {}) {
@@ -990,10 +1075,22 @@
     }
 
     function applyRemoteGameState(remoteState) {
-      if (!remoteState || !remoteState.display) return;
+      if (!remoteState || !remoteState.display) return false;
 
       const nextState = normalizeState(remoteState.display);
+      const nextSignature = JSON.stringify(nextState);
+
+      lastRemoteStateAt = Date.now();
+
+      currentDisplayState = nextState;
+
+      if (nextSignature === lastPersistedSignature) {
+        return false;
+      }
+
+      lastPersistedSignature = nextSignature;
       writeStored(DISPLAY_KEY, nextState);
+      return true;
     }
 
     function getCurrentViewport() {
@@ -1143,11 +1240,11 @@
     }
 
     function renderDisplay() {
-      const state = readDisplayState();
+      const state = currentDisplayState || readDisplayState();
       const signature = JSON.stringify(state);
 
-      if (signature === lastStateSignature) return;
-      lastStateSignature = signature;
+      if (signature === lastRenderedSignature) return;
+      lastRenderedSignature = signature;
 
       detectStrikeEffect(state);
 
