@@ -280,6 +280,8 @@ export class BuzzRoomDO {
         state.game.team2Score = 0;
         state.game.team1Strikes = 0;
         state.game.team2Strikes = 0;
+        state.game.displayErrorSeq = 0;
+        state.game.displayErrorReason = "";
 
         state.enabled = true;
         state.firstBuzz = null;
@@ -661,6 +663,7 @@ function applyGameAction(state, action, body) {
           return { ok: false, error: "CURRENT_TURN_TEAM_REQUIRED" };
         }
 
+        bumpDisplayErrorEffect(state, "steal_fail");
         awardRoundToTeam(state, originalTeam);
         return { ok: true };
       }
@@ -725,6 +728,8 @@ function applyGameAction(state, action, body) {
       state.game.team2Name = team2Name;
       state.game.team1Score = 0;
       state.game.team2Score = 0;
+      state.game.displayErrorSeq = 0;
+      state.game.displayErrorReason = "";
       state.enabled = true;
       state.firstBuzz = null;
 
@@ -740,6 +745,7 @@ function applyNextQuestionBundle(state) {
   const nextIndex = normalizeQuestionIndex(state.game.currentQuestionIndex + 1);
   loadQuestionIntoRound(state, nextIndex, { preserveScores: true, preserveNames: true });
   state.game.showQuestion = false;
+  state.game.displayErrorReason = "";
   state.enabled = true;
   state.firstBuzz = null;
   return { ok: true };
@@ -773,6 +779,11 @@ function applyCancelDuelOpenBuzz(state) {
   state.enabled = true;
   state.firstBuzz = null;
   return { ok: true };
+}
+
+function bumpDisplayErrorEffect(state, reason = "general") {
+  state.game.displayErrorSeq = Math.max(0, normalizeNumber(state.game.displayErrorSeq, 0)) + 1;
+  state.game.displayErrorReason = normalizeEffectReason(reason);
 }
 
 function awardRoundToTeam(state, team) {
@@ -825,6 +836,7 @@ function resetRoundState(state, options = {}) {
   state.game.questionText = snapshot.questionText;
   state.game.answers = snapshot.answers;
   state.game.roundPoints = 0;
+  state.game.displayErrorReason = "";
 
   state.enabled = true;
   state.firstBuzz = null;
@@ -858,6 +870,7 @@ function loadQuestionIntoRound(state, questionIndex, options = {}) {
   state.game.questionText = snapshot.questionText;
   state.game.answers = snapshot.answers;
   state.game.roundPoints = 0;
+  state.game.displayErrorReason = "";
 
   state.enabled = true;
   state.firstBuzz = null;
@@ -904,7 +917,9 @@ function createDefaultGameState() {
     needsDuelChoice: false,
     questionText: snapshot.questionText,
     answers: snapshot.answers,
-    roundPoints: 0
+    roundPoints: 0,
+    displayErrorSeq: 0,
+    displayErrorReason: ""
   };
 }
 
@@ -950,7 +965,9 @@ function migrateState(stored, room) {
     needsDuelChoice: !!stored?.game?.needsDuelChoice,
     questionText: normalizeQuestionText(stored?.game?.questionText || snapshot.questionText),
     answers: mergeAnswers(stored?.game?.answers, snapshot.answers),
-    roundPoints: Math.max(0, normalizeNumber(stored?.game?.roundPoints, 0))
+    roundPoints: Math.max(0, normalizeNumber(stored?.game?.roundPoints, 0)),
+    displayErrorSeq: Math.max(0, normalizeNumber(stored?.game?.displayErrorSeq, 0)),
+    displayErrorReason: normalizeEffectReason(stored?.game?.displayErrorReason)
   };
 
   const merged = {
@@ -1063,6 +1080,11 @@ function publicGameState(state) {
         points: a.points,
         revealed: !!a.revealed
       }))
+    },
+
+    effects: {
+      displayErrorSeq: Math.max(0, normalizeNumber(state.game.displayErrorSeq, 0)),
+      displayErrorReason: normalizeEffectReason(state.game.displayErrorReason)
     }
   };
 }
@@ -1153,6 +1175,10 @@ function normalizeQuestionText(value) {
 function normalizeAnswerText(value) {
   const v = String(value || "").trim();
   return v.slice(0, 80);
+}
+
+function normalizeEffectReason(value) {
+  return String(value || "").trim().toLowerCase().slice(0, 40);
 }
 
 function normalizeNumber(value, fallback = 0) {
