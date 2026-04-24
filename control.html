@@ -164,7 +164,7 @@
       justify-content:center;
       padding:0 74px 0 72px;
       cursor:pointer;
-      transition:transform .12s ease, filter .12s ease, box-shadow .12s ease, opacity .12s ease, background .12s ease;
+      transition:transform .12s ease, filter .12s ease, box-shadow .12s ease, opacity .12s ease;
       box-shadow:0 6px 12px rgba(0,0,0,.12);
     }
 
@@ -178,20 +178,9 @@
     }
 
     .answer-card.revealed{
-      background:linear-gradient(180deg, #7b808b 0%, #5b606b 100%);
       box-shadow:
-        0 0 0 3px rgba(241,203,74,.28),
+        0 0 0 3px rgba(241,203,74,.45),
         0 6px 14px rgba(0,0,0,.15);
-    }
-
-    .answer-card.revealed .answer-label{
-      color:#f6f2e8;
-    }
-
-    .answer-card.revealed .answer-points{
-      background:#d8d8d8;
-      color:#111;
-      border-color:#343434;
     }
 
     .answer-card.disabled{
@@ -283,10 +272,6 @@
       margin-bottom:16px;
     }
 
-    .panel-row.single-fail{
-      justify-content:center;
-    }
-
     .panel-btn{
       min-width:184px;
       height:62px;
@@ -317,30 +302,11 @@
       background:linear-gradient(180deg, var(--button-red) 0%, var(--button-red-2) 100%);
     }
 
-    .panel-btn.fail-only{
-      min-width:232px;
-      height:70px;
-      font-size:24px;
-      transform:translateX(10px);
-    }
-
-    .panel-btn.fail-only:hover{
-      transform:translateX(10px) translateY(-1px);
-    }
-
-    .panel-btn.fail-only:active{
-      transform:translateX(10px) scale(.99);
-    }
-
     .panel-btn:disabled{
       opacity:.65;
       cursor:default;
       transform:none !important;
       filter:none !important;
-    }
-
-    .panel-btn.fail-only:disabled{
-      transform:translateX(10px) !important;
     }
 
     .player-box{
@@ -496,7 +462,6 @@
     const API_BASE_KEY = "familyfeud_api_base";
     const BUZZ_API_BASE_KEY = "familyfeud_buzz_api_base";
     const DISPLAY_CHANNEL = "familyfeud_display_channel_v1";
-    const LOCAL_UI_KEY = "familyfeud_control_ui_v1";
 
     const DEFAULT_ROOM = "family-feud-demo";
     const FALLBACK_POLL_MS = 3500;
@@ -517,7 +482,6 @@
     let roomId = resolveRoomId();
     let displayState = readDisplayState();
     let controlState = readControlState();
-    let localUiState = readLocalUiState();
     let channel = null;
 
     let isBusy = false;
@@ -545,7 +509,6 @@
       channel.onmessage = () => {
         displayState = readDisplayState();
         controlState = readControlState();
-        localUiState = readLocalUiState();
         renderAll();
       };
     }
@@ -553,7 +516,6 @@
     window.addEventListener("storage", () => {
       displayState = readDisplayState();
       controlState = readControlState();
-      localUiState = readLocalUiState();
       renderAll();
     });
 
@@ -899,10 +861,6 @@
         buzzVisible: !!buzz.enabled
       };
 
-      localUiState = readLocalUiState();
-      reconcileResolvedState();
-      syncDisplayOnlyReveals();
-
       saveDisplayState();
       saveControlState();
     }
@@ -932,9 +890,6 @@
         controlState = getDefaultControlState();
         saveControlState();
       }
-
-      localUiState = normalizeLocalUiState(localUiState);
-      saveLocalUiState();
     }
 
     function getDefaultControlState() {
@@ -948,25 +903,6 @@
         firstBuzzName: "",
         firstBuzzTeam: "",
         buzzVisible: true
-      };
-    }
-
-    function getDefaultLocalUiState() {
-      return {
-        resolvedQuestionKey: "",
-        displayOnlyRevealIndexes: []
-      };
-    }
-
-    function normalizeLocalUiState(value) {
-      const next = value && typeof value === "object" ? value : {};
-      return {
-        resolvedQuestionKey: String(next.resolvedQuestionKey || ""),
-        displayOnlyRevealIndexes: Array.isArray(next.displayOnlyRevealIndexes)
-          ? next.displayOnlyRevealIndexes
-              .map((index) => Number(index))
-              .filter((index) => Number.isInteger(index) && index >= 0)
-          : []
       };
     }
 
@@ -1025,12 +961,6 @@
       return parsed || getDefaultControlState();
     }
 
-    function readLocalUiState() {
-      const raw = readStored(LOCAL_UI_KEY);
-      const parsed = safeParse(raw);
-      return normalizeLocalUiState(parsed || getDefaultLocalUiState());
-    }
-
     function saveDisplayState() {
       displayState.roundPoints = calculateRoundPoints();
       writeStored(DISPLAY_KEY, displayState);
@@ -1040,14 +970,7 @@
       writeStored(CONTROL_KEY, controlState);
     }
 
-    function saveLocalUiState() {
-      localUiState = normalizeLocalUiState(localUiState);
-      writeStored(LOCAL_UI_KEY, localUiState);
-    }
-
     function calculateRoundPoints() {
-      if (isQuestionResolved()) return 0;
-
       return (displayState.answers || []).reduce((sum, answer) => {
         return sum + (answer.revealed ? Number(answer.points || 0) : 0);
       }, 0);
@@ -1063,66 +986,8 @@
       return team === "team1" ? "team2" : "team1";
     }
 
-    function getQuestionKey() {
-      return `${Number(controlState.currentQuestionIndex || 0)}::${String(displayState.question || "").trim()}`;
-    }
-
-    function isQuestionResolved() {
-      const key = getQuestionKey();
-      return !!key && !!localUiState.resolvedQuestionKey && localUiState.resolvedQuestionKey === key;
-    }
-
-    function reconcileResolvedState() {
-      const currentKey = getQuestionKey();
-
-      if (!currentKey) {
-        localUiState = getDefaultLocalUiState();
-        saveLocalUiState();
-        return;
-      }
-
-      if (localUiState.resolvedQuestionKey && localUiState.resolvedQuestionKey !== currentKey) {
-        localUiState = getDefaultLocalUiState();
-        saveLocalUiState();
-      }
-    }
-
-    function syncDisplayOnlyReveals() {
-      if (!Array.isArray(displayState.answers)) return;
-
-      if (!isQuestionResolved()) return;
-
-      localUiState.displayOnlyRevealIndexes.forEach((index) => {
-        if (displayState.answers[index]) {
-          displayState.answers[index].revealed = true;
-        }
-      });
-
-      displayState.roundPoints = 0;
-    }
-
-    function markQuestionResolved() {
-      localUiState.resolvedQuestionKey = getQuestionKey();
-      localUiState.displayOnlyRevealIndexes = [];
-      saveLocalUiState();
-      syncDisplayOnlyReveals();
-      saveDisplayState();
-    }
-
-    function addDisplayOnlyReveal(index) {
-      const set = new Set(localUiState.displayOnlyRevealIndexes || []);
-      set.add(index);
-      localUiState.displayOnlyRevealIndexes = Array.from(set).sort((a, b) => a - b);
-      saveLocalUiState();
-    }
-
-    function isStealStage() {
-      return controlState.stage === "steal_result" || controlState.stage === "steal_pick";
-    }
-
     function canRegisterError() {
       if (!controlState.currentTurnTeam) return false;
-      if (isQuestionResolved()) return false;
       if (controlState.stage === "steal_result") return false;
       if (controlState.stage === "steal_pick") return false;
       return true;
@@ -1172,19 +1037,19 @@
       answersGridEl.innerHTML = "";
 
       const answers = Array.isArray(displayState.answers) ? displayState.answers : [];
-      const questionResolved = isQuestionResolved();
 
       answers.forEach((answer, index) => {
         const card = document.createElement("button");
-        const isRevealed = !!answer.revealed;
+        const isStealPickRevealedAnswer =
+          controlState.stage === "steal_pick" && !!answer.revealed;
+
         const shouldDisable =
           isBusy ||
           stealAwardInProgress ||
-          (isStealStage() && isRevealed && !questionResolved) ||
-          (questionResolved && isRevealed);
+          isStealPickRevealedAnswer;
 
         card.type = "button";
-        card.className = "answer-card" + (isRevealed ? " revealed" : "");
+        card.className = "answer-card" + (answer.revealed ? " revealed" : "");
         if (shouldDisable) card.classList.add("disabled");
         card.disabled = shouldDisable;
 
@@ -1207,12 +1072,6 @@
     function renderPanel() {
       panelActionsEl.innerHTML = "";
 
-      if (isQuestionResolved()) {
-        panelTitleEl.textContent = ".";
-        panelTitleEl.classList.add("hint-hidden");
-        return;
-      }
-
       if (controlState.stage === "idle" || controlState.stage === "main") {
         panelTitleEl.textContent = ".";
         panelTitleEl.classList.add("hint-hidden");
@@ -1222,12 +1081,6 @@
       panelTitleEl.classList.remove("hint-hidden");
 
       if (controlState.stage === "duel_select") {
-        if (!controlState.firstBuzzName) {
-          panelTitleEl.textContent = ".";
-          panelTitleEl.classList.add("hint-hidden");
-          return;
-        }
-
         panelTitleEl.textContent = "مين جاوب؟";
 
         const row = buildRow([
@@ -1251,12 +1104,6 @@
       }
 
       if (controlState.stage === "play_or_pass") {
-        if (!controlState.confrontationWinner) {
-          panelTitleEl.textContent = ".";
-          panelTitleEl.classList.add("hint-hidden");
-          return;
-        }
-
         const winnerName = getTeamName(controlState.confrontationWinner);
         panelTitleEl.textContent = `الفريق ${winnerName} فاز بالسؤال ماذا تريد؟`;
 
@@ -1280,22 +1127,24 @@
         return;
       }
 
-      if (isStealStage()) {
-        const stealOwner = controlState.stealingTeam || getOtherTeam(controlState.currentTurnTeam || "");
-        if (!stealOwner) {
-          panelTitleEl.textContent = ".";
-          panelTitleEl.classList.add("hint-hidden");
-          return;
-        }
+      if (controlState.stage === "steal_result") {
+        panelTitleEl.textContent = "ماذا حصل لسرقة السؤال؟";
 
-        panelTitleEl.textContent = "اضغط على الجواب لمنح الفريق الاخر النقاط";
-
-        const failRow = buildRow([
-          buildFailStealButton()
+        const row = buildRow([
+          buildBlueButton("تمت السرقة", async () => {
+            await sendGameAction("steal_result", { result: "success" });
+          }),
+          buildBlueButton("فشلت السرقة", async () => {
+            await sendGameAction("steal_result", { result: "fail" });
+          })
         ]);
-        failRow.classList.add("single-fail");
 
-        panelActionsEl.appendChild(failRow);
+        panelActionsEl.appendChild(row);
+        return;
+      }
+
+      if (controlState.stage === "steal_pick") {
+        panelTitleEl.textContent = "اضغط على الجواب الذي تم سرقته لمنح النقاط";
         return;
       }
 
@@ -1330,20 +1179,6 @@
       return btn;
     }
 
-    function buildFailStealButton() {
-      const btn = buildRedButton("فشلت السرقة", async () => {
-        const ok = await sendGameAction("steal_result", { result: "fail" });
-
-        if (ok) {
-          markQuestionResolved();
-          await fetchRemoteGameState();
-          renderAll();
-        }
-      });
-      btn.classList.add("fail-only");
-      return btn;
-    }
-
     async function handleAnswerClick(index) {
       if (isBusy || stealAwardInProgress) return;
 
@@ -1353,34 +1188,15 @@
 
       if (!answer) return;
 
-      if (isQuestionResolved()) {
-        if (answer.revealed) return;
-
-        displayState.answers[index].revealed = true;
-        addDisplayOnlyReveal(index);
-        saveDisplayState();
-        renderAll();
-        return;
-      }
-
-      if (isStealStage()) {
+      if (controlState.stage === "steal_pick") {
         if (answer.revealed) return;
 
         stealAwardInProgress = true;
         renderAll();
 
         try {
-          if (controlState.stage === "steal_result") {
-            const movedToSuccess = await sendGameAction("steal_result", { result: "success" });
-            if (!movedToSuccess) return;
-          }
-
-          const awarded = await sendGameAction("award_steal", { answerIndex: index });
-
-          if (awarded) {
-            markQuestionResolved();
-            await fetchRemoteGameState();
-          }
+          await sendGameAction("award_steal", { answerIndex: index });
+          await fetchRemoteGameState();
         } finally {
           stealAwardInProgress = false;
           renderAll();
