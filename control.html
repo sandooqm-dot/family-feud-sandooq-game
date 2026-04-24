@@ -164,7 +164,7 @@
       justify-content:center;
       padding:0 74px 0 72px;
       cursor:pointer;
-      transition:transform .12s ease, filter .12s ease, box-shadow .12s ease, opacity .12s ease, background .12s ease;
+      transition:transform .12s ease, filter .12s ease, box-shadow .12s ease, opacity .12s ease;
       box-shadow:0 6px 12px rgba(0,0,0,.12);
     }
 
@@ -178,20 +178,9 @@
     }
 
     .answer-card.revealed{
-      background:linear-gradient(180deg, #7a7f8b 0%, #595f69 100%);
       box-shadow:
-        0 0 0 3px rgba(241,203,74,.32),
+        0 0 0 3px rgba(241,203,74,.45),
         0 6px 14px rgba(0,0,0,.15);
-    }
-
-    .answer-card.revealed .answer-points{
-      background:#d7d7d7;
-      border-color:#343434;
-      color:#111;
-    }
-
-    .answer-card.revealed .answer-label{
-      color:#f6f2e8;
     }
 
     .answer-card.disabled{
@@ -473,7 +462,6 @@
     const API_BASE_KEY = "familyfeud_api_base";
     const BUZZ_API_BASE_KEY = "familyfeud_buzz_api_base";
     const DISPLAY_CHANNEL = "familyfeud_display_channel_v1";
-    const LOCAL_UI_KEY = "familyfeud_control_ui_v1";
 
     const DEFAULT_ROOM = "family-feud-demo";
     const FALLBACK_POLL_MS = 3500;
@@ -494,7 +482,6 @@
     let roomId = resolveRoomId();
     let displayState = readDisplayState();
     let controlState = readControlState();
-    let localUiState = readLocalUiState();
     let channel = null;
 
     let isBusy = false;
@@ -522,7 +509,6 @@
       channel.onmessage = () => {
         displayState = readDisplayState();
         controlState = readControlState();
-        localUiState = readLocalUiState();
         renderAll();
       };
     }
@@ -530,7 +516,6 @@
     window.addEventListener("storage", () => {
       displayState = readDisplayState();
       controlState = readControlState();
-      localUiState = readLocalUiState();
       renderAll();
     });
 
@@ -587,7 +572,6 @@
       const ok = await sendGameAction("next_question");
 
       if (ok) {
-        clearResolvedQuestionState();
         await sendGameAction("show_question", { visible: true });
         await sendGameAction("set_buzz_visible", { visible: true });
       }
@@ -877,9 +861,6 @@
         buzzVisible: !!buzz.enabled
       };
 
-      syncLocalUiWithCurrentQuestion();
-      applyLocalDisplayOnlyReveals();
-
       saveDisplayState();
       saveControlState();
     }
@@ -909,10 +890,6 @@
         controlState = getDefaultControlState();
         saveControlState();
       }
-
-      localUiState = normalizeLocalUiState(localUiState);
-      saveLocalUiState();
-      syncLocalUiWithCurrentQuestion();
     }
 
     function getDefaultControlState() {
@@ -926,25 +903,6 @@
         firstBuzzName: "",
         firstBuzzTeam: "",
         buzzVisible: true
-      };
-    }
-
-    function getDefaultLocalUiState() {
-      return {
-        resolvedQuestionKey: "",
-        displayOnlyRevealIndexes: []
-      };
-    }
-
-    function normalizeLocalUiState(state) {
-      const next = state && typeof state === "object" ? state : {};
-      return {
-        resolvedQuestionKey: String(next.resolvedQuestionKey || ""),
-        displayOnlyRevealIndexes: Array.isArray(next.displayOnlyRevealIndexes)
-          ? next.displayOnlyRevealIndexes
-              .map((value) => Number(value))
-              .filter((value) => Number.isInteger(value) && value >= 0)
-          : []
       };
     }
 
@@ -1003,12 +961,6 @@
       return parsed || getDefaultControlState();
     }
 
-    function readLocalUiState() {
-      const raw = readStored(LOCAL_UI_KEY);
-      const parsed = safeParse(raw);
-      return normalizeLocalUiState(parsed || getDefaultLocalUiState());
-    }
-
     function saveDisplayState() {
       displayState.roundPoints = calculateRoundPoints();
       writeStored(DISPLAY_KEY, displayState);
@@ -1018,77 +970,7 @@
       writeStored(CONTROL_KEY, controlState);
     }
 
-    function saveLocalUiState() {
-      localUiState = normalizeLocalUiState(localUiState);
-      writeStored(LOCAL_UI_KEY, localUiState);
-    }
-
-    function getQuestionKey() {
-      return `${Number(controlState.currentQuestionIndex || 0)}::${String(displayState.question || "").trim()}`;
-    }
-
-    function syncLocalUiWithCurrentQuestion() {
-      localUiState = normalizeLocalUiState(localUiState);
-      const currentQuestionKey = getQuestionKey();
-
-      if (!currentQuestionKey) {
-        if (localUiState.resolvedQuestionKey || localUiState.displayOnlyRevealIndexes.length) {
-          localUiState = getDefaultLocalUiState();
-          saveLocalUiState();
-        }
-        return;
-      }
-
-      if (localUiState.resolvedQuestionKey && localUiState.resolvedQuestionKey !== currentQuestionKey) {
-        localUiState = getDefaultLocalUiState();
-        saveLocalUiState();
-      }
-    }
-
-    function clearResolvedQuestionState() {
-      localUiState = getDefaultLocalUiState();
-      saveLocalUiState();
-    }
-
-    function isQuestionResolved() {
-      const currentQuestionKey = getQuestionKey();
-      return !!currentQuestionKey && localUiState.resolvedQuestionKey === currentQuestionKey;
-    }
-
-    function markQuestionResolved() {
-      const currentQuestionKey = getQuestionKey();
-      if (!currentQuestionKey) return;
-
-      localUiState.resolvedQuestionKey = currentQuestionKey;
-      localUiState.displayOnlyRevealIndexes = [];
-      saveLocalUiState();
-      displayState.roundPoints = 0;
-      saveDisplayState();
-    }
-
-    function addDisplayOnlyReveal(index) {
-      const set = new Set(localUiState.displayOnlyRevealIndexes || []);
-      set.add(index);
-      localUiState.displayOnlyRevealIndexes = Array.from(set).sort((a, b) => a - b);
-      saveLocalUiState();
-    }
-
-    function applyLocalDisplayOnlyReveals() {
-      if (!isQuestionResolved()) return;
-      if (!Array.isArray(displayState.answers)) return;
-
-      (localUiState.displayOnlyRevealIndexes || []).forEach((index) => {
-        if (displayState.answers[index]) {
-          displayState.answers[index].revealed = true;
-        }
-      });
-
-      displayState.roundPoints = 0;
-    }
-
     function calculateRoundPoints() {
-      if (isQuestionResolved()) return 0;
-
       return (displayState.answers || []).reduce((sum, answer) => {
         return sum + (answer.revealed ? Number(answer.points || 0) : 0);
       }, 0);
@@ -1106,7 +988,6 @@
 
     function canRegisterError() {
       if (!controlState.currentTurnTeam) return false;
-      if (isQuestionResolved()) return false;
       if (controlState.stage === "steal_result") return false;
       if (controlState.stage === "steal_pick") return false;
       return true;
@@ -1126,9 +1007,6 @@
     }
 
     function renderAll() {
-      syncLocalUiWithCurrentQuestion();
-      applyLocalDisplayOnlyReveals();
-
       const totalQuestions = controlState.totalQuestions > 0 ? controlState.totalQuestions : "";
       questionNumberEl.textContent = totalQuestions
         ? `سؤال ${controlState.currentQuestionIndex + 1} / ${totalQuestions}`
@@ -1159,24 +1037,16 @@
       answersGridEl.innerHTML = "";
 
       const answers = Array.isArray(displayState.answers) ? displayState.answers : [];
-      const questionResolved = isQuestionResolved();
 
       answers.forEach((answer, index) => {
         const card = document.createElement("button");
         const isStealPickRevealedAnswer =
-          !questionResolved &&
-          controlState.stage === "steal_pick" &&
-          !!answer.revealed;
-
-        const isResolvedShownAnswer =
-          questionResolved &&
-          !!answer.revealed;
+          controlState.stage === "steal_pick" && !!answer.revealed;
 
         const shouldDisable =
           isBusy ||
           stealAwardInProgress ||
-          isStealPickRevealedAnswer ||
-          isResolvedShownAnswer;
+          isStealPickRevealedAnswer;
 
         card.type = "button";
         card.className = "answer-card" + (answer.revealed ? " revealed" : "");
@@ -1202,35 +1072,7 @@
     function renderPanel() {
       panelActionsEl.innerHTML = "";
 
-      if (isQuestionResolved()) {
-        panelTitleEl.textContent = ".";
-        panelTitleEl.classList.add("hint-hidden");
-        return;
-      }
-
       if (controlState.stage === "idle" || controlState.stage === "main") {
-        panelTitleEl.textContent = ".";
-        panelTitleEl.classList.add("hint-hidden");
-        return;
-      }
-
-      if (controlState.stage === "duel_select" && !controlState.firstBuzzName) {
-        panelTitleEl.textContent = ".";
-        panelTitleEl.classList.add("hint-hidden");
-        return;
-      }
-
-      if (controlState.stage === "play_or_pass" && !controlState.confrontationWinner) {
-        panelTitleEl.textContent = ".";
-        panelTitleEl.classList.add("hint-hidden");
-        return;
-      }
-
-      if (
-        (controlState.stage === "steal_result" || controlState.stage === "steal_pick") &&
-        !controlState.currentTurnTeam &&
-        !controlState.stealingTeam
-      ) {
         panelTitleEl.textContent = ".";
         panelTitleEl.classList.add("hint-hidden");
         return;
@@ -1293,11 +1135,7 @@
             await sendGameAction("steal_result", { result: "success" });
           }),
           buildBlueButton("فشلت السرقة", async () => {
-            const ok = await sendGameAction("steal_result", { result: "fail" });
-            if (ok) {
-              markQuestionResolved();
-              renderAll();
-            }
+            await sendGameAction("steal_result", { result: "fail" });
           })
         ]);
 
@@ -1350,16 +1188,6 @@
 
       if (!answer) return;
 
-      if (isQuestionResolved()) {
-        if (answer.revealed) return;
-
-        displayState.answers[index].revealed = true;
-        addDisplayOnlyReveal(index);
-        saveDisplayState();
-        renderAll();
-        return;
-      }
-
       if (controlState.stage === "steal_pick") {
         if (answer.revealed) return;
 
@@ -1367,11 +1195,8 @@
         renderAll();
 
         try {
-          const ok = await sendGameAction("award_steal", { answerIndex: index });
-          if (ok) {
-            markQuestionResolved();
-            await fetchRemoteGameState();
-          }
+          await sendGameAction("award_steal", { answerIndex: index });
+          await fetchRemoteGameState();
         } finally {
           stealAwardInProgress = false;
           renderAll();
