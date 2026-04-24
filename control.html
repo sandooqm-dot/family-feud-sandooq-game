@@ -574,6 +574,12 @@
 
     let isBusy = false;
     let stealAwardInProgress = false;
+    let toggleActionInFlight = false;
+    let errorActionInFlight = false;
+    let nextQuestionInFlight = false;
+    let panelActionInFlight = false;
+    let answerActionInFlight = new Set();
+
     let pusher = null;
     let gameChannel = null;
     let fallbackPoll = null;
@@ -588,6 +594,7 @@
     let optimisticRevealedIndexes = new Set();
     let roundClosedAfterSteal = readRoundClosedAfterSteal();
     let actionGuardUntil = new Map();
+    let lastRenderSignature = "";
 
     try {
       channel = new BroadcastChannel(DISPLAY_CHANNEL);
@@ -597,7 +604,7 @@
 
     persistRoomId(roomId);
     ensureInitialState();
-    renderAll();
+    renderAll(true);
     updateLayout();
     startRemoteSync();
 
@@ -651,60 +658,83 @@
     window.addEventListener("beforeunload", destroyLiveSync);
 
     bellToggleBtn.addEventListener("click", async () => {
+      if (toggleActionInFlight || stealAwardInProgress) return;
+
       await runGuardedAction("toggle-bell", async () => {
         const previousVisible = !!controlState.buzzVisible;
         const nextVisible = !previousVisible;
 
+        toggleActionInFlight = true;
         controlState.buzzVisible = nextVisible;
-        saveControlState();
         renderAll();
 
-        const ok = await sendGameAction("set_buzz_visible", {
-          visible: nextVisible
-        }, { skipBusy: true });
+        try {
+          const ok = await sendGameAction("set_buzz_visible", {
+            visible: nextVisible
+          }, { skipBusy: true });
 
-        if (!ok) {
-          controlState.buzzVisible = previousVisible;
-          saveControlState();
+          if (!ok) {
+            controlState.buzzVisible = previousVisible;
+            renderAll();
+            await fetchRemoteGameState({ force: true });
+          }
+        } finally {
+          toggleActionInFlight = false;
           renderAll();
-          await fetchRemoteGameState({ force: true });
         }
       }, FAST_ACTION_GUARD_MS);
     });
 
     questionToggleBtn.addEventListener("click", async () => {
+      if (toggleActionInFlight || stealAwardInProgress) return;
+
       await runGuardedAction("toggle-question", async () => {
         const previousVisible = !!displayState.showQuestion;
         const nextVisible = !previousVisible;
 
+        toggleActionInFlight = true;
         displayState.showQuestion = nextVisible;
-        saveDisplayState();
         renderAll();
 
-        const ok = await sendGameAction("show_question", {
-          visible: nextVisible
-        }, { skipBusy: true });
+        try {
+          const ok = await sendGameAction("show_question", {
+            visible: nextVisible
+          }, { skipBusy: true });
 
-        if (!ok) {
-          displayState.showQuestion = previousVisible;
-          saveDisplayState();
+          if (!ok) {
+            displayState.showQuestion = previousVisible;
+            renderAll();
+            await fetchRemoteGameState({ force: true });
+          }
+        } finally {
+          toggleActionInFlight = false;
           renderAll();
-          await fetchRemoteGameState({ force: true });
         }
       }, FAST_ACTION_GUARD_MS);
     });
 
     errorBtn.addEventListener("click", async () => {
       if (!canRegisterError()) return;
+      if (errorActionInFlight || stealAwardInProgress) return;
 
       await runGuardedAction("register-error", async () => {
-        await sendGameAction("register_error", {
-          team: controlState.currentTurnTeam
-        });
+        errorActionInFlight = true;
+        renderAll();
+
+        try {
+          await sendGameAction("register_error", {
+            team: controlState.currentTurnTeam
+          }, { skipBusy: true });
+        } finally {
+          errorActionInFlight = false;
+          renderAll();
+        }
       }, NORMAL_ACTION_GUARD_MS);
     });
 
     nextQuestionBtn.addEventListener("click", async () => {
+      if (nextQuestionInFlight || stealAwardInProgress) return;
+
       await runGuardedAction("next-question", async () => {
         optimisticRevealedIndexes.clear();
         clearRoundClosedAfterSteal();
@@ -712,21 +742,23 @@
         const previousShowQuestion = !!displayState.showQuestion;
         const previousBuzzVisible = !!controlState.buzzVisible;
 
+        nextQuestionInFlight = true;
         displayState.showQuestion = false;
         controlState.buzzVisible = true;
-        saveDisplayState();
-        saveControlState();
         renderAll();
 
-        const ok = await sendGameAction("next_question_bundle", {}, { skipBusy: true });
+        try {
+          const ok = await sendGameAction("next_question_bundle", {}, { skipBusy: true });
 
-        if (!ok) {
-          displayState.showQuestion = previousShowQuestion;
-          controlState.buzzVisible = previousBuzzVisible;
-          saveDisplayState();
-          saveControlState();
+          if (!ok) {
+            displayState.showQuestion = previousShowQuestion;
+            controlState.buzzVisible = previousBuzzVisible;
+            renderAll();
+            await fetchRemoteGameState({ force: true });
+          }
+        } finally {
+          nextQuestionInFlight = false;
           renderAll();
-          await fetchRemoteGameState({ force: true });
         }
       }, HEAVY_ACTION_GUARD_MS);
     });
@@ -1025,15 +1057,6 @@
       }
     }
 
-    async function runGameActions(actions) {
-      for (const item of actions) {
-        const ok = await sendGameAction(item.action, item.payload || {}, item.options || {});
-        if (!ok) return false;
-      }
-
-      return true;
-    }
-
     function isActionGuarded(key) {
       return Date.now() < (actionGuardUntil.get(key) || 0);
     }
@@ -1114,6 +1137,7 @@
     function cleanupOptimisticReveals(questionChanged) {
       if (questionChanged) {
         optimisticRevealedIndexes.clear();
+        answerActionInFlight.clear();
         return;
       }
 
@@ -1122,6 +1146,12 @@
       Array.from(optimisticRevealedIndexes).forEach((index) => {
         if (!answers[index] || answers[index].revealed) {
           optimisticRevealedIndexes.delete(index);
+        }
+      });
+
+      Array.from(answerActionInFlight).forEach((index) => {
+        if (!answers[index] || answers[index].revealed) {
+          answerActionInFlight.delete(index);
         }
       });
     }
@@ -1225,10 +1255,23 @@
     function writeStored(key, value) {
       const stringValue = typeof value === "string" ? value : JSON.stringify(value);
 
-      try { localStorage.setItem(key, stringValue); } catch (e) {}
-      try { sessionStorage.setItem(key, stringValue); } catch (e) {}
+      let changed = false;
 
-      if (channel) {
+      try {
+        if (localStorage.getItem(key) !== stringValue) {
+          localStorage.setItem(key, stringValue);
+          changed = true;
+        }
+      } catch (e) {}
+
+      try {
+        if (sessionStorage.getItem(key) !== stringValue) {
+          sessionStorage.setItem(key, stringValue);
+          changed = true;
+        }
+      } catch (e) {}
+
+      if (changed && channel) {
         try { channel.postMessage({ key }); } catch (e) {}
       }
     }
@@ -1315,7 +1358,24 @@
       return controlState.firstBuzzName;
     }
 
-    function renderAll() {
+    function renderAll(force = false) {
+      const signature = JSON.stringify({
+        displayState,
+        controlState,
+        roundClosedAfterSteal,
+        isBusy,
+        stealAwardInProgress,
+        toggleActionInFlight,
+        errorActionInFlight,
+        nextQuestionInFlight,
+        panelActionInFlight,
+        answerActionInFlight: Array.from(answerActionInFlight),
+        optimisticRevealedIndexes: Array.from(optimisticRevealedIndexes)
+      });
+
+      if (!force && signature === lastRenderSignature) return;
+      lastRenderSignature = signature;
+
       const questionNumber = controlState.currentQuestionIndex + 1;
       questionNumberEl.textContent = `سؤال ${questionNumber}`;
 
@@ -1324,10 +1384,10 @@
       bellToggleBtn.textContent = controlState.buzzVisible ? "إخفاء الجرس" : "إظهار الجرس";
       questionToggleBtn.textContent = displayState.showQuestion ? "إخفاء السؤال" : "إظهار السؤال";
 
-      bellToggleBtn.disabled = isBusy || stealAwardInProgress;
-      questionToggleBtn.disabled = isBusy || stealAwardInProgress;
-      errorBtn.disabled = isBusy || stealAwardInProgress || !canRegisterError();
-      nextQuestionBtn.disabled = isBusy || stealAwardInProgress;
+      bellToggleBtn.disabled = toggleActionInFlight || stealAwardInProgress;
+      questionToggleBtn.disabled = toggleActionInFlight || stealAwardInProgress;
+      errorBtn.disabled = errorActionInFlight || stealAwardInProgress || !canRegisterError();
+      nextQuestionBtn.disabled = nextQuestionInFlight || stealAwardInProgress;
 
       renderAnswers();
       renderPanel();
@@ -1353,9 +1413,9 @@
         const isVisuallyRevealed = !!answer.revealed || optimisticRevealedIndexes.has(index);
 
         const shouldDisable =
-          isBusy ||
           stealAwardInProgress ||
-          isBlockedRevealedAnswer;
+          isBlockedRevealedAnswer ||
+          answerActionInFlight.has(index);
 
         card.type = "button";
         card.className = "answer-card" + (isVisuallyRevealed ? " revealed" : "");
@@ -1400,10 +1460,10 @@
 
         const row = buildRow([
           buildBlueButton(getTeamName("team1"), async () => {
-            await sendGameAction("set_duel_winner", { team: "team1" });
+            await sendGameAction("set_duel_winner", { team: "team1" }, { skipBusy: true });
           }),
           buildBlueButton(getTeamName("team2"), async () => {
-            await sendGameAction("set_duel_winner", { team: "team2" });
+            await sendGameAction("set_duel_winner", { team: "team2" }, { skipBusy: true });
           })
         ]);
 
@@ -1433,7 +1493,7 @@
 
         const cancelRow = buildRow([
           buildRedButton("إلغاء", async () => {
-            await sendGameAction("cancel_context");
+            await sendGameAction("cancel_context", {}, { skipBusy: true });
           })
         ]);
 
@@ -1470,10 +1530,22 @@
       btn.type = "button";
       btn.className = "panel-btn";
       btn.textContent = text;
-      btn.disabled = isBusy || stealAwardInProgress;
+      btn.disabled = panelActionInFlight || stealAwardInProgress;
+
       btn.addEventListener("click", async () => {
-        await runGuardedAction(`panel-blue-${text}`, onClick, NORMAL_ACTION_GUARD_MS);
+        if (panelActionInFlight || stealAwardInProgress) return;
+
+        panelActionInFlight = true;
+        renderAll();
+
+        try {
+          await runGuardedAction(`panel-blue-${text}`, onClick, NORMAL_ACTION_GUARD_MS);
+        } finally {
+          panelActionInFlight = false;
+          renderAll();
+        }
       });
+
       return btn;
     }
 
@@ -1482,10 +1554,22 @@
       btn.type = "button";
       btn.className = "panel-btn red";
       btn.textContent = text;
-      btn.disabled = isBusy || stealAwardInProgress;
+      btn.disabled = panelActionInFlight || stealAwardInProgress;
+
       btn.addEventListener("click", async () => {
-        await runGuardedAction(`panel-red-${text}`, onClick, NORMAL_ACTION_GUARD_MS);
+        if (panelActionInFlight || stealAwardInProgress) return;
+
+        panelActionInFlight = true;
+        renderAll();
+
+        try {
+          await runGuardedAction(`panel-red-${text}`, onClick, NORMAL_ACTION_GUARD_MS);
+        } finally {
+          panelActionInFlight = false;
+          renderAll();
+        }
       });
+
       return btn;
     }
 
@@ -1498,13 +1582,13 @@
     }
 
     async function handleFailStealClick() {
-      if (isBusy || stealAwardInProgress) return;
+      if (stealAwardInProgress) return;
 
       stealAwardInProgress = true;
       renderAll();
 
       try {
-        const ok = await sendGameAction("steal_result", { result: "fail" });
+        const ok = await sendGameAction("steal_result", { result: "fail" }, { skipBusy: true });
 
         if (ok) {
           markRoundClosedAfterSteal();
@@ -1516,7 +1600,7 @@
     }
 
     async function handleAnswerClick(index) {
-      if (isBusy || stealAwardInProgress) return;
+      if (stealAwardInProgress) return;
 
       const answer = Array.isArray(displayState.answers)
         ? displayState.answers[index]
@@ -1530,14 +1614,21 @@
 
       if (isRoundClosedAfterSteal()) {
         if (answer.revealed) return;
+        if (answerActionInFlight.has(index)) return;
 
         optimisticRevealedIndexes.add(index);
+        answerActionInFlight.add(index);
         renderAll();
 
-        const ok = await sendGameAction("reveal_answer", { answerIndex: index });
+        try {
+          const ok = await sendGameAction("reveal_answer", { answerIndex: index }, { skipBusy: true });
 
-        if (!ok) {
-          optimisticRevealedIndexes.delete(index);
+          if (!ok) {
+            optimisticRevealedIndexes.delete(index);
+            renderAll();
+          }
+        } finally {
+          answerActionInFlight.delete(index);
           renderAll();
         }
 
@@ -1555,25 +1646,27 @@
           let awarded = false;
 
           if (controlState.stage === "steal_result") {
-            awarded = await sendGameAction("award_steal", { answerIndex: index });
+            awarded = await sendGameAction("award_steal", { answerIndex: index }, { skipBusy: true });
 
             if (!awarded) {
-              const movedToPick = await sendGameAction("steal_result", { result: "success" });
+              const movedToPick = await sendGameAction("steal_result", { result: "success" }, { skipBusy: true });
               if (!movedToPick) {
                 optimisticRevealedIndexes.delete(index);
+                renderAll();
                 return;
               }
 
-              awarded = await sendGameAction("award_steal", { answerIndex: index });
+              awarded = await sendGameAction("award_steal", { answerIndex: index }, { skipBusy: true });
             }
           } else {
-            awarded = await sendGameAction("award_steal", { answerIndex: index });
+            awarded = await sendGameAction("award_steal", { answerIndex: index }, { skipBusy: true });
           }
 
           if (awarded) {
             markRoundClosedAfterSteal();
           } else {
             optimisticRevealedIndexes.delete(index);
+            renderAll();
           }
         } finally {
           stealAwardInProgress = false;
@@ -1583,13 +1676,21 @@
         return;
       }
 
+      if (answerActionInFlight.has(index)) return;
+
       optimisticRevealedIndexes.add(index);
+      answerActionInFlight.add(index);
       renderAll();
 
-      const ok = await sendGameAction("reveal_answer", { answerIndex: index });
+      try {
+        const ok = await sendGameAction("reveal_answer", { answerIndex: index }, { skipBusy: true });
 
-      if (!ok) {
-        optimisticRevealedIndexes.delete(index);
+        if (!ok) {
+          optimisticRevealedIndexes.delete(index);
+          renderAll();
+        }
+      } finally {
+        answerActionInFlight.delete(index);
         renderAll();
       }
     }
@@ -1598,14 +1699,12 @@
       const previousVisible = !!controlState.buzzVisible;
 
       controlState.buzzVisible = false;
-      saveControlState();
       renderAll();
 
       const ok = await sendGameAction("choose_play_or_pass_bundle", { decision }, { skipBusy: true });
 
       if (!ok) {
         controlState.buzzVisible = previousVisible;
-        saveControlState();
         renderAll();
         await fetchRemoteGameState({ force: true });
       }
@@ -1615,14 +1714,12 @@
       const previousVisible = !!controlState.buzzVisible;
 
       controlState.buzzVisible = true;
-      saveControlState();
       renderAll();
 
       const ok = await sendGameAction("cancel_duel_open_buzz", {}, { skipBusy: true });
 
       if (!ok) {
         controlState.buzzVisible = previousVisible;
-        saveControlState();
         renderAll();
         await fetchRemoteGameState({ force: true });
       }
