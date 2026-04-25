@@ -5,6 +5,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <title>Family Feud - Index</title>
 
+  <link rel="preload" as="image" href="logo-family-feud.PNG">
+  <link rel="preload" as="image" href="logo.PNG">
+
   <style>
     :root{
       --gold:#f1d14f;
@@ -86,6 +89,7 @@
       left:50%;
       transform:translateX(-50%);
       width:620px;
+      min-height:245px;
       display:flex;
       align-items:center;
       justify-content:center;
@@ -440,10 +444,30 @@
     <div class="fit-root">
       <div class="game-shell">
 
-        <img id="storeLogo" class="store-logo" src="logo.PNG" alt="صندوق المسابقات" />
+        <img
+          id="storeLogo"
+          class="store-logo"
+          src="logo.PNG"
+          alt="صندوق المسابقات"
+          width="150"
+          height="150"
+          loading="eager"
+          decoding="async"
+          fetchpriority="low"
+        />
 
         <div class="hero-logo-wrap">
-          <img id="familyLogo" class="hero-logo" src="logo-family-feud.PNG" alt="فاميلي فيود" />
+          <img
+            id="familyLogo"
+            class="hero-logo"
+            src="logo-family-feud.PNG"
+            alt="فاميلي فيود"
+            width="1536"
+            height="1024"
+            loading="eager"
+            decoding="async"
+            fetchpriority="high"
+          />
           <div id="familyLogoFallback" class="hero-logo-fallback">فاميلي فيود</div>
         </div>
 
