@@ -472,6 +472,10 @@
           </div>
         </section>
 
+        <audio id="buzzSound" preload="auto" playsinline webkit-playsinline>
+          <source src="buz.MP4" type="audio/mp4">
+        </audio>
+
       </div>
     </div>
 
@@ -505,6 +509,7 @@
     let joinInFlight = false;
     let pressInFlight = false;
     let syncStarted = false;
+    let buzzSoundUnlocked = false;
 
     const root = document.documentElement;
 
@@ -522,6 +527,7 @@
     const buzzBtn = document.getElementById("buzzBtn");
     const buzzStatus = document.getElementById("buzzStatus");
     const backBtn = document.getElementById("backBtn");
+    const buzzSoundEl = document.getElementById("buzzSound");
 
     let selectedTeam = readStored(STORAGE.team) || "";
     let stableViewport = { width: window.innerWidth, height: window.innerHeight };
@@ -859,6 +865,45 @@
       setBuzzStatus("اضغط الجرس عندما تبدأ الجولة");
     }
 
+    async function unlockBuzzSound() {
+      if (buzzSoundUnlocked || !buzzSoundEl) return;
+
+      try {
+        buzzSoundEl.pause();
+        buzzSoundEl.currentTime = 0;
+      } catch (e) {}
+
+      try {
+        buzzSoundEl.muted = true;
+        await buzzSoundEl.play();
+      } catch (e) {}
+
+      try {
+        buzzSoundEl.pause();
+        buzzSoundEl.currentTime = 0;
+      } catch (e) {}
+
+      buzzSoundEl.muted = false;
+      buzzSoundUnlocked = true;
+    }
+
+    async function playBuzzSound() {
+      if (!buzzSoundEl) return;
+
+      if (!buzzSoundUnlocked) {
+        await unlockBuzzSound();
+      }
+
+      try {
+        buzzSoundEl.pause();
+        buzzSoundEl.currentTime = 0;
+      } catch (e) {}
+
+      try {
+        await buzzSoundEl.play();
+      } catch (e) {}
+    }
+
     async function apiGet(path) {
       if (!API_BASE) {
         const ok = await detectApiBase();
@@ -968,14 +1013,17 @@
       setBuzzStatus("جارٍ إرسال الضغط...");
 
       try {
+        await unlockBuzzSound();
+
         const res = await apiPost(`/api/buzz/press?room=${encodeURIComponent(roomId)}`, {
           playerId,
           name: currentPlayerName(),
           team: selectedTeam
         });
 
-        if (res.ok && res.data && res.data.state) {
+        if (res.ok && res.data && res.data.accepted === true && res.data.state) {
           applyBuzzState(res.data.state);
+          await playBuzzSound();
           return;
         }
 
@@ -1107,6 +1155,7 @@
         return;
       }
 
+      await unlockBuzzSound();
       await fetchGameDisplay();
 
       const joined = await joinRoom();
