@@ -85,11 +85,11 @@
 
     .hero-logo-wrap{
       position:absolute;
-      top:22px;
+      top:10px;
       left:50%;
       transform:translateX(-50%);
-      width:620px;
-      min-height:245px;
+      width:540px;
+      min-height:215px;
       display:flex;
       align-items:center;
       justify-content:center;
@@ -99,7 +99,7 @@
     .hero-logo{
       display:block;
       max-width:100%;
-      max-height:245px;
+      max-height:215px;
       object-fit:contain;
     }
 
@@ -118,17 +118,17 @@
     .setup-panel{
       position:absolute;
       left:50%;
-      top:485px;
+      top:418px;
       transform:translate(-50%, -50%);
-      width:920px;
-      height:500px;
+      width:900px;
+      height:368px;
       border-radius:36px;
       border:10px solid #0f0f0f;
       background:linear-gradient(180deg, #0f2c88 0%, #081d61 100%);
       box-shadow:
         inset 0 0 0 1px rgba(255,255,255,.05),
         0 18px 40px rgba(0,0,0,.22);
-      padding:30px 40px 26px;
+      padding:28px 34px 24px;
       display:flex;
       flex-direction:column;
     }
@@ -136,7 +136,7 @@
     .teams-row{
       display:grid;
       grid-template-columns:1fr 1fr;
-      gap:40px;
+      gap:28px;
       align-items:start;
     }
 
@@ -146,15 +146,15 @@
 
     .team-label{
       color:var(--white);
-      font-size:42px;
+      font-size:38px;
       font-weight:900;
       line-height:1.15;
-      margin-bottom:20px;
+      margin-bottom:16px;
     }
 
     .team-input{
       width:100%;
-      height:76px;
+      height:74px;
       border-radius:999px;
       border:4px solid #101010;
       background:#f3f3f3;
@@ -174,11 +174,14 @@
     }
 
     .start-wrap{
+      position:absolute;
+      left:50%;
+      top:646px;
+      transform:translateX(-50%);
       display:flex;
       align-items:center;
       justify-content:center;
-      margin-top:34px;
-      margin-bottom:24px;
+      z-index:6;
     }
 
     .start-btn{
@@ -214,20 +217,22 @@
     .actions-grid{
       margin-top:auto;
       display:grid;
-      grid-template-columns:1fr 1fr;
-      gap:18px 24px;
+      grid-template-columns:repeat(4, minmax(0, 1fr));
+      gap:16px;
+      align-items:end;
     }
 
     .action-btn{
-      height:82px;
-      border-radius:30px;
+      height:78px;
+      border-radius:28px;
       border:4px solid rgba(243,242,234,.95);
       background:rgba(46, 81, 198, .28);
       color:var(--white);
-      font-size:32px;
+      font-size:26px;
       font-weight:900;
       cursor:pointer;
       transition:transform .15s ease, filter .15s ease, opacity .15s ease;
+      white-space:nowrap;
     }
 
     .action-btn:hover{
@@ -378,18 +383,19 @@
     }
 
     body.portrait .hero-logo-wrap{
-      top:175px;
+      top:155px;
       width:560px;
+      min-height:300px;
     }
 
     body.portrait .hero-logo{
-      max-height:320px;
+      max-height:300px;
     }
 
     body.portrait .setup-panel{
-      top:820px;
+      top:760px;
       width:620px;
-      height:560px;
+      height:430px;
       padding:34px 28px 28px;
     }
 
@@ -413,8 +419,7 @@
     }
 
     body.portrait .start-wrap{
-      margin-top:40px;
-      margin-bottom:26px;
+      top:1058px;
     }
 
     body.portrait .start-btn{
@@ -424,6 +429,7 @@
     }
 
     body.portrait .actions-grid{
+      grid-template-columns:1fr 1fr;
       gap:14px;
     }
 
@@ -484,17 +490,17 @@
             </div>
           </div>
 
-          <div class="start-wrap">
-            <button id="startBtn" class="start-btn" type="button" disabled>ابدأ</button>
-          </div>
-
           <div class="actions-grid">
-            <button id="answersBtn" class="action-btn" type="button">لوحة المضيف</button>
             <button id="buzzBtn" class="action-btn" type="button">زر الجرس</button>
+            <button id="answersBtn" class="action-btn" type="button">لوحة المضيف</button>
             <button id="guideBtn" class="action-btn" type="button">التعليمات</button>
             <button class="action-btn" type="button" disabled>الرئيسية</button>
           </div>
         </section>
+
+        <div class="start-wrap">
+          <button id="startBtn" class="start-btn" type="button" disabled>ابدأ</button>
+        </div>
 
         <div id="guideOverlay" class="overlay">
           <div class="modal">
