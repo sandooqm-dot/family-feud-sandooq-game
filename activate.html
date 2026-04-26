@@ -281,25 +281,34 @@
       width:220px;
       height:74px;
       margin:8px auto 0;
-      display:block;
+      display:flex;
+      align-items:center;
+      justify-content:center;
       border-radius:999px;
       border:5px solid rgba(243,242,234,.95);
       background:linear-gradient(180deg, var(--orange-1) 0%, var(--orange-2) 100%);
       color:#fff;
       font-size:34px;
+      line-height:1;
       font-weight:900;
       cursor:pointer;
-      transition:transform .15s ease, filter .15s ease, opacity .15s ease;
+      white-space:nowrap;
+      overflow:hidden;
+      transition:filter .15s ease, opacity .15s ease;
       box-shadow:0 10px 18px rgba(0,0,0,.12);
     }
 
     .primary-btn:hover:not(:disabled){
-      transform:translateY(-1px);
       filter:brightness(1.03);
     }
 
     .primary-btn:active:not(:disabled){
-      transform:scale(.985);
+      filter:brightness(1.01);
+    }
+
+    .primary-btn.loading{
+      font-size:24px;
+      letter-spacing:-.2px;
     }
 
     .primary-btn:disabled{
@@ -328,11 +337,10 @@
       font-size:24px;
       font-weight:900;
       cursor:pointer;
-      transition:transform .15s ease, filter .15s ease, opacity .15s ease;
+      transition:filter .15s ease, opacity .15s ease;
     }
 
     .secondary-btn:hover:not(:disabled){
-      transform:translateY(-1px);
       filter:brightness(1.04);
     }
 
@@ -440,6 +448,10 @@
       width:230px;
       height:80px;
       font-size:38px;
+    }
+
+    body.portrait .primary-btn.loading{
+      font-size:25px;
     }
 
     body.portrait .secondary-btn{
@@ -626,6 +638,16 @@
 
     let stableViewport = { width: window.innerWidth, height: window.innerHeight };
     let stableOrientationPortrait = window.innerHeight > window.innerWidth;
+    let layoutFrozenUntil = 0;
+    let loadingCount = 0;
+
+    function freezeLayout(ms = 900) {
+      layoutFrozenUntil = Math.max(layoutFrozenUntil, Date.now() + ms);
+    }
+
+    function isLayoutFrozen() {
+      return loadingCount > 0 || Date.now() < layoutFrozenUntil;
+    }
 
     function readCookie(name) {
       try {
@@ -886,13 +908,34 @@
       else hideBanner();
     }
 
-    function setLoading(button, loading, textWhenIdle) {
-      button.disabled = loading;
+    function setLoading(button, loading, textWhenIdle, loadingText = "جاري التنفيذ…") {
+      if (!button) return;
+
       if (loading) {
+        freezeLayout(1400);
+
+        if (button.dataset.loadingActive !== "1") {
+          loadingCount += 1;
+          button.dataset.loadingActive = "1";
+        }
+
         button.dataset.originalText = button.textContent;
-        button.textContent = "جاري التنفيذ...";
+        button.textContent = loadingText;
+        button.classList.add("loading");
+        button.disabled = true;
       } else {
+        if (button.dataset.loadingActive === "1") {
+          loadingCount = Math.max(0, loadingCount - 1);
+          button.dataset.loadingActive = "0";
+        }
+
         button.textContent = button.dataset.originalText || textWhenIdle;
+        button.classList.remove("loading");
+        button.disabled = false;
+
+        setTimeout(() => {
+          updateLayout(true);
+        }, 90);
       }
     }
 
@@ -1070,8 +1113,15 @@
       }
     }
 
-    loginTabBtn.addEventListener("click", () => setMode("login"));
-    registerTabBtn.addEventListener("click", () => setMode("register"));
+    loginTabBtn.addEventListener("click", () => {
+      freezeLayout(700);
+      setMode("login");
+    });
+
+    registerTabBtn.addEventListener("click", () => {
+      freezeLayout(700);
+      setMode("register");
+    });
 
     loginForm.addEventListener("submit", async (e) => {
       e.preventDefault();
@@ -1084,7 +1134,7 @@
         return;
       }
 
-      setLoading(loginBtn, true, "دخول");
+      setLoading(loginBtn, true, "دخول", "جاري الدخول…");
 
       try {
         const result = await apiRequest(API.login, {
@@ -1149,7 +1199,7 @@
         return;
       }
 
-      setLoading(registerBtn, true, "إنشاء");
+      setLoading(registerBtn, true, "إنشاء", "جاري الإنشاء…");
 
       try {
         const result = await apiRequest(API.register, {
@@ -1202,7 +1252,7 @@
         return;
       }
 
-      setLoading(activateBtn, true, "تفعيل");
+      setLoading(activateBtn, true, "تفعيل", "جاري التفعيل…");
 
       try {
         const result = await apiRequest(API.activate, {
@@ -1233,6 +1283,7 @@
     });
 
     function doLogout() {
+      freezeLayout(900);
       clearToken();
       clearStoredEmail();
       activateCode.value = "";
@@ -1249,6 +1300,7 @@
     logoutBtn2.addEventListener("click", doLogout);
 
     enterGameBtn.addEventListener("click", () => {
+      freezeLayout(900);
       redirectToGame();
     });
 
@@ -1257,7 +1309,7 @@
     }
 
     function updateStableViewport() {
-      if (isTypingNow()) return;
+      if (isTypingNow() || isLayoutFrozen()) return;
       const vp = getCurrentViewport();
       stableViewport = { width: vp.width, height: vp.height };
       stableOrientationPortrait = vp.height > vp.width;
@@ -1283,14 +1335,14 @@
     }
 
     function setAppHeight(force = false) {
-      if (!isTypingNow() || force) {
+      if ((!isTypingNow() && !isLayoutFrozen()) || (force && !isLayoutFrozen())) {
         updateStableViewport();
       }
       root.style.setProperty("--app-height", stableViewport.height + "px");
     }
 
     function fitGameToViewport(force = false) {
-      if (!isTypingNow() || force) {
+      if ((!isTypingNow() && !isLayoutFrozen()) || (force && !isLayoutFrozen())) {
         updateStableViewport();
       }
 
@@ -1309,7 +1361,7 @@
     }
 
     function nudgeSafariBar() {
-      if (isTypingNow()) return;
+      if (isTypingNow() || isLayoutFrozen()) return;
 
       const visibleHeight = stableViewport.height;
       const fullHeight = Math.max(
@@ -1325,7 +1377,7 @@
     }
 
     function updateLayout(force = false) {
-      if (!isTypingNow() || force) {
+      if ((!isTypingNow() && !isLayoutFrozen()) || (force && !isLayoutFrozen())) {
         updateStableViewport();
       }
 
@@ -1334,11 +1386,25 @@
 
       requestAnimationFrame(() => {
         fitGameToViewport(force);
-        if (!isTypingNow() || force) {
+        if (!isTypingNow() && !isLayoutFrozen()) {
           nudgeSafariBar();
         }
       });
     }
+
+    document.addEventListener("touchstart", (event) => {
+      const target = event.target;
+      if (target && target.closest && target.closest(".primary-btn, .secondary-btn, .tab-btn")) {
+        freezeLayout(900);
+      }
+    }, { passive:true, capture:true });
+
+    document.addEventListener("pointerdown", (event) => {
+      const target = event.target;
+      if (target && target.closest && target.closest(".primary-btn, .secondary-btn, .tab-btn")) {
+        freezeLayout(900);
+      }
+    }, { passive:true, capture:true });
 
     typingInputs.forEach(input => {
       input.addEventListener("focus", () => {
@@ -1375,7 +1441,7 @@
     }, { passive: true });
 
     window.addEventListener("resize", () => {
-      if (!isTypingNow()) updateLayout();
+      if (!isTypingNow() && !isLayoutFrozen()) updateLayout();
     }, { passive: true });
 
     window.addEventListener("orientationchange", () => {
@@ -1386,16 +1452,13 @@
 
     if (window.visualViewport) {
       window.visualViewport.addEventListener("resize", () => {
-        if (!isTypingNow()) updateLayout();
+        if (!isTypingNow() && !isLayoutFrozen()) updateLayout();
       }, { passive: true });
 
       window.visualViewport.addEventListener("scroll", () => {
-        if (!isTypingNow()) updateLayout();
+        if (!isTypingNow() && !isLayoutFrozen()) updateLayout();
       }, { passive: true });
     }
-
-    document.addEventListener("touchstart", nudgeSafariBar, { passive: true });
-    document.addEventListener("touchend", nudgeSafariBar, { passive: true });
   </script>
 </body>
 </html>
