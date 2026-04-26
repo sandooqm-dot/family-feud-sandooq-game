@@ -549,6 +549,7 @@
     <div class="page-spacer" aria-hidden="true"></div>
   </main>
 
+  <script src="family-feud-questions.js"></script>
   <script src="https://js.pusher.com/8.4.0/pusher.min.js"></script>
   <script>
     const DESIGN_WIDTH = 1600;
@@ -785,6 +786,7 @@
 
         const previousShowQuestion = !!displayState.showQuestion;
         const previousBuzzVisible = !!controlState.buzzVisible;
+        const localQuestionBundle = getNextLocalQuestionBundle();
 
         nextQuestionInFlight = true;
         displayState.showQuestion = false;
@@ -794,7 +796,7 @@
         renderAll();
 
         try {
-          const ok = await sendGameAction("next_question_bundle", {}, { skipBusy: true });
+          const ok = await sendGameAction("next_question_bundle", localQuestionBundle, { skipBusy: true });
 
           if (!ok) {
             displayState.showQuestion = previousShowQuestion;
@@ -849,15 +851,84 @@
       return list;
     }
 
+    function getControlQuestionBank() {
+      const raw =
+        window.FAMILY_FEUD_QUESTIONS ||
+        window.familyFeudQuestions ||
+        window.FAMILY_FEUD_BANK ||
+        window.familyFeudBank ||
+        [];
+
+      if (!Array.isArray(raw)) return [];
+
+      return raw
+        .map(normalizeControlQuestion)
+        .filter((item) => item && item.question && item.answers.length > 0);
+    }
+
+    function normalizeControlQuestion(item) {
+      if (!item || typeof item !== "object") return null;
+
+      const question = String(item.question || "").trim();
+
+      const answers = Array.isArray(item.answers)
+        ? item.answers
+            .slice(0, 6)
+            .map((answer) => ({
+              text: String(answer?.text || "").trim(),
+              points: Math.max(0, Number(answer?.points || 0))
+            }))
+            .filter((answer) => answer.text && answer.points > 0)
+        : [];
+
+      if (!question || !answers.length) return null;
+
+      return {
+        question,
+        answers
+      };
+    }
+
+    function cloneQuestionForApi(question) {
+      return {
+        question: String(question.question || "").trim(),
+        answers: Array.isArray(question.answers)
+          ? question.answers.slice(0, 6).map((answer) => ({
+              text: String(answer.text || "").trim(),
+              points: Math.max(0, Number(answer.points || 0))
+            }))
+          : []
+      };
+    }
+
+    function getNextLocalQuestionBundle() {
+      const bank = getControlQuestionBank();
+
+      if (!bank.length) {
+        return {};
+      }
+
+      const currentIndex = Number(controlState.currentQuestionIndex || 0);
+      const safeCurrent = Number.isFinite(currentIndex) ? Math.floor(currentIndex) : 0;
+      const nextIndex = ((safeCurrent + 1) % bank.length + bank.length) % bank.length;
+      const question = cloneQuestionForApi(bank[nextIndex]);
+
+      return {
+        questionIndex: nextIndex,
+        totalQuestions: bank.length,
+        question
+      };
+    }
+
     function getApiBases() {
       const seen = new Set();
       const bases = [];
 
       const rawBases = [
-        window.location.origin,
         apiBase,
         readStored(API_BASE_KEY),
         readStored(BUZZ_API_BASE_KEY),
+        window.location.origin.includes("workers.dev") ? window.location.origin : "",
         "https://family-feud-buzz.sandooq-m.workers.dev",
         "https://z.sandooq-m.workers.dev"
       ];
