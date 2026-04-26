@@ -549,7 +549,6 @@
     <div class="page-spacer" aria-hidden="true"></div>
   </main>
 
-  <script src="questions_bank.js"></script>
   <script src="https://js.pusher.com/8.4.0/pusher.min.js"></script>
   <script>
     const DESIGN_WIDTH = 1600;
@@ -565,6 +564,8 @@
     const ROUND_CLOSED_KEY = "familyfeud_round_closed_after_steal_v1";
 
     const DEFAULT_ROOM = "family-feud-demo";
+    const FALLBACK_POLL_MS = 3500;
+    const PUSHER_FALLBACK_POLL_MS = 9000;
     const BUZZ_FALLBACK_POLL_MS = 700;
     const BUZZ_PUSHER_FALLBACK_POLL_MS = 1800;
     const MIN_STATE_FETCH_GAP_MS = 700;
@@ -593,6 +594,7 @@
     let controlState = readControlState();
     let channel = null;
 
+    let isBusy = false;
     let stealAwardInProgress = false;
     let toggleActionInFlight = false;
     let errorActionInFlight = false;
@@ -600,16 +602,28 @@
     let panelActionInFlight = false;
     let answerActionInFlight = new Set();
 
+    let pusher = null;
+    let gameChannel = null;
     let buzzPusher = null;
     let buzzChannel = null;
+
+    let fallbackPoll = null;
     let buzzFallbackPoll = null;
+    let currentPollMs = 0;
     let currentBuzzPollMs = 0;
+
+    let usingPusherRealtime = false;
     let usingBuzzPusherRealtime = false;
+
+    let stateFetchInFlight = null;
     let buzzStateFetchInFlight = null;
+
+    let lastRemoteStateAt = 0;
     let lastRemoteBuzzStateAt = 0;
 
     let syncStarted = false;
     let apiBase = normalizeBase(readStored(API_BASE_KEY) || readStored(BUZZ_API_BASE_KEY));
+    let initialAutoShowDone = false;
     let optimisticRevealedIndexes = new Set();
     let roundClosedAfterSteal = readRoundClosedAfterSteal();
     let actionGuardUntil = new Map();
@@ -644,10 +658,20 @@
     });
 
     window.addEventListener("focus", async () => {
+      const gameRecent = Date.now() - lastRemoteStateAt < MIN_STATE_FETCH_GAP_MS;
       const buzzRecent = Date.now() - lastRemoteBuzzStateAt < MIN_STATE_FETCH_GAP_MS;
 
-      if (!buzzRecent) {
-        await fetchRemoteBuzzState({ force: true });
+      if (gameRecent && buzzRecent) {
+        renderAll();
+        return;
+      }
+
+      const tasks = [];
+      if (!gameRecent) tasks.push(fetchRemoteGameState({ force: true }));
+      if (!buzzRecent) tasks.push(fetchRemoteBuzzState({ force: true }));
+
+      if (tasks.length) {
+        await Promise.all(tasks);
       }
 
       renderAll();
@@ -680,21 +704,24 @@
       if (toggleActionInFlight || stealAwardInProgress) return;
 
       await runGuardedAction("toggle-bell", async () => {
-        const nextVisible = !controlState.buzzVisible;
+        const previousVisible = !!controlState.buzzVisible;
+        const nextVisible = !previousVisible;
 
         toggleActionInFlight = true;
         controlState.buzzVisible = nextVisible;
-
-        if (nextVisible) {
-          controlState.firstBuzzName = "";
-          controlState.firstBuzzTeam = "";
-        }
-
-        saveControlState();
         renderAll();
 
         try {
-          await sendRemoteActionOnly("set_buzz_visible", { visible: nextVisible });
+          const ok = await sendGameAction("set_buzz_visible", {
+            visible: nextVisible
+          }, { skipBusy: true });
+
+          if (!ok) {
+            controlState.buzzVisible = previousVisible;
+            renderAll();
+            await fetchRemoteGameState({ force: true });
+            await fetchRemoteBuzzState({ force: true });
+          }
         } finally {
           toggleActionInFlight = false;
           renderAll();
@@ -706,12 +733,23 @@
       if (toggleActionInFlight || stealAwardInProgress) return;
 
       await runGuardedAction("toggle-question", async () => {
+        const previousVisible = !!displayState.showQuestion;
+        const nextVisible = !previousVisible;
+
         toggleActionInFlight = true;
-        displayState.showQuestion = !displayState.showQuestion;
-        saveDisplayState();
+        displayState.showQuestion = nextVisible;
+        renderAll();
 
         try {
-          renderAll();
+          const ok = await sendGameAction("show_question", {
+            visible: nextVisible
+          }, { skipBusy: true });
+
+          if (!ok) {
+            displayState.showQuestion = previousVisible;
+            renderAll();
+            await fetchRemoteGameState({ force: true });
+          }
         } finally {
           toggleActionInFlight = false;
           renderAll();
@@ -725,9 +763,12 @@
 
       await runGuardedAction("register-error", async () => {
         errorActionInFlight = true;
+        renderAll();
 
         try {
-          registerLocalError(controlState.currentTurnTeam);
+          await sendGameAction("register_error", {
+            team: controlState.currentTurnTeam
+          }, { skipBusy: true });
         } finally {
           errorActionInFlight = false;
           renderAll();
@@ -740,115 +781,34 @@
 
       await runGuardedAction("next-question", async () => {
         optimisticRevealedIndexes.clear();
-        answerActionInFlight.clear();
+        clearRoundClosedAfterSteal();
+
+        const previousShowQuestion = !!displayState.showQuestion;
+        const previousBuzzVisible = !!controlState.buzzVisible;
 
         nextQuestionInFlight = true;
+        displayState.showQuestion = false;
+        controlState.buzzVisible = true;
+        controlState.firstBuzzName = "";
+        controlState.firstBuzzTeam = "";
+        renderAll();
 
         try {
-          const nextIndex = getNextQuestionIndex();
-          applyQuestionFromBank(nextIndex);
-          await sendRemoteActionOnly("set_buzz_visible", { visible: true });
+          const ok = await sendGameAction("next_question_bundle", {}, { skipBusy: true });
+
+          if (!ok) {
+            displayState.showQuestion = previousShowQuestion;
+            controlState.buzzVisible = previousBuzzVisible;
+            renderAll();
+            await fetchRemoteGameState({ force: true });
+            await fetchRemoteBuzzState({ force: true });
+          }
         } finally {
           nextQuestionInFlight = false;
           renderAll();
         }
       }, HEAVY_ACTION_GUARD_MS);
     });
-
-    function hasQuestionBank() {
-      return Array.isArray(window.FAMILY_FEUD_QUESTIONS) && window.FAMILY_FEUD_QUESTIONS.length > 0;
-    }
-
-    function getQuestionBank() {
-      return hasQuestionBank() ? window.FAMILY_FEUD_QUESTIONS : [];
-    }
-
-    function normalizeQuestionIndex(index) {
-      const bank = getQuestionBank();
-      const total = bank.length || 1;
-      const n = Number(index);
-      const safe = Number.isFinite(n) ? Math.floor(n) : 0;
-
-      if (safe < 0) return 0;
-      if (safe >= total) return 0;
-      return safe;
-    }
-
-    function getNextQuestionIndex() {
-      const current = Number(controlState.currentQuestionIndex || 0);
-      return normalizeQuestionIndex(current + 1);
-    }
-
-    function normalizeBankAnswer(answer) {
-      return {
-        text: String(answer?.text || "").trim(),
-        points: Math.max(0, Number(answer?.points || 0)),
-        revealed: false
-      };
-    }
-
-    function getQuestionFromBank(index) {
-      const bank = getQuestionBank();
-
-      if (!bank.length) {
-        return {
-          index: 0,
-          question: "نص السؤال",
-          answers: []
-        };
-      }
-
-      const safeIndex = normalizeQuestionIndex(index);
-      const rawQuestion = bank[safeIndex] || bank[0];
-
-      const answers = Array.isArray(rawQuestion.answers)
-        ? rawQuestion.answers
-            .map(normalizeBankAnswer)
-            .filter(answer => answer.text)
-            .slice(0, 6)
-        : [];
-
-      return {
-        index: safeIndex,
-        question: String(rawQuestion.question || "نص السؤال").trim(),
-        answers
-      };
-    }
-
-    function applyQuestionFromBank(index) {
-      const picked = getQuestionFromBank(index);
-
-      const team1Name = displayState?.team1Name || readStored("familyfeud_team1") || "الفريق الأول";
-      const team2Name = displayState?.team2Name || readStored("familyfeud_team2") || "الفريق الثاني";
-      const team1Score = Number(displayState?.team1Score || 0);
-      const team2Score = Number(displayState?.team2Score || 0);
-
-      displayState = {
-        showQuestion: false,
-        question: picked.question,
-        team1Name,
-        team2Name,
-        team1Score,
-        team2Score,
-        team1Strikes: 0,
-        team2Strikes: 0,
-        roundPoints: 0,
-        answers: normalizeAnswersForDisplay(picked.answers)
-      };
-
-      controlState = {
-        ...getDefaultControlState(),
-        currentQuestionIndex: picked.index,
-        totalQuestions: getQuestionBank().length,
-        buzzVisible: true
-      };
-
-      clearRoundClosedAfterSteal();
-      saveDisplayState();
-      saveControlState();
-      renderAll(true);
-      return true;
-    }
 
     function resolveRoomId() {
       const url = new URL(window.location.href);
@@ -872,8 +832,19 @@
 
     function normalizeAnswersForDisplay(answers) {
       const list = Array.isArray(answers)
-        ? answers.slice(0, 6).map(normalizeAnswerForDisplay).filter(answer => answer.text)
+        ? answers.slice(0, 6).map(normalizeAnswerForDisplay)
         : [];
+
+      while (list.length > 0) {
+        const last = list[list.length - 1];
+        const isEmptyTail =
+          !String(last.text || "").trim() &&
+          Number(last.points || 0) === 0 &&
+          last.revealed !== true;
+
+        if (!isEmptyTail) break;
+        list.pop();
+      }
 
       return list;
     }
@@ -906,7 +877,7 @@
 
       for (const base of bases) {
         try {
-          const res = await fetch(`${base}/api/buzz/state?room=${encodeURIComponent(roomId)}`, {
+          const res = await fetch(`${base}/api/game/state?room=${encodeURIComponent(roomId)}`, {
             method: "GET",
             cache: "no-store",
             headers: {
@@ -915,10 +886,8 @@
             }
           });
 
-          if (!res.ok) continue;
-
           const data = await res.json().catch(() => null);
-          if (!data || !data.ok) continue;
+          if (!res.ok || !data || !data.ok || !data.state) continue;
 
           apiBase = base;
           writeStored(API_BASE_KEY, base);
@@ -937,11 +906,30 @@
       const ok = await detectApiBase();
 
       if (ok) {
+        await fetchRemoteGameState({ force: true });
         await fetchRemoteBuzzState({ force: true });
+        await maybeInitialAutoShowQuestion();
+        await initPusher();
         await initBuzzPusher();
       }
 
+      startFallbackPoll();
       startBuzzFallbackPoll();
+    }
+
+    function startFallbackPoll(intervalMs = usingPusherRealtime ? PUSHER_FALLBACK_POLL_MS : FALLBACK_POLL_MS) {
+      if (fallbackPoll && currentPollMs === intervalMs) return;
+
+      if (fallbackPoll) {
+        clearInterval(fallbackPoll);
+        fallbackPoll = null;
+      }
+
+      currentPollMs = intervalMs;
+
+      fallbackPoll = setInterval(() => {
+        maybePollRemoteGameState();
+      }, intervalMs);
     }
 
     function startBuzzFallbackPoll(intervalMs = usingBuzzPusherRealtime ? BUZZ_PUSHER_FALLBACK_POLL_MS : BUZZ_FALLBACK_POLL_MS) {
@@ -959,6 +947,18 @@
       }, intervalMs);
     }
 
+    function maybePollRemoteGameState() {
+      if (stateFetchInFlight) return;
+
+      const now = Date.now();
+
+      if (usingPusherRealtime && now - lastRemoteStateAt < PUSHER_RECENT_GRACE_MS) {
+        return;
+      }
+
+      fetchRemoteGameState();
+    }
+
     function maybePollRemoteBuzzState() {
       if (buzzStateFetchInFlight) return;
 
@@ -972,9 +972,19 @@
     }
 
     function destroyLiveSync() {
+      if (fallbackPoll) {
+        clearInterval(fallbackPoll);
+        fallbackPoll = null;
+      }
+
       if (buzzFallbackPoll) {
         clearInterval(buzzFallbackPoll);
         buzzFallbackPoll = null;
+      }
+
+      if (gameChannel && pusher) {
+        try { gameChannel.unbind_all(); } catch (e) {}
+        try { pusher.unsubscribe(gameChannel.name); } catch (e) {}
       }
 
       if (buzzChannel && buzzPusher) {
@@ -982,17 +992,91 @@
         try { buzzPusher.unsubscribe(buzzChannel.name); } catch (e) {}
       }
 
+      gameChannel = null;
       buzzChannel = null;
+
+      if (pusher) {
+        try { pusher.disconnect(); } catch (e) {}
+      }
 
       if (buzzPusher) {
         try { buzzPusher.disconnect(); } catch (e) {}
       }
 
+      pusher = null;
       buzzPusher = null;
+
       syncStarted = false;
+      usingPusherRealtime = false;
       usingBuzzPusherRealtime = false;
+      currentPollMs = 0;
       currentBuzzPollMs = 0;
+      stateFetchInFlight = null;
       buzzStateFetchInFlight = null;
+    }
+
+    async function initPusher() {
+      if (!window.Pusher) return;
+      if (!apiBase) return;
+      if (pusher || gameChannel) return;
+
+      try {
+        const res = await fetch(`${apiBase}/api/game/pusher-config?room=${encodeURIComponent(roomId)}`, {
+          method: "GET",
+          cache: "no-store",
+          headers: {
+            "Cache-Control": "no-cache",
+            "Pragma": "no-cache"
+          }
+        });
+
+        const data = await res.json().catch(() => null);
+        if (!res.ok || !data || !data.ok || !data.key || !data.cluster || !data.channel) return;
+
+        const authEndpoint = String(data.authEndpoint || "").startsWith("http")
+          ? data.authEndpoint
+          : `${apiBase}${data.authEndpoint}`;
+
+        window.Pusher.logToConsole = false;
+
+        pusher = new window.Pusher(data.key, {
+          cluster: data.cluster,
+          channelAuthorization: {
+            endpoint: authEndpoint,
+            transport: "ajax"
+          }
+        });
+
+        if (pusher.connection) {
+          pusher.connection.bind("state_change", (states) => {
+            const currentState = String(states?.current || "");
+
+            if (currentState === "connected") {
+              usingPusherRealtime = true;
+              startFallbackPoll(PUSHER_FALLBACK_POLL_MS);
+              return;
+            }
+
+            if (currentState === "disconnected" || currentState === "unavailable" || currentState === "failed") {
+              usingPusherRealtime = false;
+              startFallbackPoll(FALLBACK_POLL_MS);
+            }
+          });
+        }
+
+        gameChannel = pusher.subscribe(data.channel);
+
+        gameChannel.bind("pusher:subscription_succeeded", async () => {
+          usingPusherRealtime = true;
+          startFallbackPoll(PUSHER_FALLBACK_POLL_MS);
+          await fetchRemoteGameState({ force: true });
+        });
+
+        gameChannel.bind("game-updated", (payload) => {
+          applyRemoteGameState(payload);
+          renderAll();
+        });
+      } catch (error) {}
     }
 
     async function initBuzzPusher() {
@@ -1059,6 +1143,59 @@
       } catch (error) {}
     }
 
+    async function maybeInitialAutoShowQuestion() {
+      if (initialAutoShowDone) return;
+      initialAutoShowDone = true;
+    }
+
+    async function fetchRemoteGameState(options = {}) {
+      const force = options.force === true;
+      const now = Date.now();
+
+      if (!force) {
+        if (stateFetchInFlight) return stateFetchInFlight;
+        if (now - lastRemoteStateAt < MIN_STATE_FETCH_GAP_MS) return true;
+      }
+
+      stateFetchInFlight = (async () => {
+        const bases = getApiBases();
+
+        for (const base of bases) {
+          try {
+            const res = await fetch(`${base}/api/game/state?room=${encodeURIComponent(roomId)}`, {
+              method: "GET",
+              cache: "no-store",
+              headers: {
+                "Cache-Control": "no-cache",
+                "Pragma": "no-cache"
+              }
+            });
+
+            if (!res.ok) continue;
+
+            const data = await res.json().catch(() => null);
+            if (!data || !data.ok || !data.state) continue;
+
+            apiBase = base;
+            writeStored(API_BASE_KEY, base);
+            writeStored(BUZZ_API_BASE_KEY, base);
+
+            applyRemoteGameState(data.state);
+            renderAll();
+            return true;
+          } catch (error) {}
+        }
+
+        return false;
+      })();
+
+      try {
+        return await stateFetchInFlight;
+      } finally {
+        stateFetchInFlight = null;
+      }
+    }
+
     async function fetchRemoteBuzzState(options = {}) {
       const force = options.force === true;
       const now = Date.now();
@@ -1107,35 +1244,53 @@
       }
     }
 
-    async function sendRemoteActionOnly(action, extra = {}) {
+    async function sendGameAction(action, extra = {}, options = {}) {
       const bases = getApiBases();
+      const skipBusy = options.skipBusy === true;
 
-      for (const base of bases) {
-        try {
-          const res = await fetch(`${base}/api/game/action?room=${encodeURIComponent(roomId)}`, {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              "Cache-Control": "no-cache",
-              "Pragma": "no-cache"
-            },
-            body: JSON.stringify({
-              action,
-              ...extra
-            })
-          });
-
-          const data = await res.json().catch(() => null);
-          if (!res.ok || !data || !data.ok) continue;
-
-          apiBase = base;
-          writeStored(API_BASE_KEY, base);
-          writeStored(BUZZ_API_BASE_KEY, base);
-          return true;
-        } catch (error) {}
+      if (!skipBusy) {
+        isBusy = true;
+        renderAll();
       }
 
-      return false;
+      try {
+        for (const base of bases) {
+          try {
+            const res = await fetch(`${base}/api/game/action?room=${encodeURIComponent(roomId)}`, {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                "Cache-Control": "no-cache",
+                "Pragma": "no-cache"
+              },
+              body: JSON.stringify({
+                action,
+                ...extra
+              })
+            });
+
+            if (!res.ok) continue;
+
+            const data = await res.json().catch(() => null);
+            if (!data || !data.ok || !data.state) continue;
+
+            apiBase = base;
+            writeStored(API_BASE_KEY, base);
+            writeStored(BUZZ_API_BASE_KEY, base);
+
+            applyRemoteGameState(data.state);
+            renderAll();
+            return true;
+          } catch (error) {}
+        }
+
+        return false;
+      } finally {
+        if (!skipBusy) {
+          isBusy = false;
+          renderAll();
+        }
+      }
     }
 
     function isActionGuarded(key) {
@@ -1177,6 +1332,63 @@
       }
     }
 
+    function applyRemoteGameState(remoteState) {
+      if (!remoteState) return;
+
+      lastRemoteStateAt = Date.now();
+
+      const previousQuestion = displayState ? String(displayState.question || "") : "";
+      const previousQuestionIndex = controlState ? Number(controlState.currentQuestionIndex || 0) : 0;
+
+      const display = remoteState.display || {};
+      const control = remoteState.control || {};
+      const buzz = remoteState.buzz || {};
+
+      displayState = {
+        showQuestion: !!display.showQuestion,
+        question: String(display.question || ""),
+        team1Name: String(display.team1Name || readStored("familyfeud_team1") || "الفريق الأول"),
+        team2Name: String(display.team2Name || readStored("familyfeud_team2") || "الفريق الثاني"),
+        team1Score: Number(display.team1Score || 0),
+        team2Score: Number(display.team2Score || 0),
+        team1Strikes: Number(display.team1Strikes || 0),
+        team2Strikes: Number(display.team2Strikes || 0),
+        roundPoints: Number(display.roundPoints || 0),
+        answers: normalizeAnswersForDisplay(display.answers)
+      };
+
+      controlState = {
+        currentQuestionIndex: Number(control.currentQuestionIndex || 0),
+        totalQuestions: Number(control.totalQuestions || 0),
+        stage: String(control.phase || "idle"),
+        currentTurnTeam: String(control.currentTurnTeam || ""),
+        confrontationWinner: String(control.confrontationWinner || ""),
+        stealingTeam: String(control.stealingTeam || ""),
+        firstBuzzName: String(buzz.firstBuzz?.name || ""),
+        firstBuzzTeam: String(buzz.firstBuzz?.team || ""),
+        buzzVisible: !!buzz.enabled
+      };
+
+      const questionChanged =
+        previousQuestion !== displayState.question ||
+        previousQuestionIndex !== controlState.currentQuestionIndex;
+
+      if (questionChanged) {
+        clearRoundClosedAfterSteal();
+      } else {
+        refreshRoundClosedAfterSteal();
+
+        if (isRoundClosedAfterSteal()) {
+          displayState.roundPoints = 0;
+        }
+      }
+
+      cleanupOptimisticReveals(questionChanged);
+
+      saveDisplayState();
+      saveControlState();
+    }
+
     function cleanupOptimisticReveals(questionChanged) {
       if (questionChanged) {
         optimisticRevealedIndexes.clear();
@@ -1200,30 +1412,6 @@
     }
 
     function ensureInitialState() {
-      if (hasQuestionBank()) {
-        const hasUsableQuestion =
-          displayState &&
-          String(displayState.question || "").trim() &&
-          Array.isArray(displayState.answers) &&
-          displayState.answers.length > 0;
-
-        if (!controlState) {
-          controlState = getDefaultControlState();
-        }
-
-        controlState.totalQuestions = getQuestionBank().length;
-
-        if (!hasUsableQuestion) {
-          applyQuestionFromBank(controlState.currentQuestionIndex || 0);
-          return;
-        }
-
-        displayState.answers = normalizeAnswersForDisplay(displayState.answers);
-        saveDisplayState();
-        saveControlState();
-        return;
-      }
-
       if (!displayState || !Array.isArray(displayState.answers)) {
         displayState = {
           showQuestion: false,
@@ -1252,7 +1440,7 @@
     function getDefaultControlState() {
       return {
         currentQuestionIndex: 0,
-        totalQuestions: hasQuestionBank() ? getQuestionBank().length : 0,
+        totalQuestions: 0,
         stage: "idle",
         currentTurnTeam: "",
         confrontationWinner: "",
@@ -1432,39 +1620,12 @@
       return controlState.firstBuzzName;
     }
 
-    function registerLocalError(team) {
-      if (!team) return;
-
-      if (team === "team1") {
-        displayState.team1Strikes = Math.min(3, Number(displayState.team1Strikes || 0) + 1);
-
-        if (displayState.team1Strikes >= 3) {
-          controlState.stage = "steal_result";
-          controlState.stealingTeam = "team2";
-          controlState.currentTurnTeam = "";
-        }
-      }
-
-      if (team === "team2") {
-        displayState.team2Strikes = Math.min(3, Number(displayState.team2Strikes || 0) + 1);
-
-        if (displayState.team2Strikes >= 3) {
-          controlState.stage = "steal_result";
-          controlState.stealingTeam = "team1";
-          controlState.currentTurnTeam = "";
-        }
-      }
-
-      saveDisplayState();
-      saveControlState();
-      renderAll();
-    }
-
     function renderAll(force = false) {
       const signature = JSON.stringify({
         displayState,
         controlState,
         roundClosedAfterSteal,
+        isBusy,
         stealAwardInProgress,
         toggleActionInFlight,
         errorActionInFlight,
@@ -1566,10 +1727,10 @@
 
         const row = buildRow([
           buildBlueButton(getTeamName("team1"), async () => {
-            setDuelWinnerLocal("team1");
+            await sendGameAction("set_duel_winner", { team: "team1" }, { skipBusy: true });
           }),
           buildBlueButton(getTeamName("team2"), async () => {
-            setDuelWinnerLocal("team2");
+            await sendGameAction("set_duel_winner", { team: "team2" }, { skipBusy: true });
           })
         ]);
 
@@ -1599,12 +1760,7 @@
 
         const cancelRow = buildRow([
           buildRedButton("إلغاء", async () => {
-            controlState.stage = "idle";
-            controlState.currentTurnTeam = "";
-            controlState.confrontationWinner = "";
-            controlState.stealingTeam = "";
-            saveControlState();
-            renderAll();
+            await sendGameAction("cancel_context", {}, { skipBusy: true });
           })
         ]);
 
@@ -1627,16 +1783,6 @@
 
       panelTitleEl.textContent = ".";
       panelTitleEl.classList.add("hint-hidden");
-    }
-
-    function setDuelWinnerLocal(team) {
-      controlState.stage = "play_or_pass";
-      controlState.confrontationWinner = team;
-      controlState.currentTurnTeam = team;
-      controlState.buzzVisible = false;
-      saveControlState();
-      sendRemoteActionOnly("set_buzz_visible", { visible: false });
-      renderAll();
     }
 
     function buildRow(buttons) {
@@ -1709,27 +1855,11 @@
       renderAll();
 
       try {
-        const stealingTeam = controlState.stealingTeam;
-        const originalTeam = getOtherTeam(stealingTeam);
-        const points = Number(displayState.roundPoints || 0);
+        const ok = await sendGameAction("steal_result", { result: "fail" }, { skipBusy: true });
 
-        if (originalTeam === "team1") {
-          displayState.team1Score = Number(displayState.team1Score || 0) + points;
+        if (ok) {
+          markRoundClosedAfterSteal();
         }
-
-        if (originalTeam === "team2") {
-          displayState.team2Score = Number(displayState.team2Score || 0) + points;
-        }
-
-        displayState.roundPoints = 0;
-        controlState.stage = "idle";
-        controlState.currentTurnTeam = "";
-        controlState.confrontationWinner = "";
-        controlState.stealingTeam = "";
-
-        saveDisplayState();
-        saveControlState();
-        markRoundClosedAfterSteal();
       } finally {
         stealAwardInProgress = false;
         renderAll();
@@ -1753,44 +1883,58 @@
         if (answer.revealed) return;
         if (answerActionInFlight.has(index)) return;
 
-        answer.revealed = true;
-        displayState.roundPoints = 0;
-        saveDisplayState();
+        optimisticRevealedIndexes.add(index);
+        answerActionInFlight.add(index);
         renderAll();
+
+        try {
+          const ok = await sendGameAction("reveal_answer", { answerIndex: index }, { skipBusy: true });
+
+          if (!ok) {
+            optimisticRevealedIndexes.delete(index);
+            renderAll();
+          }
+        } finally {
+          answerActionInFlight.delete(index);
+          renderAll();
+        }
+
         return;
       }
 
       if (isStealStage()) {
         if (answer.revealed) return;
 
+        optimisticRevealedIndexes.add(index);
         stealAwardInProgress = true;
         renderAll();
 
         try {
-          const stealingTeam = controlState.stealingTeam;
-          const answerPoints = Number(answer.points || 0);
+          let awarded = false;
 
-          answer.revealed = true;
+          if (controlState.stage === "steal_result") {
+            awarded = await sendGameAction("award_steal", { answerIndex: index }, { skipBusy: true });
 
-          const totalPoints = Number(displayState.roundPoints || 0) + answerPoints;
+            if (!awarded) {
+              const movedToPick = await sendGameAction("steal_result", { result: "success" }, { skipBusy: true });
+              if (!movedToPick) {
+                optimisticRevealedIndexes.delete(index);
+                renderAll();
+                return;
+              }
 
-          if (stealingTeam === "team1") {
-            displayState.team1Score = Number(displayState.team1Score || 0) + totalPoints;
+              awarded = await sendGameAction("award_steal", { answerIndex: index }, { skipBusy: true });
+            }
+          } else {
+            awarded = await sendGameAction("award_steal", { answerIndex: index }, { skipBusy: true });
           }
 
-          if (stealingTeam === "team2") {
-            displayState.team2Score = Number(displayState.team2Score || 0) + totalPoints;
+          if (awarded) {
+            markRoundClosedAfterSteal();
+          } else {
+            optimisticRevealedIndexes.delete(index);
+            renderAll();
           }
-
-          displayState.roundPoints = 0;
-          controlState.stage = "idle";
-          controlState.currentTurnTeam = "";
-          controlState.confrontationWinner = "";
-          controlState.stealingTeam = "";
-
-          saveDisplayState();
-          saveControlState();
-          markRoundClosedAfterSteal();
         } finally {
           stealAwardInProgress = false;
           renderAll();
@@ -1801,19 +1945,17 @@
 
       if (answerActionInFlight.has(index)) return;
 
+      optimisticRevealedIndexes.add(index);
       answerActionInFlight.add(index);
+      renderAll();
 
       try {
-        answer.revealed = true;
-        displayState.roundPoints = calculateRoundPoints();
+        const ok = await sendGameAction("reveal_answer", { answerIndex: index }, { skipBusy: true });
 
-        if (controlState.stage === "idle") {
-          controlState.stage = "duel_select";
+        if (!ok) {
+          optimisticRevealedIndexes.delete(index);
+          renderAll();
         }
-
-        saveDisplayState();
-        saveControlState();
-        renderAll();
       } finally {
         answerActionInFlight.delete(index);
         renderAll();
@@ -1821,35 +1963,37 @@
     }
 
     async function choosePlayOrPass(decision) {
-      const winnerTeam = controlState.confrontationWinner;
-      const otherTeam = getOtherTeam(winnerTeam);
+      const previousVisible = !!controlState.buzzVisible;
 
-      if (!winnerTeam) return;
-
-      controlState.stage = "main";
-      controlState.currentTurnTeam = decision === "pass" ? otherTeam : winnerTeam;
-      controlState.stealingTeam = "";
       controlState.buzzVisible = false;
-      controlState.firstBuzzName = "";
-      controlState.firstBuzzTeam = "";
-
-      saveControlState();
-      await sendRemoteActionOnly("set_buzz_visible", { visible: false });
       renderAll();
+
+      const ok = await sendGameAction("choose_play_or_pass_bundle", { decision }, { skipBusy: true });
+
+      if (!ok) {
+        controlState.buzzVisible = previousVisible;
+        renderAll();
+        await fetchRemoteGameState({ force: true });
+        await fetchRemoteBuzzState({ force: true });
+      }
     }
 
     async function cancelDuelAndOpenBuzzAgain() {
-      controlState.stage = "idle";
-      controlState.currentTurnTeam = "";
-      controlState.confrontationWinner = "";
-      controlState.stealingTeam = "";
+      const previousVisible = !!controlState.buzzVisible;
+
+      controlState.buzzVisible = true;
       controlState.firstBuzzName = "";
       controlState.firstBuzzTeam = "";
-      controlState.buzzVisible = true;
-
-      saveControlState();
-      await sendRemoteActionOnly("set_buzz_visible", { visible: true });
       renderAll();
+
+      const ok = await sendGameAction("cancel_duel_open_buzz", {}, { skipBusy: true });
+
+      if (!ok) {
+        controlState.buzzVisible = previousVisible;
+        renderAll();
+        await fetchRemoteGameState({ force: true });
+        await fetchRemoteBuzzState({ force: true });
+      }
     }
 
     function getCurrentViewport() {
