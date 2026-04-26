@@ -1,19 +1,20 @@
 export async function onRequestOptions() {
   return new Response(null, {
     status: 204,
-    headers: corsHeaders()
+    headers: corsHeaders(),
   });
 }
 
 export async function onRequestPost(context) {
   try {
-    const db = getDb(context.env);
+    const db = context.env.DB;
+
     if (!db) {
       return json(
         {
           ok: false,
           error: "DB_BINDING_MISSING",
-          message: "لم يتم العثور على ربط قاعدة البيانات D1."
+          message: "لم يتم العثور على ربط قاعدة البيانات D1.",
         },
         500
       );
@@ -21,13 +22,49 @@ export async function onRequestPost(context) {
 
     await ensureSchema(db);
 
-    const token = readBearerToken(context.request);
+    const token = getBearerToken(context.request);
+
     if (!token) {
       return json(
         {
           ok: false,
           error: "TOKEN_REQUIRED",
-          message: "يجب تسجيل الدخول أولًا."
+          message: "يجب تسجيل الدخول أولًا قبل التفعيل.",
+        },
+        401
+      );
+    }
+
+    const session = await db
+      .prepare(
+        `SELECT token, email, device_id, expires_at
+         FROM sessions
+         WHERE token = ?
+         LIMIT 1`
+      )
+      .bind(token)
+      .first();
+
+    if (!session) {
+      return json(
+        {
+          ok: false,
+          error: "INVALID_TOKEN",
+          message: "انتهت الجلسة، سجّل الدخول مرة أخرى.",
+        },
+        401
+      );
+    }
+
+    const expiresMs = Date.parse(session.expires_at || "");
+    if (Number.isFinite(expiresMs) && expiresMs < Date.now()) {
+      await db.prepare("DELETE FROM sessions WHERE token = ?").bind(token).run();
+
+      return json(
+        {
+          ok: false,
+          error: "SESSION_EXPIRED",
+          message: "انتهت الجلسة، سجّل الدخول مرة أخرى.",
         },
         401
       );
@@ -35,9 +72,12 @@ export async function onRequestPost(context) {
 
     const body = await readJson(context.request);
     const code = normalizeCode(body.code);
+    const email = normalizeEmail(session.email || body.email);
     const deviceId = normalizeDeviceId(
       context.request.headers.get("X-Device-Id") ||
+      session.device_id ||
       body.deviceId ||
+      body.device_id ||
       ""
     );
 
@@ -46,337 +86,270 @@ export async function onRequestPost(context) {
         {
           ok: false,
           error: "CODE_REQUIRED",
-          message: "كود التفعيل مطلوب."
+          message: "أدخل كود التفعيل أولًا.",
         },
         400
       );
     }
 
-    const session = await db
-      .prepare(`
-        SELECT
-          token,
-          email,
-          device_id,
-          created_at,
-          updated_at
-        FROM sessions
-        WHERE token = ?1
-        LIMIT 1
-      `)
-      .bind(token)
-      .first();
-
-    if (!session?.email) {
-      return json(
-        {
-          ok: false,
-          error: "INVALID_TOKEN",
-          message: "الجلسة غير صالحة أو منتهية."
-        },
-        401
-      );
-    }
-
-    const email = normalizeEmail(session.email);
-
     const user = await db
-      .prepare(`
-        SELECT
-          email,
-          activated,
-          created_at,
-          updated_at
-        FROM users
-        WHERE email = ?1
-        LIMIT 1
-      `)
+      .prepare(
+        `SELECT email, activated, activated_code, device_id
+         FROM users
+         WHERE email = ?
+         LIMIT 1`
+      )
       .bind(email)
       .first();
 
-    if (!user?.email) {
+    if (!user) {
       return json(
         {
           ok: false,
           error: "USER_NOT_FOUND",
-          message: "الحساب غير موجود."
+          message: "الحساب غير موجود.",
         },
         404
+      );
+    }
+
+    const currentActivated = Number(user.activated || 0) === 1;
+    const currentCode = normalizeCode(user.activated_code || "");
+
+    if (currentActivated && currentCode && currentCode === code) {
+      return json(
+        {
+          ok: true,
+          token,
+          email,
+          activated: true,
+          is_activated: true,
+          isActivated: true,
+          has_access: true,
+          can_play: true,
+          message: "اللعبة مفعّلة مسبقًا على هذا الحساب.",
+        },
+        200
+      );
+    }
+
+    if (currentActivated && currentCode && currentCode !== code) {
+      return json(
+        {
+          ok: false,
+          error: "ALREADY_ACTIVATED",
+          message: "هذا الحساب مفعّل مسبقًا بكود آخر.",
+        },
+        409
       );
     }
 
     const codeRow = await db
-      .prepare(`
-        SELECT
-          code,
-          status,
-          used_by_email,
-          used_by_device,
-          activated_at,
-          created_at
-        FROM codes
-        WHERE code = ?1
-        LIMIT 1
-      `)
+      .prepare(
+        `SELECT code, status, email, device_id, activated_at
+         FROM codes
+         WHERE code = ?
+         LIMIT 1`
+      )
       .bind(code)
       .first();
 
-    if (!codeRow?.code) {
+    if (!codeRow) {
       return json(
         {
           ok: false,
-          error: "INVALID_CODE",
-          message: "كود التفعيل غير صحيح."
+          error: "CODE_NOT_FOUND",
+          message: "كود التفعيل غير موجود.",
         },
         404
       );
     }
 
-    const usedByEmail = normalizeEmail(codeRow.used_by_email);
-    const currentStatus = String(codeRow.status || "NEW").trim().toUpperCase();
-    const now = Date.now();
+    const codeStatus = String(codeRow.status || "").trim().toUpperCase();
+    const codeEmail = normalizeEmail(codeRow.email || "");
 
-    if (usedByEmail) {
-      if (usedByEmail !== email) {
-        return json(
-          {
-            ok: false,
-            error: "CODE_ALREADY_USED",
-            message: "هذا الكود مستخدم مسبقًا على حساب آخر."
-          },
-          409
-        );
-      }
-
-      await db.batch([
-        db.prepare(`
-          UPDATE users
-          SET activated = 1,
-              updated_at = ?2
-          WHERE email = ?1
-        `).bind(email, now),
-
-        db.prepare(`
-          UPDATE sessions
-          SET updated_at = ?2,
-              device_id = CASE
-                WHEN (?3 != '') THEN ?3
-                ELSE device_id
-              END
-          WHERE token = ?1
-        `).bind(token, now, deviceId)
-      ]);
-
-      return json({
-        ok: true,
-        activated: true,
-        email,
-        code,
-        message: "تم تفعيل اللعبة مسبقًا على هذا الحساب.",
-        user: {
-          email,
-          activated: true
-        }
-      });
-    }
-
-    if (currentStatus === "USED") {
+    if (codeStatus === "USED" && codeEmail && codeEmail !== email) {
       return json(
         {
           ok: false,
           error: "CODE_ALREADY_USED",
-          message: "هذا الكود مستخدم مسبقًا."
+          message: "هذا الكود مستخدم مسبقًا على حساب آخر.",
         },
         409
       );
     }
 
-    const claimResult = await db
-      .prepare(`
-        UPDATE codes
-        SET status = 'USED',
-            used_by_email = ?2,
-            used_by_device = ?3,
-            activated_at = ?4
-        WHERE code = ?1
-          AND (used_by_email IS NULL OR used_by_email = '')
-          AND (status IS NULL OR status = '' OR UPPER(status) = 'NEW')
-      `)
-      .bind(code, email, deviceId, now)
-      .run();
+    const now = new Date().toISOString();
 
-    const changed = Number(claimResult?.meta?.changes || 0);
+    if (codeStatus !== "USED") {
+      const updateCode = await db
+        .prepare(
+          `UPDATE codes
+           SET status = 'USED',
+               email = ?,
+               device_id = ?,
+               activated_at = ?
+           WHERE code = ?
+             AND status != 'USED'`
+        )
+        .bind(email, deviceId, now, code)
+        .run();
 
-    if (changed !== 1) {
-      const latestCodeRow = await db
-        .prepare(`
-          SELECT
-            code,
-            status,
-            used_by_email,
-            used_by_device,
-            activated_at
-          FROM codes
-          WHERE code = ?1
-          LIMIT 1
-        `)
-        .bind(code)
-        .first();
+      const changes = Number(updateCode?.meta?.changes || 0);
 
-      const latestUsedByEmail = normalizeEmail(latestCodeRow?.used_by_email);
-
-      if (latestUsedByEmail && latestUsedByEmail !== email) {
+      if (changes < 1) {
         return json(
           {
             ok: false,
             error: "CODE_ALREADY_USED",
-            message: "هذا الكود مستخدم مسبقًا على حساب آخر."
+            message: "هذا الكود مستخدم مسبقًا.",
           },
           409
         );
       }
-
-      if (latestUsedByEmail === email) {
-        await db.batch([
-          db.prepare(`
-            UPDATE users
-            SET activated = 1,
-                updated_at = ?2
-            WHERE email = ?1
-          `).bind(email, now),
-
-          db.prepare(`
-            UPDATE sessions
-            SET updated_at = ?2,
-                device_id = CASE
-                  WHEN (?3 != '') THEN ?3
-                  ELSE device_id
-                END
-            WHERE token = ?1
-          `).bind(token, now, deviceId)
-        ]);
-
-        return json({
-          ok: true,
-          activated: true,
-          email,
-          code,
-          message: "تم تفعيل اللعبة مسبقًا على هذا الحساب.",
-          user: {
-            email,
-            activated: true
-          }
-        });
-      }
-
-      return json(
-        {
-          ok: false,
-          error: "ACTIVATION_FAILED",
-          message: "تعذر تفعيل الكود الآن. حاول مرة أخرى."
-        },
-        409
-      );
     }
 
-    await db.batch([
-      db.prepare(`
-        UPDATE users
-        SET activated = 1,
-            updated_at = ?2
-        WHERE email = ?1
-      `).bind(email, now),
+    await db
+      .prepare(
+        `UPDATE users
+         SET activated = 1,
+             activated_code = ?,
+             device_id = ?,
+             updated_at = ?
+         WHERE email = ?`
+      )
+      .bind(code, deviceId, now, email)
+      .run();
 
-      db.prepare(`
-        UPDATE sessions
-        SET updated_at = ?2,
-            device_id = CASE
-              WHEN (?3 != '') THEN ?3
-              ELSE device_id
-            END
-        WHERE token = ?1
-      `).bind(token, now, deviceId)
-    ]);
+    await db
+      .prepare(
+        `INSERT INTO activations (
+          code,
+          email,
+          device_id,
+          activated_at
+        ) VALUES (?, ?, ?, ?)`
+      )
+      .bind(code, email, deviceId, now)
+      .run();
 
-    return json({
-      ok: true,
-      activated: true,
-      email,
-      code,
-      message: "تم تفعيل اللعبة بنجاح.",
-      user: {
+    return json(
+      {
+        ok: true,
+        token,
         email,
-        activated: true
-      }
-    });
+        activated: true,
+        is_activated: true,
+        isActivated: true,
+        has_access: true,
+        can_play: true,
+        user: {
+          email,
+          activated: true,
+          is_activated: true,
+          isActivated: true,
+          activated_code: code,
+          device_id: deviceId,
+        },
+        message: "تم تفعيل اللعبة بنجاح.",
+      },
+      200
+    );
   } catch (error) {
     return json(
       {
         ok: false,
         error: "SERVER_ERROR",
-        message: error instanceof Error ? error.message : String(error)
+        message: error?.message || "حدث خطأ في الخادم.",
       },
       500
     );
   }
 }
 
-function getDb(env) {
-  return (
-    env.DB ||
-    env.AUTH_DB ||
-    env.FAMILYFEUD_DB ||
-    env.FAMILY_FEUD_DB ||
-    env.BDON_KALAM_AUTH ||
-    null
-  );
-}
-
 async function ensureSchema(db) {
-  await db.exec(`
-    CREATE TABLE IF NOT EXISTS users (
-      email TEXT PRIMARY KEY,
-      password_hash TEXT NOT NULL,
-      salt_b64 TEXT NOT NULL,
-      activated INTEGER NOT NULL DEFAULT 0,
-      created_at INTEGER NOT NULL,
-      updated_at INTEGER NOT NULL
-    );
+  await db
+    .prepare(
+      `CREATE TABLE IF NOT EXISTS users (
+        email TEXT PRIMARY KEY,
+        password_hash TEXT NOT NULL,
+        salt TEXT NOT NULL,
+        device_id TEXT,
+        activated INTEGER NOT NULL DEFAULT 0,
+        activated_code TEXT,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+      )`
+    )
+    .run();
 
-    CREATE TABLE IF NOT EXISTS sessions (
-      token TEXT PRIMARY KEY,
-      email TEXT NOT NULL,
-      device_id TEXT,
-      created_at INTEGER NOT NULL,
-      updated_at INTEGER NOT NULL
-    );
+  await db
+    .prepare(
+      `CREATE TABLE IF NOT EXISTS sessions (
+        token TEXT PRIMARY KEY,
+        email TEXT NOT NULL,
+        device_id TEXT,
+        created_at TEXT NOT NULL,
+        expires_at TEXT NOT NULL
+      )`
+    )
+    .run();
 
-    CREATE TABLE IF NOT EXISTS codes (
-      code TEXT PRIMARY KEY,
-      status TEXT DEFAULT 'NEW',
-      used_by_email TEXT,
-      used_by_device TEXT,
-      activated_at INTEGER,
-      created_at INTEGER
-    );
+  await db
+    .prepare(
+      `CREATE TABLE IF NOT EXISTS codes (
+        code TEXT PRIMARY KEY,
+        status TEXT NOT NULL DEFAULT 'NEW',
+        email TEXT,
+        device_id TEXT,
+        activated_at TEXT,
+        created_at TEXT
+      )`
+    )
+    .run();
 
-    CREATE INDEX IF NOT EXISTS idx_sessions_email ON sessions(email);
-    CREATE INDEX IF NOT EXISTS idx_codes_used_by_email ON codes(used_by_email);
-  `);
-}
+  await db
+    .prepare(
+      `CREATE TABLE IF NOT EXISTS activations (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        code TEXT NOT NULL,
+        email TEXT NOT NULL,
+        device_id TEXT,
+        activated_at TEXT NOT NULL
+      )`
+    )
+    .run();
 
-function readBearerToken(request) {
-  const auth = String(request.headers.get("Authorization") || "").trim();
-  if (!auth.toLowerCase().startsWith("bearer ")) return "";
-  return auth.slice(7).trim();
+  await db
+    .prepare("CREATE INDEX IF NOT EXISTS idx_sessions_email ON sessions(email)")
+    .run();
+
+  await db
+    .prepare("CREATE INDEX IF NOT EXISTS idx_codes_email ON codes(email)")
+    .run();
+
+  await db
+    .prepare("CREATE INDEX IF NOT EXISTS idx_activations_email ON activations(email)")
+    .run();
 }
 
 async function readJson(request) {
   try {
     return await request.json();
-  } catch {
+  } catch (_) {
     return {};
   }
+}
+
+function getBearerToken(request) {
+  const auth = request.headers.get("Authorization") || "";
+  const match = auth.match(/^Bearer\s+(.+)$/i);
+
+  if (match && match[1]) {
+    return String(match[1]).trim();
+  }
+
+  return "";
 }
 
 function normalizeEmail(value) {
@@ -384,18 +357,22 @@ function normalizeEmail(value) {
 }
 
 function normalizeCode(value) {
-  return String(value || "").trim().toUpperCase().replace(/\s+/g, "");
+  return String(value || "")
+    .trim()
+    .toUpperCase()
+    .replace(/\s+/g, "");
 }
 
 function normalizeDeviceId(value) {
-  return String(value || "").trim().replace(/[^\w-]/g, "").slice(0, 160);
+  return String(value || "").trim().replace(/[^\w.-]/g, "").slice(0, 160);
 }
 
 function corsHeaders() {
   return {
     "Access-Control-Allow-Origin": "*",
-    "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
-    "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Device-Id"
+    "Access-Control-Allow-Methods": "POST, OPTIONS",
+    "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Device-Id",
+    "Access-Control-Max-Age": "86400",
   };
 }
 
@@ -403,8 +380,8 @@ function json(data, status = 200) {
   return new Response(JSON.stringify(data), {
     status,
     headers: {
-      "content-type": "application/json; charset=utf-8",
-      ...corsHeaders()
-    }
+      "Content-Type": "application/json; charset=utf-8",
+      ...corsHeaders(),
+    },
   });
 }
