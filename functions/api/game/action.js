@@ -33,6 +33,8 @@ export async function onRequestPost(context) {
     if (!state) {
       state = createInitialState(room);
       await saveRoomState(db, room, state);
+    } else {
+      state = normalizeState(state, room);
     }
 
     switch (action) {
@@ -47,8 +49,8 @@ export async function onRequestPost(context) {
       }
 
       case "init": {
-        const team1Name = cleanText(body.team1Name) || "الفريق الأول";
-        const team2Name = cleanText(body.team2Name) || "الفريق الثاني";
+        const team1Name = cleanText(body.team1Name) || state.display.team1Name || "الفريق الأول";
+        const team2Name = cleanText(body.team2Name) || state.display.team2Name || "الفريق الثاني";
         const incomingQuestion = normalizeIncomingQuestion(body.question);
         const incomingTotal = normalizeTotalQuestions(body.totalQuestions);
         const questionIndex = normalizeQuestionIndexByTotal(
@@ -60,6 +62,8 @@ export async function onRequestPost(context) {
         state = createInitialState(room, {
           team1Name,
           team2Name,
+          team1Score: Number(state.display.team1Score || 0),
+          team2Score: Number(state.display.team2Score || 0),
           questionIndex,
           totalQuestions: incomingTotal,
           questionOverride: incomingQuestion
@@ -86,11 +90,6 @@ export async function onRequestPost(context) {
       }
 
       case "next_question_bundle": {
-        const team1Name = state.display.team1Name || "الفريق الأول";
-        const team2Name = state.display.team2Name || "الفريق الثاني";
-        const team1Score = Number(state.display.team1Score || 0);
-        const team2Score = Number(state.display.team2Score || 0);
-
         const incomingQuestion = normalizeIncomingQuestion(body.question);
         const incomingTotal = normalizeTotalQuestions(body.totalQuestions);
 
@@ -109,10 +108,10 @@ export async function onRequestPost(context) {
         );
 
         state = createInitialState(room, {
-          team1Name,
-          team2Name,
-          team1Score,
-          team2Score,
+          team1Name: state.display.team1Name || "الفريق الأول",
+          team2Name: state.display.team2Name || "الفريق الثاني",
+          team1Score: Number(state.display.team1Score || 0),
+          team2Score: Number(state.display.team2Score || 0),
           questionIndex: nextIndex,
           totalQuestions: safeTotal,
           questionOverride: incomingQuestion
@@ -202,6 +201,8 @@ export async function onRequestPost(context) {
         state.control.stealingTeam = "";
         state.buzz.enabled = false;
         state.buzz.firstBuzz = null;
+        state.control.firstBuzzName = "";
+        state.control.firstBuzzTeam = "";
 
         break;
       }
@@ -252,6 +253,8 @@ export async function onRequestPost(context) {
           state.control.currentTurnTeam = "";
           state.control.confrontationWinner = "";
           state.control.stealingTeam = "";
+          state.control.firstBuzzName = "";
+          state.control.firstBuzzTeam = "";
           break;
         }
 
@@ -291,6 +294,8 @@ export async function onRequestPost(context) {
         state.control.currentTurnTeam = "";
         state.control.confrontationWinner = "";
         state.control.stealingTeam = "";
+        state.control.firstBuzzName = "";
+        state.control.firstBuzzTeam = "";
 
         break;
       }
@@ -366,6 +371,55 @@ function createInitialState(room, options = {}) {
   };
 }
 
+function normalizeState(raw, room) {
+  const fallback = createInitialState(room);
+  const source = raw && typeof raw === "object" ? raw : fallback;
+
+  const display = source.display && typeof source.display === "object" ? source.display : {};
+  const control = source.control && typeof source.control === "object" ? source.control : {};
+  const buzz = source.buzz && typeof source.buzz === "object" ? source.buzz : {};
+  const effects = source.effects && typeof source.effects === "object" ? source.effects : {};
+
+  return {
+    room,
+    updatedAt: toSafeNumber(source.updatedAt) || Date.now(),
+
+    display: {
+      showQuestion: typeof display.showQuestion === "boolean" ? display.showQuestion : false,
+      question: cleanText(display.question) || "نص السؤال",
+      team1Name: cleanText(display.team1Name) || "الفريق الأول",
+      team2Name: cleanText(display.team2Name) || "الفريق الثاني",
+      team1Score: toSafeNumber(display.team1Score),
+      team2Score: toSafeNumber(display.team2Score),
+      team1Strikes: clampStrike(display.team1Strikes),
+      team2Strikes: clampStrike(display.team2Strikes),
+      roundPoints: toSafeNumber(display.roundPoints),
+      answers: normalizeStoredAnswers(display.answers)
+    },
+
+    control: {
+      currentQuestionIndex: toSafeNumber(control.currentQuestionIndex),
+      totalQuestions: toSafeNumber(control.totalQuestions),
+      phase: cleanText(control.phase) || "idle",
+      currentTurnTeam: normalizeTeam(control.currentTurnTeam),
+      confrontationWinner: normalizeTeam(control.confrontationWinner),
+      stealingTeam: normalizeTeam(control.stealingTeam),
+      firstBuzzName: cleanText(control.firstBuzzName),
+      firstBuzzTeam: normalizeTeam(control.firstBuzzTeam)
+    },
+
+    buzz: {
+      enabled: typeof buzz.enabled === "boolean" ? buzz.enabled : true,
+      firstBuzz: normalizeStoredFirstBuzz(buzz.firstBuzz)
+    },
+
+    effects: {
+      displayErrorSeq: toSafeNumber(effects.displayErrorSeq),
+      displayErrorReason: cleanText(effects.displayErrorReason)
+    }
+  };
+}
+
 function normalizeIncomingQuestion(value) {
   if (!value || typeof value !== "object") return null;
 
@@ -392,6 +446,30 @@ function normalizeQuestionAnswers(answers) {
       revealed: false
     }))
     .filter((answer) => answer.text && answer.points > 0);
+}
+
+function normalizeStoredAnswers(answers) {
+  if (!Array.isArray(answers)) return [];
+
+  return answers
+    .slice(0, 6)
+    .map((answer) => ({
+      text: cleanText(answer?.text),
+      points: toSafeNumber(answer?.points),
+      revealed: answer?.revealed === true
+    }))
+    .filter((answer) => answer.text);
+}
+
+function normalizeStoredFirstBuzz(firstBuzz) {
+  if (!firstBuzz || typeof firstBuzz !== "object") return null;
+
+  const name = cleanText(firstBuzz.name);
+  const team = normalizeTeam(firstBuzz.team);
+
+  if (!name && !team) return null;
+
+  return { name, team };
 }
 
 async function getRoomState(db, room) {
@@ -490,6 +568,17 @@ function getOtherTeam(team) {
   if (team === "team1") return "team2";
   if (team === "team2") return "team1";
   return "";
+}
+
+function clampStrike(value) {
+  const n = toSafeNumber(value);
+  return Math.max(0, Math.min(3, n));
+}
+
+function toSafeNumber(value) {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return 0;
+  return Math.max(0, Math.floor(n));
 }
 
 function cleanText(value) {
