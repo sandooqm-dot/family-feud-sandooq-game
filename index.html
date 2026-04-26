@@ -8,6 +8,57 @@
   <link rel="preload" as="image" href="logo-family-feud.PNG">
   <link rel="preload" as="image" href="logo.PNG">
 
+  <script>
+    (function () {
+      const ACTIVATE_FILE = "activate.html";
+      const TOKEN_KEYS = [
+        "sandooq_token_v1",
+        "familyfeud_token_v1"
+      ];
+      const ACCESS_KEYS = [
+        "familyfeud_access_ok_v1",
+        "familyfeud_activation_ok_v1",
+        "familyfeud_auth_passed_v1"
+      ];
+
+      function hasStoredValue(key) {
+        try {
+          const localValue = localStorage.getItem(key);
+          if (localValue && String(localValue).trim()) return true;
+        } catch (e) {}
+
+        try {
+          const sessionValue = sessionStorage.getItem(key);
+          if (sessionValue && String(sessionValue).trim()) return true;
+        } catch (e) {}
+
+        return false;
+      }
+
+      const hasToken = TOKEN_KEYS.some(hasStoredValue);
+      const hasAccess = ACCESS_KEYS.some(hasStoredValue);
+
+      if (hasToken || hasAccess) return;
+
+      const url = new URL(window.location.href);
+      const path = url.pathname;
+
+      if (/index\.html?$/i.test(path)) {
+        url.pathname = path.replace(/index\.html?$/i, ACTIVATE_FILE);
+      } else if (path.endsWith("/")) {
+        url.pathname = path + ACTIVATE_FILE;
+      } else {
+        url.pathname = path.replace(/\/[^/]*$/, "/" + ACTIVATE_FILE);
+      }
+
+      url.search = "";
+      url.hash = "";
+      url.searchParams.set("next", "index.html");
+
+      window.location.replace(url.toString());
+    })();
+  </script>
+
   <style>
     :root{
       --gold:#f1d14f;
