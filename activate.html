@@ -453,7 +453,6 @@
           <div id="loginView" class="form-view active">
             <input id="loginEmail" class="input" type="email" placeholder="البريد الإلكتروني" autocomplete="email">
             <input id="loginPassword" class="input" type="password" placeholder="كلمة المرور" autocomplete="current-password">
-
             <button id="loginBtn" class="primary-btn" type="button">دخول</button>
           </div>
 
@@ -461,20 +460,18 @@
             <input id="registerEmail" class="input" type="email" placeholder="البريد الإلكتروني" autocomplete="email">
             <input id="registerPassword" class="input" type="password" placeholder="كلمة المرور" autocomplete="new-password">
             <input id="registerPassword2" class="input" type="password" placeholder="تأكيد كلمة المرور" autocomplete="new-password">
-
             <button id="registerBtn" class="primary-btn" type="button">إنشاء</button>
           </div>
 
           <div id="activateView" class="form-view">
             <input id="activateCode" class="input" type="text" placeholder="اكتب كود التفعيل هنا" autocomplete="off">
-
             <button id="activateBtn" class="primary-btn" type="button">تفعيل</button>
 
             <div class="secondary-row">
               <button id="backToLoginBtn" class="secondary-btn" type="button">العودة للدخول</button>
             </div>
 
-            <div class="activate-note">بعد نجاح التفعيل يتم إدخالك مباشرة للعبة.</div>
+            <div class="activate-note">بعد نجاح التفعيل يتم إدخالك مباشرة إلى اللعبة.</div>
           </div>
         </section>
 
@@ -491,8 +488,16 @@
     const PORTRAIT_HEIGHT = 1280;
 
     const TOKEN_KEY = "familyfeud_token_v1";
+    const DEVICE_KEY = "familyfeud_device_id_v1";
     const API_BASE_KEY = "familyfeud_api_base";
     const BUZZ_API_BASE_KEY = "familyfeud_buzz_api_base";
+
+    const ENDPOINTS = {
+      me: ["/api2/me", "/api/me"],
+      login: ["/api2/login", "/api/login"],
+      register: ["/api2/register", "/api/register"],
+      activate: ["/api2/activate", "/api/activate"]
+    };
 
     const root = document.documentElement;
 
@@ -530,6 +535,7 @@
     let stableOrientationPortrait = window.innerHeight > window.innerWidth;
     let currentView = "login";
     let currentApiBase = "";
+    const deviceId = getOrCreateDeviceId();
 
     function readStored(key) {
       try {
@@ -582,6 +588,21 @@
       return result;
     }
 
+    function getOrCreateDeviceId() {
+      let id = readStored(DEVICE_KEY);
+      if (id) return id;
+
+      if (window.crypto && crypto.randomUUID) {
+        id = crypto.randomUUID();
+      } else {
+        id = "ffdev_" + Math.random().toString(36).slice(2) + Date.now().toString(36);
+      }
+
+      id = String(id).replace(/[^\w-]/g, "").slice(0, 120);
+      writeStored(DEVICE_KEY, id);
+      return id;
+    }
+
     function showStatus(text = "", type = "") {
       if (!text) {
         statusText.textContent = ".";
@@ -606,13 +627,13 @@
 
       if (viewName === "login") {
         panelTitle.textContent = "تسجيل الدخول";
-        panelSubtitle.textContent = "سجّل الدخول إلى حسابك، أو أنشئ حسابًا جديدًا إذا لم يكن لديك حساب.";
+        panelSubtitle.textContent = "إذا كانت هذه أول مرة تدخل اللعبة، اضغط إنشاء حساب أولًا ثم أنشئ حسابك للدخول.";
       } else if (viewName === "register") {
         panelTitle.textContent = "إنشاء حساب";
-        panelSubtitle.textContent = "أنشئ حسابًا جديدًا للمتابعة إلى خطوة التفعيل.";
+        panelSubtitle.textContent = "أنشئ حسابًا جديدًا للمتابعة، ثم انتقل إلى خطوة تفعيل اللعبة بالكود.";
       } else {
         panelTitle.textContent = "تفعيل اللعبة";
-        panelSubtitle.textContent = "أدخل كود التفعيل لمرة واحدة فقط، وبعد نجاحه تدخل للعبة مباشرة.";
+        panelSubtitle.textContent = "أدخل كود التفعيل لمرة واحدة فقط، وبعد نجاحه تدخل إلى اللعبة مباشرة.";
       }
     }
 
@@ -721,61 +742,103 @@
       return url.toString();
     }
 
-    async function detectApiBase() {
-      const bases = getApiBases();
+    async function fetchJsonResponse(url, options) {
+      const response = await fetch(url, options);
+      const contentType = String(response.headers.get("content-type") || "").toLowerCase();
+      let data = null;
 
-      for (const base of bases) {
-        try {
-          const res = await fetch(`${base}/api2/me`, {
-            method: "GET",
-            cache: "no-store"
-          }).catch(() => null);
-
-          if (res) {
-            currentApiBase = base;
-            writeStored(API_BASE_KEY, base);
-            writeStored(BUZZ_API_BASE_KEY, base);
-            return true;
-          }
-        } catch (e) {}
+      if (contentType.includes("application/json")) {
+        data = await response.json().catch(() => null);
+      } else {
+        const text = await response.text().catch(() => "");
+        data = text ? { raw: text } : null;
       }
-
-      currentApiBase = bases[0] || "";
-      return !!currentApiBase;
-    }
-
-    async function apiRequest(path, payload = null, extraHeaders = {}) {
-      if (!currentApiBase) {
-        await detectApiBase();
-      }
-
-      if (!currentApiBase) {
-        throw new Error("API_BASE_NOT_FOUND");
-      }
-
-      const headers = {
-        "Accept": "application/json",
-        ...extraHeaders
-      };
-
-      const options = {
-        method: payload ? "POST" : "GET",
-        cache: "no-store",
-        headers
-      };
-
-      if (payload) {
-        headers["Content-Type"] = "application/json";
-        options.body = JSON.stringify(payload);
-      }
-
-      const response = await fetch(`${currentApiBase}${path}`, options);
-      const data = await response.json().catch(() => ({}));
 
       return {
         ok: response.ok,
         status: response.status,
+        contentType,
         data
+      };
+    }
+
+    async function detectApiBase() {
+      const bases = getApiBases();
+      const authHeaders = getAuthHeaders();
+      const probeHeaders = {
+        "Accept": "application/json",
+        "X-Device-Id": deviceId,
+        ...authHeaders
+      };
+
+      for (const base of bases) {
+        for (const path of ENDPOINTS.me) {
+          try {
+            const result = await fetchJsonResponse(`${base}${path}`, {
+              method: "GET",
+              cache: "no-store",
+              headers: probeHeaders
+            });
+
+            const looksJson = result.contentType.includes("application/json") || typeof result.data === "object";
+            const looksValid = looksJson && result.status !== 404;
+
+            if (!looksValid) continue;
+
+            currentApiBase = base;
+            writeStored(API_BASE_KEY, base);
+            writeStored(BUZZ_API_BASE_KEY, base);
+            return true;
+          } catch (e) {}
+        }
+      }
+
+      currentApiBase = "";
+      return false;
+    }
+
+    async function apiRequest(paths, payload = null, extraHeaders = {}) {
+      if (!currentApiBase) {
+        const ok = await detectApiBase();
+        if (!ok) throw new Error("API_BASE_NOT_FOUND");
+      }
+
+      const pathList = Array.isArray(paths) ? paths : [paths];
+
+      for (const path of pathList) {
+        try {
+          const headers = {
+            "Accept": "application/json",
+            "X-Device-Id": deviceId,
+            ...extraHeaders
+          };
+
+          const options = {
+            method: payload ? "POST" : "GET",
+            cache: "no-store",
+            headers
+          };
+
+          if (payload) {
+            headers["Content-Type"] = "application/json";
+            options.body = JSON.stringify(payload);
+          }
+
+          const result = await fetchJsonResponse(`${currentApiBase}${path}`, options);
+          const isGoodJson = result.contentType.includes("application/json") || typeof result.data === "object";
+
+          if (!isGoodJson) continue;
+
+          if (result.status !== 404) {
+            return result;
+          }
+        } catch (e) {}
+      }
+
+      return {
+        ok: false,
+        status: 0,
+        data: { error: "NETWORK_OR_ENDPOINT_ERROR" }
       };
     }
 
@@ -802,17 +865,39 @@
       return token ? { Authorization: `Bearer ${token}` } : {};
     }
 
+    function humanizeError(errorCode, fallbackText) {
+      const code = String(errorCode || "").trim().toUpperCase();
+
+      const map = {
+        INVALID_CREDENTIALS: "بيانات الدخول غير صحيحة.",
+        INVALID_LOGIN: "بيانات الدخول غير صحيحة.",
+        USER_NOT_FOUND: "هذا الحساب غير موجود.",
+        EMAIL_ALREADY_EXISTS: "هذا البريد مستخدم من قبل.",
+        EMAIL_EXISTS: "هذا البريد مستخدم من قبل.",
+        PASSWORD_TOO_SHORT: "كلمة المرور قصيرة جدًا.",
+        UNAUTHORIZED: "يجب تسجيل الدخول أولًا.",
+        TOKEN_REQUIRED: "يجب تسجيل الدخول أولًا.",
+        INVALID_TOKEN: "انتهت الجلسة، سجّل الدخول مرة أخرى.",
+        CODE_REQUIRED: "أدخل كود التفعيل أولًا.",
+        INVALID_CODE: "كود التفعيل غير صحيح.",
+        CODE_NOT_FOUND: "كود التفعيل غير موجود.",
+        CODE_ALREADY_USED: "هذا الكود مستخدم مسبقًا.",
+        ALREADY_ACTIVATED: "تم تفعيل اللعبة مسبقًا على هذا الحساب.",
+        ACTIVATION_REQUIRED: "هذا الحساب يحتاج تفعيلًا بالكود.",
+        NETWORK_OR_ENDPOINT_ERROR: "تعذر الاتصال بالخادم الآن.",
+        API_BASE_NOT_FOUND: "تعذر العثور على رابط الباكند الصحيح."
+      };
+
+      return map[code] || fallbackText || "حدث خطأ غير متوقع.";
+    }
+
     async function requestMe() {
       const headers = getAuthHeaders();
       if (!headers.Authorization) {
         return { ok: false, data: {} };
       }
 
-      let res = await apiRequest("/api2/me", null, headers).catch(() => null);
-      if (res && res.ok) return res;
-
-      res = await apiRequest("/api/me", null, headers).catch(() => null);
-      return res || { ok: false, data: {} };
+      return await apiRequest(ENDPOINTS.me, null, headers);
     }
 
     function isActivatedPayload(data) {
@@ -844,7 +929,7 @@
       }
 
       setView("activate");
-      showStatus("الحساب مسجل، بقي تفعيل اللعبة بالكود.", "");
+      showStatus("الحساب مسجل، بقي إدخال كود التفعيل.", "success");
     }
 
     async function handleLogin() {
@@ -860,13 +945,10 @@
       showStatus("جارٍ تسجيل الدخول...");
 
       try {
-        let res = await apiRequest("/api2/login", { email, password }).catch(() => null);
-        if (!res) {
-          res = await apiRequest("/api/login", { email, password }).catch(() => null);
-        }
+        const res = await apiRequest(ENDPOINTS.login, { email, password });
 
-        if (!res || !res.ok) {
-          showStatus(res?.data?.error || "تعذر تسجيل الدخول. تأكد من البيانات.", "error");
+        if (!res.ok) {
+          showStatus(humanizeError(res?.data?.error, "تعذر تسجيل الدخول. تأكد من البيانات."), "error");
           return;
         }
 
@@ -874,6 +956,7 @@
         if (token) storeToken(token);
 
         const me = await requestMe();
+
         if (me.ok && isActivatedPayload(me.data)) {
           showStatus("تم تسجيل الدخول بنجاح، جارٍ الدخول...", "success");
           setTimeout(() => {
@@ -883,9 +966,9 @@
         }
 
         setView("activate");
-        showStatus("تم تسجيل الدخول. هذا الحساب يحتاج تفعيلًا بالكود.", "success");
+        showStatus("تم تسجيل الدخول. هذا الحساب يحتاج إلى التفعيل بالكود.", "success");
       } catch (error) {
-        showStatus("تعذر الاتصال بالخادم الآن.", "error");
+        showStatus(humanizeError(error?.message, "تعذر الاتصال بالخادم الآن."), "error");
       } finally {
         loginBtn.disabled = false;
       }
@@ -902,7 +985,7 @@
       }
 
       if (password.length < 6) {
-        showStatus("كلمة المرور لازم تكون 6 أحرف أو أكثر.", "error");
+        showStatus("كلمة المرور يجب أن تكون 6 أحرف أو أكثر.", "error");
         return;
       }
 
@@ -915,23 +998,28 @@
       showStatus("جارٍ إنشاء الحساب...");
 
       try {
-        let res = await apiRequest("/api2/register", { email, password }).catch(() => null);
-        if (!res) {
-          res = await apiRequest("/api/register", { email, password }).catch(() => null);
-        }
+        const res = await apiRequest(ENDPOINTS.register, { email, password });
 
-        if (!res || !res.ok) {
-          showStatus(res?.data?.error || "تعذر إنشاء الحساب الآن.", "error");
+        if (!res.ok) {
+          showStatus(humanizeError(res?.data?.error, "تعذر إنشاء الحساب الآن."), "error");
           return;
         }
 
-        const token = getTokenFromResponse(res.data);
+        let token = getTokenFromResponse(res.data);
+
+        if (!token) {
+          const loginRes = await apiRequest(ENDPOINTS.login, { email, password });
+          if (loginRes.ok) {
+            token = getTokenFromResponse(loginRes.data);
+          }
+        }
+
         if (token) storeToken(token);
 
         setView("activate");
         showStatus("تم إنشاء الحساب بنجاح. الآن أدخل كود التفعيل.", "success");
       } catch (error) {
-        showStatus("تعذر الاتصال بالخادم الآن.", "error");
+        showStatus(humanizeError(error?.message, "تعذر الاتصال بالخادم الآن."), "error");
       } finally {
         registerBtn.disabled = false;
       }
@@ -948,7 +1036,7 @@
 
       if (!token) {
         setView("login");
-        showStatus("لازم تسجل دخولك أولًا قبل التفعيل.", "error");
+        showStatus("يجب تسجيل الدخول أولًا قبل التفعيل.", "error");
         return;
       }
 
@@ -956,22 +1044,22 @@
       showStatus("جارٍ تفعيل اللعبة...");
 
       try {
-        let res = await apiRequest("/api2/activate", { code }, getAuthHeaders()).catch(() => null);
-        if (!res) {
-          res = await apiRequest("/api/activate", { code }, getAuthHeaders()).catch(() => null);
-        }
+        const res = await apiRequest(ENDPOINTS.activate, { code }, getAuthHeaders());
 
-        if (!res || !res.ok) {
-          showStatus(res?.data?.error || "تعذر تفعيل الكود الآن.", "error");
+        if (!res.ok) {
+          showStatus(humanizeError(res?.data?.error, "تعذر تفعيل الكود الآن."), "error");
           return;
         }
 
-        showStatus("تم التفعيل بنجاح، جارٍ الدخول للعبة...", "success");
+        const tokenFromActivate = getTokenFromResponse(res.data);
+        if (tokenFromActivate) storeToken(tokenFromActivate);
+
+        showStatus("تم التفعيل بنجاح، جارٍ الدخول إلى اللعبة...", "success");
         setTimeout(() => {
           window.location.href = buildIndexLink();
         }, 650);
       } catch (error) {
-        showStatus("تعذر الاتصال بالخادم الآن.", "error");
+        showStatus(humanizeError(error?.message, "تعذر الاتصال بالخادم الآن."), "error");
       } finally {
         activateBtn.disabled = false;
       }
@@ -1015,6 +1103,10 @@
           document.body.classList.remove("typing");
           updateLayout(true);
         }, 80);
+      });
+
+      input.addEventListener("input", () => {
+        if (!statusText.classList.contains("hidden")) showStatus("");
       });
     });
 
