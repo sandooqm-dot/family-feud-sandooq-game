@@ -892,7 +892,7 @@ window.FAMILY_FEUD_QUESTIONS = [
     ]
   },
   {
-    question: "شيء يخلي الأب يهاوش العيال في البيت؟",
+    question: "شيء يخليك الأب يهاوش العيال في البيت؟",
     answers: [
       { text: "الإزعاج / الصراخ", points: 31 },
       { text: "السهر لوقت متأخر", points: 23 },
