@@ -12,6 +12,7 @@ export async function onRequest(context) {
   }
 
   const db = getDb(env);
+
   if (!db) {
     return redirectToActivate(url, "db");
   }
@@ -20,30 +21,42 @@ export async function onRequest(context) {
     await ensureSchema(db);
 
     const token = readAuthTokenFromCookies(request);
+
     if (!token) {
       return redirectToActivate(url, "login");
     }
 
     const session = await db
-      .prepare(`
-        SELECT
+      .prepare(
+        `SELECT
           s.token,
           s.email,
           s.device_id,
           s.created_at,
-          s.updated_at,
+          s.expires_at,
           u.activated
         FROM sessions s
         LEFT JOIN users u
           ON u.email = s.email
-        WHERE s.token = ?1
-        LIMIT 1
-      `)
+        WHERE s.token = ?
+        LIMIT 1`
+      )
       .bind(token)
       .first();
 
-    if (!session?.email) {
+    if (!session || !session.email) {
       return redirectToActivate(url, "login", true);
+    }
+
+    const expiresMs = Date.parse(session.expires_at || "");
+
+    if (Number.isFinite(expiresMs) && expiresMs < Date.now()) {
+      await db
+        .prepare("DELETE FROM sessions WHERE token = ?")
+        .bind(token)
+        .run();
+
+      return redirectToActivate(url, "expired", true);
     }
 
     const isActivated = Number(session.activated || 0) === 1;
@@ -59,11 +72,13 @@ export async function onRequest(context) {
 }
 
 function isProtectedPage(path) {
-  return path === "/" ||
+  return (
+    path === "/" ||
     path === "/index" ||
     path === "/index.html" ||
     path === "/game" ||
-    path === "/game.html";
+    path === "/game.html"
+  );
 }
 
 function isBypassedPath(path) {
@@ -99,51 +114,84 @@ function getDb(env) {
     env.AUTH_DB ||
     env.FAMILYFEUD_DB ||
     env.FAMILY_FEUD_DB ||
-    env.BDON_KALAM_AUTH ||
     null
   );
 }
 
 async function ensureSchema(db) {
-  await db.exec(`
-    CREATE TABLE IF NOT EXISTS users (
-      email TEXT PRIMARY KEY,
-      password_hash TEXT NOT NULL,
-      salt_b64 TEXT NOT NULL,
-      activated INTEGER NOT NULL DEFAULT 0,
-      created_at INTEGER NOT NULL,
-      updated_at INTEGER NOT NULL
-    );
+  await db
+    .prepare(
+      `CREATE TABLE IF NOT EXISTS users (
+        email TEXT PRIMARY KEY,
+        password_hash TEXT NOT NULL,
+        salt TEXT NOT NULL,
+        device_id TEXT,
+        activated INTEGER NOT NULL DEFAULT 0,
+        activated_code TEXT,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+      )`
+    )
+    .run();
 
-    CREATE TABLE IF NOT EXISTS sessions (
-      token TEXT PRIMARY KEY,
-      email TEXT NOT NULL,
-      device_id TEXT,
-      created_at INTEGER NOT NULL,
-      updated_at INTEGER NOT NULL
-    );
+  await db
+    .prepare(
+      `CREATE TABLE IF NOT EXISTS sessions (
+        token TEXT PRIMARY KEY,
+        email TEXT NOT NULL,
+        device_id TEXT,
+        created_at TEXT NOT NULL,
+        expires_at TEXT NOT NULL
+      )`
+    )
+    .run();
 
-    CREATE TABLE IF NOT EXISTS codes (
-      code TEXT PRIMARY KEY,
-      status TEXT DEFAULT 'NEW',
-      used_by_email TEXT,
-      used_by_device TEXT,
-      activated_at INTEGER,
-      created_at INTEGER
-    );
+  await db
+    .prepare(
+      `CREATE TABLE IF NOT EXISTS codes (
+        code TEXT PRIMARY KEY,
+        status TEXT NOT NULL DEFAULT 'NEW',
+        email TEXT,
+        device_id TEXT,
+        activated_at TEXT,
+        created_at TEXT
+      )`
+    )
+    .run();
 
-    CREATE INDEX IF NOT EXISTS idx_sessions_email ON sessions(email);
-    CREATE INDEX IF NOT EXISTS idx_codes_used_by_email ON codes(used_by_email);
-  `);
+  await db
+    .prepare(
+      `CREATE TABLE IF NOT EXISTS activations (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        code TEXT NOT NULL,
+        email TEXT NOT NULL,
+        device_id TEXT,
+        activated_at TEXT NOT NULL
+      )`
+    )
+    .run();
+
+  await db
+    .prepare("CREATE INDEX IF NOT EXISTS idx_sessions_email ON sessions(email)")
+    .run();
+
+  await db
+    .prepare("CREATE INDEX IF NOT EXISTS idx_codes_email ON codes(email)")
+    .run();
+
+  await db
+    .prepare("CREATE INDEX IF NOT EXISTS idx_activations_email ON activations(email)")
+    .run();
 }
 
 function readAuthTokenFromCookies(request) {
   const cookieHeader = String(request.headers.get("Cookie") || "");
+
   if (!cookieHeader) return "";
 
   const cookies = parseCookies(cookieHeader);
 
-  return (
+  return String(
     cookies["familyfeud_token_v1"] ||
     cookies["familyfeud_token"] ||
     cookies["sandooq_token_v1"] ||
@@ -179,28 +227,21 @@ function parseCookies(cookieHeader) {
 function redirectToActivate(currentUrl, reason = "", clearToken = false) {
   const target = new URL(currentUrl.origin + "/activate.html");
   target.searchParams.set("from", currentUrl.pathname || "/");
+
   if (reason) {
     target.searchParams.set("reason", reason);
   }
 
-  const headers = {
-    Location: target.toString(),
-    "Cache-Control": "no-store"
-  };
+  const headers = new Headers();
+  headers.set("Location", target.toString());
+  headers.set("Cache-Control", "no-store");
 
   if (clearToken) {
-    const expired = [
-      buildExpiredCookie("familyfeud_token_v1"),
-      buildExpiredCookie("familyfeud_token"),
-      buildExpiredCookie("sandooq_token_v1"),
-      buildExpiredCookie("sandooq_token"),
-      buildExpiredCookie("token")
-    ];
-    headers["Set-Cookie"] = expired[0];
-    return new Response(null, {
-      status: 302,
-      headers: appendExtraSetCookies(headers, expired.slice(1))
-    });
+    headers.append("Set-Cookie", buildExpiredCookie("familyfeud_token_v1"));
+    headers.append("Set-Cookie", buildExpiredCookie("familyfeud_token"));
+    headers.append("Set-Cookie", buildExpiredCookie("sandooq_token_v1"));
+    headers.append("Set-Cookie", buildExpiredCookie("sandooq_token"));
+    headers.append("Set-Cookie", buildExpiredCookie("token"));
   }
 
   return new Response(null, {
@@ -210,13 +251,6 @@ function redirectToActivate(currentUrl, reason = "", clearToken = false) {
 }
 
 function buildExpiredCookie(name) {
-  return `${name}=; Path=/; Max-Age=0; SameSite=Lax`;
-}
-
-function appendExtraSetCookies(headers, cookies) {
-  const responseHeaders = new Headers(headers);
-  for (const cookie of cookies) {
-    responseHeaders.append("Set-Cookie", cookie);
-  }
-  return responseHeaders;
+  const secure = "";
+  return `${name}=; Path=/; Max-Age=0; SameSite=Lax${secure}`;
 }
