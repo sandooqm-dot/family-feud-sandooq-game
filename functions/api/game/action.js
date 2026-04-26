@@ -46,12 +46,22 @@ export async function onRequestPost(context) {
       case "init": {
         const team1Name = cleanText(body.team1Name) || "الفريق الأول";
         const team2Name = cleanText(body.team2Name) || "الفريق الثاني";
-        const questionIndex = normalizeQuestionIndex(body.questionIndex, 0);
+        const totalQuestions = normalizeTotalQuestions(body.totalQuestions);
+        const questionIndex = normalizeQuestionIndex(body.questionIndex, 0, totalQuestions);
+        const questionOverride = normalizeIncomingQuestion(
+          body.question ||
+          body.customQuestion ||
+          body.selectedQuestion ||
+          body.questionPayload ||
+          body.questionData
+        );
 
         state = createInitialState(room, {
           team1Name,
           team2Name,
-          questionIndex
+          questionIndex,
+          totalQuestions,
+          questionOverride
         });
 
         break;
@@ -75,18 +85,38 @@ export async function onRequestPost(context) {
       }
 
       case "next_question_bundle": {
-        const nextIndex = getNextQuestionIndex(state.control.currentQuestionIndex);
+        const totalQuestions = normalizeTotalQuestions(
+          body.totalQuestions ||
+          state.control.totalQuestions ||
+          FAMILY_FEUD_QUESTIONS.length
+        );
+
+        const hasClientQuestionIndex = Number.isFinite(Number(body.questionIndex));
+        const nextIndex = hasClientQuestionIndex
+          ? normalizeQuestionIndex(body.questionIndex, 0, totalQuestions)
+          : getNextQuestionIndex(state.control.currentQuestionIndex, totalQuestions);
+
         const team1Name = state.display.team1Name || "الفريق الأول";
         const team2Name = state.display.team2Name || "الفريق الثاني";
         const team1Score = Number(state.display.team1Score || 0);
         const team2Score = Number(state.display.team2Score || 0);
+
+        const questionOverride = normalizeIncomingQuestion(
+          body.question ||
+          body.customQuestion ||
+          body.selectedQuestion ||
+          body.questionPayload ||
+          body.questionData
+        );
 
         state = createInitialState(room, {
           team1Name,
           team2Name,
           team1Score,
           team2Score,
-          questionIndex: nextIndex
+          questionIndex: nextIndex,
+          totalQuestions,
+          questionOverride
         });
 
         break;
@@ -288,8 +318,17 @@ export async function onRequestPost(context) {
 }
 
 function createInitialState(room, options = {}) {
-  const questionIndex = normalizeQuestionIndex(options.questionIndex, 0);
-  const question = FAMILY_FEUD_QUESTIONS[questionIndex] || FAMILY_FEUD_QUESTIONS[0];
+  const totalQuestions = normalizeTotalQuestions(options.totalQuestions || FAMILY_FEUD_QUESTIONS.length);
+  const questionIndex = normalizeQuestionIndex(options.questionIndex, 0, totalQuestions);
+
+  const fallbackQuestionIndex = normalizeQuestionIndex(questionIndex, 0, FAMILY_FEUD_QUESTIONS.length || 1);
+  const fallbackQuestion = FAMILY_FEUD_QUESTIONS[fallbackQuestionIndex] || FAMILY_FEUD_QUESTIONS[0] || {
+    question: "نص السؤال",
+    answers: []
+  };
+
+  const questionOverride = normalizeIncomingQuestion(options.questionOverride);
+  const question = questionOverride || fallbackQuestion;
 
   return {
     room,
@@ -297,7 +336,7 @@ function createInitialState(room, options = {}) {
 
     display: {
       showQuestion: false,
-      question: question.question,
+      question: cleanText(question.question) || "نص السؤال",
       team1Name: options.team1Name || "الفريق الأول",
       team2Name: options.team2Name || "الفريق الثاني",
       team1Score: Number(options.team1Score || 0),
@@ -310,7 +349,7 @@ function createInitialState(room, options = {}) {
 
     control: {
       currentQuestionIndex: questionIndex,
-      totalQuestions: FAMILY_FEUD_QUESTIONS.length,
+      totalQuestions,
       phase: "idle",
       currentTurnTeam: "",
       confrontationWinner: "",
@@ -331,6 +370,20 @@ function createInitialState(room, options = {}) {
   };
 }
 
+function normalizeIncomingQuestion(value) {
+  if (!value || typeof value !== "object") return null;
+
+  const question = cleanText(value.question);
+  const answers = normalizeQuestionAnswers(value.answers);
+
+  if (!question || !answers.length) return null;
+
+  return {
+    question,
+    answers
+  };
+}
+
 function normalizeQuestionAnswers(answers) {
   if (!Array.isArray(answers)) return [];
 
@@ -341,7 +394,8 @@ function normalizeQuestionAnswers(answers) {
       text: cleanText(answer.text),
       points: Math.max(0, Number(answer.points || 0)),
       revealed: false
-    }));
+    }))
+    .filter((answer) => answer.text && answer.points > 0);
 }
 
 async function getRoomState(db, room) {
@@ -393,11 +447,24 @@ function calculateRoundPoints(answers) {
   }, 0);
 }
 
-function normalizeQuestionIndex(value, fallback = 0) {
+function normalizeTotalQuestions(value) {
   const n = Number(value);
-  if (!Number.isFinite(n)) return fallback;
 
-  const total = FAMILY_FEUD_QUESTIONS.length || 1;
+  if (!Number.isFinite(n) || n <= 0) {
+    return Math.max(1, FAMILY_FEUD_QUESTIONS.length || 1);
+  }
+
+  return Math.max(1, Math.floor(n));
+}
+
+function normalizeQuestionIndex(value, fallback = 0, totalOverride = FAMILY_FEUD_QUESTIONS.length) {
+  const n = Number(value);
+  const total = normalizeTotalQuestions(totalOverride);
+
+  if (!Number.isFinite(n) || total <= 0) {
+    return fallback;
+  }
+
   const safe = Math.floor(n);
 
   if (safe < 0) return 0;
@@ -406,9 +473,9 @@ function normalizeQuestionIndex(value, fallback = 0) {
   return safe;
 }
 
-function getNextQuestionIndex(currentIndex) {
-  const total = FAMILY_FEUD_QUESTIONS.length || 1;
-  const current = normalizeQuestionIndex(currentIndex, 0);
+function getNextQuestionIndex(currentIndex, totalOverride = FAMILY_FEUD_QUESTIONS.length) {
+  const total = normalizeTotalQuestions(totalOverride);
+  const current = normalizeQuestionIndex(currentIndex, 0, total);
   return (current + 1) % total;
 }
 
