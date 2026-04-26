@@ -623,12 +623,13 @@
     let lastRemoteBuzzStateAt = 0;
 
     let syncStarted = false;
-    let apiBase = normalizeBase(window.location.origin) || normalizeBase(readStored(API_BASE_KEY) || readStored(BUZZ_API_BASE_KEY));
+    let apiBase = normalizeBase(window.location.origin);
     let initialAutoShowDone = false;
     let optimisticRevealedIndexes = new Set();
     let roundClosedAfterSteal = readRoundClosedAfterSteal();
     let actionGuardUntil = new Map();
     let lastRenderSignature = "";
+    let localBankReady = false;
 
     try {
       channel = new BroadcastChannel(DISPLAY_CHANNEL);
@@ -639,6 +640,7 @@
     pinCurrentOriginAsApiBase();
     persistRoomId(roomId);
     ensureInitialState();
+    localBankReady = ensureLocalBankLoaded();
     renderAll(true);
     updateLayout();
     startRemoteSync();
@@ -779,6 +781,7 @@
     });
 
     nextQuestionBtn.addEventListener("click", async () => {
+      if (!localBankReady) return;
       if (nextQuestionInFlight || stealAwardInProgress) return;
 
       await runGuardedAction("next-question", async () => {
@@ -788,6 +791,11 @@
         const previousShowQuestion = !!displayState.showQuestion;
         const previousBuzzVisible = !!controlState.buzzVisible;
         const localQuestionBundle = getNextLocalQuestionBundle();
+
+        if (!localQuestionBundle.question) {
+          renderAll();
+          return;
+        }
 
         nextQuestionInFlight = true;
         displayState.showQuestion = false;
@@ -929,12 +937,23 @@
       };
     }
 
-    function currentQuestionExistsInLocalBank() {
+    function ensureLocalBankLoaded() {
       const bank = getControlQuestionBank();
-      if (!bank.length) return false;
+      const ok = bank.length > 0;
 
-      const currentQuestion = String(displayState?.question || "").trim();
-      return bank.some((item) => item.question === currentQuestion);
+      localBankReady = ok;
+
+      if (ok) {
+        return true;
+      }
+
+      console.error("questions_bank.js لم يتم تحميله أو أن window.FAMILY_FEUD_QUESTIONS فارغة.");
+
+      displayState.question = "تعذر تحميل بنك الأسئلة";
+      displayState.answers = [];
+      saveDisplayState();
+
+      return false;
     }
 
     async function ensureRoomUsesLocalQuestionBank() {
@@ -945,16 +964,15 @@
       const currentAnswers = Array.isArray(displayState?.answers) ? displayState.answers : [];
       const existsInBank = bank.some((item) => item.question === currentQuestion);
       const looksEmpty = !currentQuestion || !currentAnswers.length;
+      const totalMismatch = Number(controlState?.totalQuestions || 0) !== bank.length;
 
-      if (existsInBank && !looksEmpty) {
+      if (existsInBank && !looksEmpty && !totalMismatch) {
         return;
       }
 
       const firstQuestion = cloneQuestionForApi(bank[0]);
 
-      await sendGameAction("init", {
-        team1Name: String(displayState?.team1Name || readStored("familyfeud_team1") || "الفريق الأول").trim(),
-        team2Name: String(displayState?.team2Name || readStored("familyfeud_team2") || "الفريق الثاني").trim(),
+      await sendGameAction("next_question_bundle", {
         questionIndex: 0,
         totalQuestions: bank.length,
         question: firstQuestion
@@ -962,58 +980,44 @@
     }
 
     function getApiBases() {
-      const seen = new Set();
-      const bases = [];
-
-      const rawBases = [
-        window.location.origin,
-        apiBase,
-        readStored(API_BASE_KEY),
-        readStored(BUZZ_API_BASE_KEY),
-        "https://family-feud-buzz.sandooq-m.workers.dev",
-        "https://z.sandooq-m.workers.dev"
-      ];
-
-      rawBases.forEach((base) => {
-        const normalized = normalizeBase(base);
-        if (!normalized || seen.has(normalized)) return;
-        seen.add(normalized);
-        bases.push(normalized);
-      });
-
-      return bases;
+      const base = normalizeBase(window.location.origin);
+      return base ? [base] : [];
     }
 
     async function detectApiBase() {
-      const bases = getApiBases();
+      const base = normalizeBase(window.location.origin);
+      if (!base) return false;
 
-      for (const base of bases) {
-        try {
-          const res = await fetch(`${base}/api/game/state?room=${encodeURIComponent(roomId)}`, {
-            method: "GET",
-            cache: "no-store",
-            headers: {
-              "Cache-Control": "no-cache",
-              "Pragma": "no-cache"
-            }
-          });
+      try {
+        const res = await fetch(`${base}/api/game/state?room=${encodeURIComponent(roomId)}`, {
+          method: "GET",
+          cache: "no-store",
+          headers: {
+            "Cache-Control": "no-cache",
+            "Pragma": "no-cache"
+          }
+        });
 
-          const data = await res.json().catch(() => null);
-          if (!res.ok || !data || !data.ok || !data.state) continue;
+        const data = await res.json().catch(() => null);
+        if (!res.ok || !data || !data.ok || !data.state) return false;
 
-          apiBase = base;
-          writeStored(API_BASE_KEY, base);
-          writeStored(BUZZ_API_BASE_KEY, base);
-          return true;
-        } catch (error) {}
+        apiBase = base;
+        writeStored(API_BASE_KEY, base);
+        writeStored(BUZZ_API_BASE_KEY, base);
+        return true;
+      } catch (error) {
+        return false;
       }
-
-      return false;
     }
 
     async function startRemoteSync() {
       if (syncStarted) return;
       syncStarted = true;
+
+      if (!ensureLocalBankLoaded()) {
+        renderAll(true);
+        return;
+      }
 
       const ok = await detectApiBase();
 
@@ -1746,7 +1750,8 @@
         nextQuestionInFlight,
         panelActionInFlight,
         answerActionInFlight: Array.from(answerActionInFlight),
-        optimisticRevealedIndexes: Array.from(optimisticRevealedIndexes)
+        optimisticRevealedIndexes: Array.from(optimisticRevealedIndexes),
+        localBankReady
       });
 
       if (!force && signature === lastRenderSignature) return;
@@ -1765,7 +1770,7 @@
       bellToggleBtn.disabled = toggleActionInFlight || stealAwardInProgress;
       questionToggleBtn.disabled = toggleActionInFlight || stealAwardInProgress;
       errorBtn.disabled = errorActionInFlight || stealAwardInProgress || !canRegisterError();
-      nextQuestionBtn.disabled = nextQuestionInFlight || stealAwardInProgress;
+      nextQuestionBtn.disabled = !localBankReady || nextQuestionInFlight || stealAwardInProgress;
 
       renderAnswers();
       renderPanel();
