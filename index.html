@@ -7,6 +7,7 @@
 
   <link rel="preload" as="image" href="logo-family-feud.PNG">
   <link rel="preload" as="image" href="logo.PNG">
+  <link rel="prefetch" as="document" href="game.html">
 
   <script>
     (function () {
@@ -263,10 +264,6 @@
       filter:brightness(1.01);
     }
 
-    .start-btn.loading{
-      font-size:30px;
-    }
-
     .start-btn:disabled{
       opacity:.55;
       cursor:not-allowed;
@@ -487,10 +484,6 @@
       font-size:54px;
     }
 
-    body.portrait .start-btn.loading{
-      font-size:31px;
-    }
-
     body.portrait .actions-grid{
       grid-template-columns:1fr 1fr;
       gap:14px;
@@ -664,7 +657,11 @@
     let stableOrientationPortrait = window.innerHeight > window.innerWidth;
     let currentRoomId = createFreshRoomId();
     let layoutFrozenUntil = 0;
-    let loadingCount = 0;
+    let startInProgress = false;
+
+    let roomWarmupTimer = null;
+    let roomWarmupPromise = null;
+    let roomWarmupSignature = "";
 
     persistRoomId(currentRoomId);
 
@@ -673,7 +670,24 @@
     }
 
     function isLayoutFrozen() {
-      return loadingCount > 0 || Date.now() < layoutFrozenUntil;
+      return startInProgress || Date.now() < layoutFrozenUntil;
+    }
+
+    function prefetchGameAssets() {
+      try {
+        const gameLink = document.createElement("link");
+        gameLink.rel = "prefetch";
+        gameLink.as = "document";
+        gameLink.href = "game.html";
+        document.head.appendChild(gameLink);
+      } catch (e) {}
+
+      try {
+        const logo1 = new Image();
+        logo1.src = "logo-family-feud.PNG";
+        const logo2 = new Image();
+        logo2.src = "logo.PNG";
+      } catch (e) {}
     }
 
     function readStored(key) {
@@ -706,7 +720,6 @@
       const candidates = [
         readStored(API_BASE_KEY),
         readStored(BUZZ_API_BASE_KEY),
-        window.location.origin.includes("workers.dev") ? window.location.origin : "",
         "https://family-feud-buzz.sandooq-m.workers.dev",
         "https://z.sandooq-m.workers.dev"
       ];
@@ -819,35 +832,6 @@
       });
     }
 
-    function setStartLoading(loading) {
-      if (loading) {
-        freezeLayout(1400);
-
-        if (startBtn.dataset.loadingActive !== "1") {
-          loadingCount += 1;
-          startBtn.dataset.loadingActive = "1";
-        }
-
-        startBtn.dataset.originalText = startBtn.textContent;
-        startBtn.textContent = "جاري البدء…";
-        startBtn.classList.add("loading");
-        startBtn.disabled = true;
-      } else {
-        if (startBtn.dataset.loadingActive === "1") {
-          loadingCount = Math.max(0, loadingCount - 1);
-          startBtn.dataset.loadingActive = "0";
-        }
-
-        startBtn.textContent = startBtn.dataset.originalText || "ابدأ";
-        startBtn.classList.remove("loading");
-        updateStartButtonState();
-
-        setTimeout(() => {
-          updateLayout(true);
-        }, 120);
-      }
-    }
-
     function buildPageLink(fileName) {
       const url = new URL(window.location.href);
       const path = url.pathname;
@@ -901,11 +885,6 @@
     }
 
     function updateStartButtonState() {
-      if (startBtn.dataset.loadingActive === "1") {
-        startBtn.disabled = true;
-        return;
-      }
-
       const ready =
         teamOneInput.value.trim().length > 0 &&
         teamTwoInput.value.trim().length > 0;
@@ -952,12 +931,26 @@
       writeStored("familyfeud_buzz_enabled_presenter", "1");
     }
 
+    async function fetchWithTimeout(url, options = {}, timeoutMs = 2600) {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), timeoutMs);
+
+      try {
+        return await fetch(url, {
+          ...options,
+          signal: controller.signal
+        });
+      } finally {
+        clearTimeout(timeout);
+      }
+    }
+
     async function initializeRemoteGame(room, team1, team2) {
       const bases = getApiBases();
 
       for (const base of bases) {
         try {
-          const response = await fetch(`${base}/api/game/init?room=${encodeURIComponent(room)}`, {
+          const response = await fetchWithTimeout(`${base}/api/game/init?room=${encodeURIComponent(room)}`, {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
@@ -985,6 +978,43 @@
       return false;
     }
 
+    function getTeamSignature(team1, team2) {
+      return `${currentRoomId}::${team1}::${team2}`;
+    }
+
+    function startRoomWarmup(team1, team2) {
+      if (!team1 || !team2) return Promise.resolve(false);
+
+      const signature = getTeamSignature(team1, team2);
+
+      if (roomWarmupPromise && roomWarmupSignature === signature) {
+        return roomWarmupPromise;
+      }
+
+      roomWarmupSignature = signature;
+      roomWarmupPromise = initializeRemoteGame(currentRoomId, team1, team2)
+        .then((ok) => !!ok)
+        .catch(() => false);
+
+      return roomWarmupPromise;
+    }
+
+    function scheduleRoomWarmup() {
+      if (roomWarmupTimer) {
+        clearTimeout(roomWarmupTimer);
+        roomWarmupTimer = null;
+      }
+
+      const team1 = teamOneInput.value.trim();
+      const team2 = teamTwoInput.value.trim();
+
+      if (!team1 || !team2) return;
+
+      roomWarmupTimer = setTimeout(() => {
+        startRoomWarmup(team1, team2);
+      }, 180);
+    }
+
     guideBtn.addEventListener("click", () => openOverlay(guideOverlay));
 
     answersBtn.addEventListener("click", () => {
@@ -998,9 +1028,10 @@
     });
 
     startBtn.addEventListener("click", async () => {
-      if (startBtn.disabled) return;
+      if (startBtn.disabled || startInProgress) return;
 
-      freezeLayout(1400);
+      startInProgress = true;
+      freezeLayout(2200);
 
       const team1 = teamOneInput.value.trim();
       const team2 = teamTwoInput.value.trim();
@@ -1010,15 +1041,11 @@
       writeStored("familyfeud_team1", team1);
       writeStored("familyfeud_team2", team2);
 
-      setStartLoading(true);
+      const remotePromise = startRoomWarmup(team1, team2);
 
-      const remoteOk = await initializeRemoteGame(currentRoomId, team1, team2);
-
-      if (!remoteOk) {
-        setStartLoading(false);
-        window.alert("تعذر تجهيز الغرفة الآن. تأكد من أن الباكند منشور ثم حاول مرة أخرى.");
-        return;
-      }
+      try {
+        await remotePromise;
+      } catch (e) {}
 
       initializeLocalGameState(team1, team2);
       window.location.href = buildGameLink();
@@ -1086,12 +1113,14 @@
       sessionStorage.setItem("familyfeud_team1", teamOneInput.value);
       writeStored("familyfeud_team1", teamOneInput.value);
       updateStartButtonState();
+      scheduleRoomWarmup();
     });
 
     teamTwoInput.addEventListener("input", () => {
       sessionStorage.setItem("familyfeud_team2", teamTwoInput.value);
       writeStored("familyfeud_team2", teamTwoInput.value);
       updateStartButtonState();
+      scheduleRoomWarmup();
     });
 
     document.addEventListener("touchstart", (event) => {
@@ -1128,6 +1157,8 @@
         setTimeout(() => {
           updateLayout(true);
         }, 1150);
+
+        scheduleRoomWarmup();
       });
     });
 
@@ -1144,12 +1175,15 @@
       storeLogo.style.display = "none";
     });
 
+    prefetchGameAssets();
     updateStartButtonState();
     updateAnswersBox();
     updateBuzzBox();
     updateLayout(true);
+    scheduleRoomWarmup();
 
     window.addEventListener("load", () => {
+      prefetchGameAssets();
       setTimeout(() => updateLayout(true), 60);
       setTimeout(() => updateLayout(true), 220);
     }, { passive: true });
