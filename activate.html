@@ -19,16 +19,15 @@
       --panel-blue-1:#0f2c88;
       --panel-blue-2:#081d61;
       --soft-blue:rgba(46,81,198,.28);
+      --soft-blue-2:rgba(255,255,255,.08);
       --orange-1:#ff922b;
       --orange-2:#ff7b14;
-      --green-1:#16a34a;
-      --green-2:#15803d;
-      --red-1:#d91f1f;
-      --red-2:#b51717;
       --dark:#0f0f0f;
       --input-bg:#f3f3f3;
       --input-text:#222;
       --muted:#d7def8;
+      --danger:#ffd8d8;
+      --success:#d9ffe4;
     }
 
     *{
@@ -99,11 +98,11 @@
 
     .hero-logo-wrap{
       position:absolute;
-      top:8px;
+      top:10px;
       left:50%;
       transform:translateX(-50%);
-      width:390px;
-      min-height:170px;
+      width:340px;
+      min-height:150px;
       display:flex;
       align-items:center;
       justify-content:center;
@@ -113,7 +112,7 @@
     .hero-logo{
       display:block;
       max-width:100%;
-      max-height:170px;
+      max-height:150px;
       object-fit:contain;
     }
 
@@ -121,7 +120,7 @@
       display:none;
       width:100%;
       text-align:center;
-      font-size:56px;
+      font-size:52px;
       font-weight:900;
       color:#ffd34d;
       text-shadow:
@@ -132,97 +131,99 @@
     .auth-panel{
       position:absolute;
       left:50%;
-      top:430px;
+      top:438px;
       transform:translate(-50%, -50%);
       width:820px;
-      min-height:470px;
+      min-height:455px;
       border-radius:36px;
       border:10px solid var(--dark);
       background:linear-gradient(180deg, var(--panel-blue-1) 0%, var(--panel-blue-2) 100%);
       box-shadow:
         inset 0 0 0 1px rgba(255,255,255,.05),
         0 18px 40px rgba(0,0,0,.22);
-      padding:26px 30px 28px;
+      padding:84px 30px 28px;
       display:flex;
       flex-direction:column;
       z-index:3;
     }
 
-    .tabs{
+    .tabs-dock{
+      position:absolute;
+      top:0;
+      left:50%;
+      transform:translate(-50%, -50%);
+      width:560px;
+      height:78px;
+      border-radius:26px;
+      border:4px solid rgba(243,242,234,.95);
+      background:rgba(23,42,120,.92);
+      box-shadow:0 10px 18px rgba(0,0,0,.16);
+      overflow:hidden;
       display:grid;
       grid-template-columns:1fr 1fr;
-      gap:14px;
-      margin-bottom:18px;
+      z-index:7;
     }
 
     .tab-btn{
-      height:66px;
-      border-radius:22px;
-      border:4px solid rgba(243,242,234,.95);
-      background:rgba(255,255,255,.08);
+      border:none;
+      background:transparent;
       color:var(--white);
       font-size:28px;
       font-weight:900;
       cursor:pointer;
-      transition:transform .15s ease, filter .15s ease, background .15s ease, border-color .15s ease;
+      transition:background .15s ease, color .15s ease, filter .15s ease;
     }
 
-    .tab-btn:hover{
-      transform:translateY(-1px);
-      filter:brightness(1.04);
+    .tab-btn + .tab-btn{
+      border-right:3px solid rgba(243,242,234,.65);
     }
 
     .tab-btn.active{
       background:linear-gradient(180deg, #2b3fc2 0%, #0e2f91 100%);
-      border-color:var(--gold);
+      color:#fff;
+      box-shadow:inset 0 0 0 2px rgba(241,209,79,.75);
     }
 
     .panel-title{
       text-align:center;
       color:var(--white);
-      font-size:38px;
+      font-size:40px;
       font-weight:900;
       line-height:1.15;
-      margin-bottom:12px;
+      margin-bottom:10px;
     }
 
     .panel-subtitle{
       text-align:center;
       color:var(--muted);
-      font-size:20px;
+      font-size:21px;
       font-weight:700;
       line-height:1.7;
-      margin-bottom:18px;
-      min-height:60px;
+      margin-bottom:14px;
+      min-height:64px;
+      padding:0 8px;
     }
 
-    .status-box{
-      min-height:52px;
-      border-radius:18px;
-      border:3px solid rgba(243,242,234,.25);
-      background:rgba(255,255,255,.07);
-      color:#fff;
-      display:flex;
-      align-items:center;
-      justify-content:center;
+    .status-text{
+      min-height:28px;
       text-align:center;
-      padding:10px 14px;
       font-size:18px;
       font-weight:800;
-      line-height:1.6;
-      margin-bottom:16px;
+      line-height:1.5;
+      margin-bottom:10px;
+      color:var(--muted);
     }
 
-    .status-box.success{
-      border-color:rgba(22,163,74,.55);
-      background:rgba(22,163,74,.16);
-      color:#dcfce7;
+    .status-text.error{
+      color:var(--danger);
     }
 
-    .status-box.error{
-      border-color:rgba(217,31,31,.55);
-      background:rgba(217,31,31,.16);
-      color:#ffe2e2;
+    .status-text.success{
+      color:var(--success);
+    }
+
+    .status-text.hidden{
+      visibility:hidden;
     }
 
     .form-view{
@@ -247,7 +248,7 @@
       text-align:center;
       outline:none;
       padding:0 18px;
-      box-shadow: inset 0 2px 0 rgba(255,255,255,.75);
+      box-shadow:inset 0 2px 0 rgba(255,255,255,.75);
     }
 
     .input::placeholder{
@@ -297,7 +298,7 @@
     }
 
     .secondary-btn{
-      min-width:190px;
+      min-width:200px;
       height:62px;
       border-radius:22px;
       border:4px solid rgba(243,242,234,.95);
@@ -321,17 +322,13 @@
       filter:none;
     }
 
-    .code-note{
+    .activate-note{
       text-align:center;
       color:var(--gold);
       font-size:18px;
       font-weight:800;
       line-height:1.7;
-      margin-top:4px;
-    }
-
-    .hidden{
-      display:none !important;
+      margin-top:2px;
     }
 
     body.portrait .game-shell{
@@ -348,29 +345,29 @@
 
     body.portrait .hero-logo-wrap{
       top:95px;
-      width:430px;
-      min-height:220px;
+      width:390px;
+      min-height:200px;
     }
 
     body.portrait .hero-logo{
-      max-height:220px;
+      max-height:200px;
     }
 
     body.portrait .auth-panel{
       top:760px;
       width:610px;
-      min-height:620px;
-      padding:30px 24px 28px;
+      min-height:610px;
+      padding:86px 24px 28px;
     }
 
-    body.portrait .tabs{
-      gap:12px;
-      margin-bottom:16px;
+    body.portrait .tabs-dock{
+      width:470px;
+      height:74px;
+      border-radius:24px;
     }
 
     body.portrait .tab-btn{
-      height:72px;
-      font-size:26px;
+      font-size:24px;
     }
 
     body.portrait .panel-title{
@@ -438,27 +435,23 @@
         </div>
 
         <section class="auth-panel">
-          <div class="tabs">
+          <div class="tabs-dock">
             <button id="loginTabBtn" class="tab-btn active" type="button">تسجيل الدخول</button>
             <button id="registerTabBtn" class="tab-btn" type="button">إنشاء حساب</button>
           </div>
 
           <div id="panelTitle" class="panel-title">تسجيل الدخول</div>
           <div id="panelSubtitle" class="panel-subtitle">
-            سجّل دخولك بحسابك، وإذا كان الحساب جديدًا فعِّل اللعبة بالكود داخل نفس الصفحة.
+            سجّل دخولك بحسابك، وإذا كان الحساب جديدًا فبعد الإنشاء تنتقل مباشرة لتفعيل اللعبة.
           </div>
 
-          <div id="statusBox" class="status-box">جاهز</div>
+          <div id="statusText" class="status-text hidden">.</div>
 
           <div id="loginView" class="form-view active">
             <input id="loginEmail" class="input" type="email" placeholder="البريد الإلكتروني" autocomplete="email">
             <input id="loginPassword" class="input" type="password" placeholder="كلمة المرور" autocomplete="current-password">
 
             <button id="loginBtn" class="primary-btn" type="button">دخول</button>
-
-            <div class="secondary-row">
-              <button id="goActivateBtn" class="secondary-btn" type="button">تفعيل بالكود</button>
-            </div>
           </div>
 
           <div id="registerView" class="form-view">
@@ -467,8 +460,6 @@
             <input id="registerPassword2" class="input" type="password" placeholder="تأكيد كلمة المرور" autocomplete="new-password">
 
             <button id="registerBtn" class="primary-btn" type="button">إنشاء</button>
-
-            <div class="code-note">بعد إنشاء الحساب مباشرة تنتقل خطوة التفعيل بالكود.</div>
           </div>
 
           <div id="activateView" class="form-view">
@@ -480,7 +471,7 @@
               <button id="backToLoginBtn" class="secondary-btn" type="button">العودة للدخول</button>
             </div>
 
-            <div class="code-note">بعد نجاح التفعيل يتم إدخالك مباشرة للعبة.</div>
+            <div class="activate-note">بعد نجاح التفعيل يتم إدخالك مباشرة للعبة.</div>
           </div>
         </section>
 
@@ -507,7 +498,7 @@
 
     const panelTitle = document.getElementById("panelTitle");
     const panelSubtitle = document.getElementById("panelSubtitle");
-    const statusBox = document.getElementById("statusBox");
+    const statusText = document.getElementById("statusText");
 
     const loginView = document.getElementById("loginView");
     const registerView = document.getElementById("registerView");
@@ -516,7 +507,6 @@
     const loginEmail = document.getElementById("loginEmail");
     const loginPassword = document.getElementById("loginPassword");
     const loginBtn = document.getElementById("loginBtn");
-    const goActivateBtn = document.getElementById("goActivateBtn");
 
     const registerEmail = document.getElementById("registerEmail");
     const registerPassword = document.getElementById("registerPassword");
@@ -589,10 +579,16 @@
       return result;
     }
 
-    function setStatus(text, type = "") {
-      statusBox.textContent = text;
-      statusBox.className = "status-box";
-      if (type) statusBox.classList.add(type);
+    function showStatus(text = "", type = "") {
+      if (!text) {
+        statusText.textContent = ".";
+        statusText.className = "status-text hidden";
+        return;
+      }
+
+      statusText.textContent = text;
+      statusText.className = "status-text";
+      if (type) statusText.classList.add(type);
     }
 
     function setView(viewName) {
@@ -607,10 +603,10 @@
 
       if (viewName === "login") {
         panelTitle.textContent = "تسجيل الدخول";
-        panelSubtitle.textContent = "سجّل دخولك بحسابك، وإذا كان الحساب جديدًا فعِّل اللعبة بالكود داخل نفس الصفحة.";
+        panelSubtitle.textContent = "سجّل دخولك بحسابك، وإذا كان الحساب جديدًا فبعد الإنشاء تنتقل مباشرة لتفعيل اللعبة.";
       } else if (viewName === "register") {
-        panelTitle.textContent = "إنشاء حساب جديد";
-        panelSubtitle.textContent = "أنشئ حسابك أولًا، وبعدها تنتقل مباشرة لخطوة تفعيل اللعبة بالكود.";
+        panelTitle.textContent = "إنشاء حساب";
+        panelSubtitle.textContent = "أنشئ حسابك أولًا، وبعدها تنتقل مباشرة إلى خطوة تفعيل اللعبة بالكود.";
       } else {
         panelTitle.textContent = "تفعيل اللعبة";
         panelSubtitle.textContent = "أدخل كود التفعيل لمرة واحدة فقط، وبعد نجاحه تدخل للعبة مباشرة.";
@@ -727,26 +723,12 @@
 
       for (const base of bases) {
         try {
-          const res = await fetch(`${base}/api2/health`, {
+          const res = await fetch(`${base}/api2/me`, {
             method: "GET",
             cache: "no-store"
           }).catch(() => null);
 
-          if (res && res.ok) {
-            currentApiBase = base;
-            writeStored(API_BASE_KEY, base);
-            writeStored(BUZZ_API_BASE_KEY, base);
-            return true;
-          }
-        } catch (e) {}
-
-        try {
-          const res2 = await fetch(`${base}/api/game/state?room=ping`, {
-            method: "GET",
-            cache: "no-store"
-          }).catch(() => null);
-
-          if (res2) {
+          if (res) {
             currentApiBase = base;
             writeStored(API_BASE_KEY, base);
             writeStored(BUZZ_API_BASE_KEY, base);
@@ -844,25 +826,22 @@
       const token = readToken();
       if (!token) return;
 
-      setStatus("جارٍ التحقق من الجلسة...", "");
-
       const me = await requestMe();
       if (!me.ok) {
         removeStored(TOKEN_KEY);
-        setStatus("سجّل دخولك أو أنشئ حسابًا جديدًا.", "");
         return;
       }
 
       if (isActivatedPayload(me.data)) {
-        setStatus("تم التحقق بنجاح، جارٍ الدخول...", "success");
+        showStatus("تم التحقق من الجلسة، جارٍ الدخول...", "success");
         setTimeout(() => {
           window.location.href = buildIndexLink();
-        }, 500);
+        }, 450);
         return;
       }
 
       setView("activate");
-      setStatus("الحساب مسجل، بقي تفعيل اللعبة بالكود.", "");
+      showStatus("الحساب مسجل، بقي تفعيل اللعبة بالكود.", "");
     }
 
     async function handleLogin() {
@@ -870,12 +849,12 @@
       const password = loginPassword.value;
 
       if (!email || !password) {
-        setStatus("أدخل البريد الإلكتروني وكلمة المرور.", "error");
+        showStatus("أدخل البريد الإلكتروني وكلمة المرور.", "error");
         return;
       }
 
       loginBtn.disabled = true;
-      setStatus("جارٍ تسجيل الدخول...", "");
+      showStatus("جارٍ تسجيل الدخول...");
 
       try {
         let res = await apiRequest("/api2/login", { email, password }).catch(() => null);
@@ -884,21 +863,16 @@
         }
 
         if (!res || !res.ok) {
-          setStatus(
-            res?.data?.error || "تعذر تسجيل الدخول. تأكد من البيانات.",
-            "error"
-          );
+          showStatus(res?.data?.error || "تعذر تسجيل الدخول. تأكد من البيانات.", "error");
           return;
         }
 
         const token = getTokenFromResponse(res.data);
-        if (token) {
-          storeToken(token);
-        }
+        if (token) storeToken(token);
 
         const me = await requestMe();
         if (me.ok && isActivatedPayload(me.data)) {
-          setStatus("تم تسجيل الدخول بنجاح، جارٍ الدخول...", "success");
+          showStatus("تم تسجيل الدخول بنجاح، جارٍ الدخول...", "success");
           setTimeout(() => {
             window.location.href = buildIndexLink();
           }, 500);
@@ -906,9 +880,9 @@
         }
 
         setView("activate");
-        setStatus("تم تسجيل الدخول. بقي تفعيل اللعبة بالكود.", "success");
+        showStatus("تم تسجيل الدخول. هذا الحساب يحتاج تفعيلًا بالكود.", "success");
       } catch (error) {
-        setStatus("تعذر الاتصال بالخادم الآن.", "error");
+        showStatus("تعذر الاتصال بالخادم الآن.", "error");
       } finally {
         loginBtn.disabled = false;
       }
@@ -920,22 +894,22 @@
       const password2 = registerPassword2.value;
 
       if (!email || !password || !password2) {
-        setStatus("أكمل جميع الحقول المطلوبة.", "error");
+        showStatus("أكمل جميع الحقول المطلوبة.", "error");
         return;
       }
 
       if (password.length < 6) {
-        setStatus("كلمة المرور لازم تكون 6 أحرف أو أكثر.", "error");
+        showStatus("كلمة المرور لازم تكون 6 أحرف أو أكثر.", "error");
         return;
       }
 
       if (password !== password2) {
-        setStatus("كلمتا المرور غير متطابقتين.", "error");
+        showStatus("كلمتا المرور غير متطابقتين.", "error");
         return;
       }
 
       registerBtn.disabled = true;
-      setStatus("جارٍ إنشاء الحساب...", "");
+      showStatus("جارٍ إنشاء الحساب...");
 
       try {
         let res = await apiRequest("/api2/register", { email, password }).catch(() => null);
@@ -944,27 +918,17 @@
         }
 
         if (!res || !res.ok) {
-          setStatus(
-            res?.data?.error || "تعذر إنشاء الحساب الآن.",
-            "error"
-          );
+          showStatus(res?.data?.error || "تعذر إنشاء الحساب الآن.", "error");
           return;
         }
 
         const token = getTokenFromResponse(res.data);
-        if (token) {
-          storeToken(token);
-          setView("activate");
-          setStatus("تم إنشاء الحساب بنجاح. الآن أدخل كود التفعيل.", "success");
-          return;
-        }
+        if (token) storeToken(token);
 
-        loginEmail.value = email;
-        loginPassword.value = password;
-        setView("login");
-        setStatus("تم إنشاء الحساب. سجّل دخولك الآن.", "success");
+        setView("activate");
+        showStatus("تم إنشاء الحساب بنجاح. الآن أدخل كود التفعيل.", "success");
       } catch (error) {
-        setStatus("تعذر الاتصال بالخادم الآن.", "error");
+        showStatus("تعذر الاتصال بالخادم الآن.", "error");
       } finally {
         registerBtn.disabled = false;
       }
@@ -975,18 +939,18 @@
       const token = readToken();
 
       if (!code) {
-        setStatus("أدخل كود التفعيل أولًا.", "error");
+        showStatus("أدخل كود التفعيل أولًا.", "error");
         return;
       }
 
       if (!token) {
         setView("login");
-        setStatus("لازم تسجل دخولك أولًا قبل التفعيل.", "error");
+        showStatus("لازم تسجل دخولك أولًا قبل التفعيل.", "error");
         return;
       }
 
       activateBtn.disabled = true;
-      setStatus("جارٍ تفعيل اللعبة...", "");
+      showStatus("جارٍ تفعيل اللعبة...");
 
       try {
         let res = await apiRequest("/api2/activate", { code }, getAuthHeaders()).catch(() => null);
@@ -995,19 +959,16 @@
         }
 
         if (!res || !res.ok) {
-          setStatus(
-            res?.data?.error || "تعذر تفعيل الكود الآن.",
-            "error"
-          );
+          showStatus(res?.data?.error || "تعذر تفعيل الكود الآن.", "error");
           return;
         }
 
-        setStatus("تم التفعيل بنجاح، جارٍ الدخول للعبة...", "success");
+        showStatus("تم التفعيل بنجاح، جارٍ الدخول للعبة...", "success");
         setTimeout(() => {
           window.location.href = buildIndexLink();
         }, 650);
       } catch (error) {
-        setStatus("تعذر الاتصال بالخادم الآن.", "error");
+        showStatus("تعذر الاتصال بالخادم الآن.", "error");
       } finally {
         activateBtn.disabled = false;
       }
@@ -1015,22 +976,17 @@
 
     loginTabBtn.addEventListener("click", () => {
       setView("login");
-      setStatus("جاهز", "");
+      showStatus("");
     });
 
     registerTabBtn.addEventListener("click", () => {
       setView("register");
-      setStatus("جاهز", "");
-    });
-
-    goActivateBtn.addEventListener("click", () => {
-      setView("activate");
-      setStatus("أدخل كود التفعيل بعد تسجيل الدخول.", "");
+      showStatus("");
     });
 
     backToLoginBtn.addEventListener("click", () => {
       setView("login");
-      setStatus("جاهز", "");
+      showStatus("");
     });
 
     loginBtn.addEventListener("click", handleLogin);
