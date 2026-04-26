@@ -854,10 +854,10 @@
       const bases = [];
 
       const rawBases = [
+        window.location.origin,
         apiBase,
         readStored(API_BASE_KEY),
         readStored(BUZZ_API_BASE_KEY),
-        window.location.origin.includes("workers.dev") ? window.location.origin : "",
         "https://family-feud-buzz.sandooq-m.workers.dev",
         "https://z.sandooq-m.workers.dev"
       ];
