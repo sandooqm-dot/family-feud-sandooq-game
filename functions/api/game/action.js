@@ -46,22 +46,12 @@ export async function onRequestPost(context) {
       case "init": {
         const team1Name = cleanText(body.team1Name) || "الفريق الأول";
         const team2Name = cleanText(body.team2Name) || "الفريق الثاني";
-        const totalQuestions = normalizeTotalQuestions(body.totalQuestions);
-        const questionIndex = normalizeQuestionIndex(body.questionIndex, 0, totalQuestions);
-        const questionOverride = normalizeIncomingQuestion(
-          body.question ||
-          body.customQuestion ||
-          body.selectedQuestion ||
-          body.questionPayload ||
-          body.questionData
-        );
+        const questionIndex = normalizeQuestionIndex(body.questionIndex, 0);
 
         state = createInitialState(room, {
           team1Name,
           team2Name,
-          questionIndex,
-          totalQuestions,
-          questionOverride
+          questionIndex
         });
 
         break;
@@ -85,38 +75,43 @@ export async function onRequestPost(context) {
       }
 
       case "next_question_bundle": {
-        const totalQuestions = normalizeTotalQuestions(
-          body.totalQuestions ||
-          state.control.totalQuestions ||
-          FAMILY_FEUD_QUESTIONS.length
-        );
-
-        const hasClientQuestionIndex = Number.isFinite(Number(body.questionIndex));
-        const nextIndex = hasClientQuestionIndex
-          ? normalizeQuestionIndex(body.questionIndex, 0, totalQuestions)
-          : getNextQuestionIndex(state.control.currentQuestionIndex, totalQuestions);
-
         const team1Name = state.display.team1Name || "الفريق الأول";
         const team2Name = state.display.team2Name || "الفريق الثاني";
         const team1Score = Number(state.display.team1Score || 0);
         const team2Score = Number(state.display.team2Score || 0);
 
-        const questionOverride = normalizeIncomingQuestion(
-          body.question ||
-          body.customQuestion ||
-          body.selectedQuestion ||
-          body.questionPayload ||
-          body.questionData
-        );
+        const incomingQuestion = normalizeIncomingQuestion(body.question);
+        const incomingTotal = normalizeTotalQuestions(body.totalQuestions);
+
+        if (incomingQuestion) {
+          const safeTotal = incomingTotal || FAMILY_FEUD_QUESTIONS.length || 1;
+          const nextIndex = normalizeQuestionIndexByTotal(
+            body.questionIndex,
+            safeTotal,
+            getNextQuestionIndex(state.control.currentQuestionIndex)
+          );
+
+          state = createInitialState(room, {
+            team1Name,
+            team2Name,
+            team1Score,
+            team2Score,
+            questionIndex: nextIndex,
+            totalQuestions: safeTotal,
+            questionOverride: incomingQuestion
+          });
+
+          break;
+        }
+
+        const nextIndex = getNextQuestionIndex(state.control.currentQuestionIndex);
 
         state = createInitialState(room, {
           team1Name,
           team2Name,
           team1Score,
           team2Score,
-          questionIndex: nextIndex,
-          totalQuestions,
-          questionOverride
+          questionIndex: nextIndex
         });
 
         break;
@@ -318,17 +313,20 @@ export async function onRequestPost(context) {
 }
 
 function createInitialState(room, options = {}) {
-  const totalQuestions = normalizeTotalQuestions(options.totalQuestions || FAMILY_FEUD_QUESTIONS.length);
-  const questionIndex = normalizeQuestionIndex(options.questionIndex, 0, totalQuestions);
+  const questionIndex = options.questionOverride
+    ? normalizeQuestionIndexByTotal(
+        options.questionIndex,
+        Number(options.totalQuestions || FAMILY_FEUD_QUESTIONS.length || 1),
+        0
+      )
+    : normalizeQuestionIndex(options.questionIndex, 0);
 
-  const fallbackQuestionIndex = normalizeQuestionIndex(questionIndex, 0, FAMILY_FEUD_QUESTIONS.length || 1);
-  const fallbackQuestion = FAMILY_FEUD_QUESTIONS[fallbackQuestionIndex] || FAMILY_FEUD_QUESTIONS[0] || {
+  const question = options.questionOverride || FAMILY_FEUD_QUESTIONS[questionIndex] || FAMILY_FEUD_QUESTIONS[0] || {
     question: "نص السؤال",
     answers: []
   };
 
-  const questionOverride = normalizeIncomingQuestion(options.questionOverride);
-  const question = questionOverride || fallbackQuestion;
+  const totalQuestions = Number(options.totalQuestions || FAMILY_FEUD_QUESTIONS.length || 0);
 
   return {
     room,
@@ -449,22 +447,17 @@ function calculateRoundPoints(answers) {
 
 function normalizeTotalQuestions(value) {
   const n = Number(value);
+  if (!Number.isFinite(n)) return 0;
 
-  if (!Number.isFinite(n) || n <= 0) {
-    return Math.max(1, FAMILY_FEUD_QUESTIONS.length || 1);
-  }
-
-  return Math.max(1, Math.floor(n));
+  const safe = Math.floor(n);
+  return safe > 0 ? safe : 0;
 }
 
-function normalizeQuestionIndex(value, fallback = 0, totalOverride = FAMILY_FEUD_QUESTIONS.length) {
+function normalizeQuestionIndex(value, fallback = 0) {
   const n = Number(value);
-  const total = normalizeTotalQuestions(totalOverride);
+  if (!Number.isFinite(n)) return fallback;
 
-  if (!Number.isFinite(n) || total <= 0) {
-    return fallback;
-  }
-
+  const total = FAMILY_FEUD_QUESTIONS.length || 1;
   const safe = Math.floor(n);
 
   if (safe < 0) return 0;
@@ -473,9 +466,21 @@ function normalizeQuestionIndex(value, fallback = 0, totalOverride = FAMILY_FEUD
   return safe;
 }
 
-function getNextQuestionIndex(currentIndex, totalOverride = FAMILY_FEUD_QUESTIONS.length) {
-  const total = normalizeTotalQuestions(totalOverride);
-  const current = normalizeQuestionIndex(currentIndex, 0, total);
+function normalizeQuestionIndexByTotal(value, total, fallback = 0) {
+  const n = Number(value);
+  const safeTotal = Number(total || 0);
+
+  if (!Number.isFinite(n) || !Number.isFinite(safeTotal) || safeTotal <= 0) {
+    return fallback;
+  }
+
+  const safe = Math.floor(n);
+  return ((safe % safeTotal) + safeTotal) % safeTotal;
+}
+
+function getNextQuestionIndex(currentIndex) {
+  const total = FAMILY_FEUD_QUESTIONS.length || 1;
+  const current = normalizeQuestionIndex(currentIndex, 0);
   return (current + 1) % total;
 }
 
