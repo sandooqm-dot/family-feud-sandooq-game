@@ -1,6 +1,9 @@
-import { FAMILY_FEUD_QUESTIONS } from "../../_shared/family-feud-questions.js";
-
 const DEFAULT_ROOM = "family-feud-demo";
+
+const EMPTY_QUESTION = {
+  question: "نص السؤال",
+  answers: []
+};
 
 export async function onRequestOptions() {
   return new Response(null, {
@@ -46,12 +49,20 @@ export async function onRequestPost(context) {
       case "init": {
         const team1Name = cleanText(body.team1Name) || "الفريق الأول";
         const team2Name = cleanText(body.team2Name) || "الفريق الثاني";
-        const questionIndex = normalizeQuestionIndex(body.questionIndex, 0);
+        const incomingQuestion = normalizeIncomingQuestion(body.question);
+        const incomingTotal = normalizeTotalQuestions(body.totalQuestions);
+        const questionIndex = normalizeQuestionIndexByTotal(
+          body.questionIndex,
+          incomingTotal || 1,
+          0
+        );
 
         state = createInitialState(room, {
           team1Name,
           team2Name,
-          questionIndex
+          questionIndex,
+          totalQuestions: incomingTotal,
+          questionOverride: incomingQuestion
         });
 
         break;
@@ -83,35 +94,28 @@ export async function onRequestPost(context) {
         const incomingQuestion = normalizeIncomingQuestion(body.question);
         const incomingTotal = normalizeTotalQuestions(body.totalQuestions);
 
-        if (incomingQuestion) {
-          const safeTotal = incomingTotal || FAMILY_FEUD_QUESTIONS.length || 1;
-          const nextIndex = normalizeQuestionIndexByTotal(
-            body.questionIndex,
-            safeTotal,
-            getNextQuestionIndex(state.control.currentQuestionIndex)
-          );
-
-          state = createInitialState(room, {
-            team1Name,
-            team2Name,
-            team1Score,
-            team2Score,
-            questionIndex: nextIndex,
-            totalQuestions: safeTotal,
-            questionOverride: incomingQuestion
-          });
-
-          break;
+        if (!incomingQuestion) {
+          return jsonResponse({
+            ok: false,
+            message: "لم يصل السؤال من questions_bank.js. تأكد أن control.html مربوط بالملف الصحيح وأن window.FAMILY_FEUD_QUESTIONS موجودة."
+          }, 400);
         }
 
-        const nextIndex = getNextQuestionIndex(state.control.currentQuestionIndex);
+        const safeTotal = incomingTotal || Number(state.control.totalQuestions || 0) || 1;
+        const nextIndex = normalizeQuestionIndexByTotal(
+          body.questionIndex,
+          safeTotal,
+          Number(state.control.currentQuestionIndex || 0) + 1
+        );
 
         state = createInitialState(room, {
           team1Name,
           team2Name,
           team1Score,
           team2Score,
-          questionIndex: nextIndex
+          questionIndex: nextIndex,
+          totalQuestions: safeTotal,
+          questionOverride: incomingQuestion
         });
 
         break;
@@ -313,20 +317,14 @@ export async function onRequestPost(context) {
 }
 
 function createInitialState(room, options = {}) {
-  const questionIndex = options.questionOverride
-    ? normalizeQuestionIndexByTotal(
-        options.questionIndex,
-        Number(options.totalQuestions || FAMILY_FEUD_QUESTIONS.length || 1),
-        0
-      )
-    : normalizeQuestionIndex(options.questionIndex, 0);
+  const totalQuestions = normalizeTotalQuestions(options.totalQuestions);
+  const questionIndex = normalizeQuestionIndexByTotal(
+    options.questionIndex,
+    totalQuestions || 1,
+    0
+  );
 
-  const question = options.questionOverride || FAMILY_FEUD_QUESTIONS[questionIndex] || FAMILY_FEUD_QUESTIONS[0] || {
-    question: "نص السؤال",
-    answers: []
-  };
-
-  const totalQuestions = Number(options.totalQuestions || FAMILY_FEUD_QUESTIONS.length || 0);
+  const question = options.questionOverride || EMPTY_QUESTION;
 
   return {
     room,
@@ -453,19 +451,6 @@ function normalizeTotalQuestions(value) {
   return safe > 0 ? safe : 0;
 }
 
-function normalizeQuestionIndex(value, fallback = 0) {
-  const n = Number(value);
-  if (!Number.isFinite(n)) return fallback;
-
-  const total = FAMILY_FEUD_QUESTIONS.length || 1;
-  const safe = Math.floor(n);
-
-  if (safe < 0) return 0;
-  if (safe >= total) return 0;
-
-  return safe;
-}
-
 function normalizeQuestionIndexByTotal(value, total, fallback = 0) {
   const n = Number(value);
   const safeTotal = Number(total || 0);
@@ -476,12 +461,6 @@ function normalizeQuestionIndexByTotal(value, total, fallback = 0) {
 
   const safe = Math.floor(n);
   return ((safe % safeTotal) + safeTotal) % safeTotal;
-}
-
-function getNextQuestionIndex(currentIndex) {
-  const total = FAMILY_FEUD_QUESTIONS.length || 1;
-  const current = normalizeQuestionIndex(currentIndex, 0);
-  return (current + 1) % total;
 }
 
 function normalizeAnswerIndex(value) {
