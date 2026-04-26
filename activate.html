@@ -445,7 +445,7 @@
 
           <div id="panelTitle" class="panel-title">تسجيل الدخول</div>
           <div id="panelSubtitle" class="panel-subtitle">
-            إذا كانت هذه أول مرة تدخل اللعبة، اضغط إنشاء حساب أولًا ثم أنشئ حسابك للدخول.
+            سجّل الدخول إلى حسابك، أو أنشئ حسابًا جديدًا إذا لم يكن لديك حساب.
           </div>
 
           <div id="statusText" class="status-text hidden">.</div>
@@ -606,10 +606,10 @@
 
       if (viewName === "login") {
         panelTitle.textContent = "تسجيل الدخول";
-        panelSubtitle.textContent = "إذا كانت هذه أول مرة تدخل اللعبة، اضغط إنشاء حساب أولًا ثم أنشئ حسابك للدخول.";
+        panelSubtitle.textContent = "سجّل الدخول إلى حسابك، أو أنشئ حسابًا جديدًا إذا لم يكن لديك حساب.";
       } else if (viewName === "register") {
         panelTitle.textContent = "إنشاء حساب";
-        panelSubtitle.textContent = "أنشئ حسابك أولًا، وبعدها تنتقل مباشرة إلى خطوة تفعيل اللعبة بالكود.";
+        panelSubtitle.textContent = "أنشئ حسابًا جديدًا للمتابعة إلى خطوة التفعيل.";
       } else {
         panelTitle.textContent = "تفعيل اللعبة";
         panelSubtitle.textContent = "أدخل كود التفعيل لمرة واحدة فقط، وبعد نجاحه تدخل للعبة مباشرة.";
