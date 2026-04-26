@@ -29,7 +29,7 @@ export async function onRequestGet(context) {
     const url = new URL(request.url);
     const room = normalizeRoom(url.searchParams.get("room")) || DEFAULT_ROOM;
 
-    let row = await db
+    const row = await db
       .prepare(`
         SELECT state_json
         FROM game_rooms
@@ -44,10 +44,11 @@ export async function onRequestGet(context) {
 
       await db
         .prepare(`
-          INSERT OR REPLACE INTO game_rooms
-            (room, state_json, updated_at)
-          VALUES
-            (?1, ?2, ?3)
+          INSERT INTO game_rooms (room, state_json, updated_at)
+          VALUES (?1, ?2, ?3)
+          ON CONFLICT(room) DO UPDATE SET
+            state_json = excluded.state_json,
+            updated_at = excluded.updated_at
         `)
         .bind(
           room,
@@ -87,7 +88,6 @@ function getDb(env) {
     env.AUTH_DB ||
     env.FAMILYFEUD_DB ||
     env.FAMILY_FEUD_DB ||
-    env.BDON_KALAM_AUTH ||
     null
   );
 }
@@ -150,10 +150,10 @@ function normalizeState(raw, room) {
   const fallback = buildInitialState(room);
   const source = raw && typeof raw === "object" ? raw : fallback;
 
-  const display = source.display || {};
-  const control = source.control || {};
-  const buzz = source.buzz || {};
-  const effects = source.effects || {};
+  const display = source.display && typeof source.display === "object" ? source.display : {};
+  const control = source.control && typeof source.control === "object" ? source.control : {};
+  const buzz = source.buzz && typeof source.buzz === "object" ? source.buzz : {};
+  const effects = source.effects && typeof source.effects === "object" ? source.effects : {};
 
   return {
     room,
@@ -161,7 +161,7 @@ function normalizeState(raw, room) {
 
     display: {
       showQuestion: typeof display.showQuestion === "boolean" ? display.showQuestion : false,
-      question: cleanText(display.question) || "نص السؤال",
+      question: cleanText(display.question) || EMPTY_QUESTION.question,
       team1Name: cleanText(display.team1Name) || "الفريق الأول",
       team2Name: cleanText(display.team2Name) || "الفريق الثاني",
       team1Score: toSafeNumber(display.team1Score),
@@ -175,7 +175,7 @@ function normalizeState(raw, room) {
     control: {
       currentQuestionIndex: toSafeNumber(control.currentQuestionIndex),
       totalQuestions: toSafeNumber(control.totalQuestions),
-      phase: cleanText(control.phase || "idle") || "idle",
+      phase: cleanText(control.phase) || "idle",
       currentTurnTeam: normalizeTeam(control.currentTurnTeam),
       confrontationWinner: normalizeTeam(control.confrontationWinner),
       stealingTeam: normalizeTeam(control.stealingTeam),
