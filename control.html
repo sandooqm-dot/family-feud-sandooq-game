@@ -822,6 +822,33 @@
       writeStored(BUZZ_ROOM_KEY, nextRoom);
     }
 
+    function normalizeAnswerForDisplay(answer) {
+      return {
+        text: String(answer?.text || "").trim(),
+        points: Number(answer?.points || 0),
+        revealed: !!answer?.revealed
+      };
+    }
+
+    function normalizeAnswersForDisplay(answers) {
+      const list = Array.isArray(answers)
+        ? answers.slice(0, 6).map(normalizeAnswerForDisplay)
+        : [];
+
+      while (list.length > 0) {
+        const last = list[list.length - 1];
+        const isEmptyTail =
+          !String(last.text || "").trim() &&
+          Number(last.points || 0) === 0 &&
+          last.revealed !== true;
+
+        if (!isEmptyTail) break;
+        list.pop();
+      }
+
+      return list;
+    }
+
     function getApiBases() {
       const seen = new Set();
       const bases = [];
@@ -1327,13 +1354,7 @@
         team1Strikes: Number(display.team1Strikes || 0),
         team2Strikes: Number(display.team2Strikes || 0),
         roundPoints: Number(display.roundPoints || 0),
-        answers: Array.isArray(display.answers)
-          ? display.answers.map((answer) => ({
-              text: String(answer?.text || ""),
-              points: Number(answer?.points || 0),
-              revealed: !!answer?.revealed
-            }))
-          : []
+        answers: normalizeAnswersForDisplay(display.answers)
       };
 
       controlState = {
@@ -1402,12 +1423,11 @@
           team1Strikes: 0,
           team2Strikes: 0,
           roundPoints: 0,
-          answers: Array.from({ length: 6 }, () => ({
-            text: "",
-            points: 0,
-            revealed: false
-          }))
+          answers: []
         };
+        saveDisplayState();
+      } else {
+        displayState.answers = normalizeAnswersForDisplay(displayState.answers);
         saveDisplayState();
       }
 
@@ -1531,7 +1551,14 @@
     function readDisplayState() {
       const raw = readStored(DISPLAY_KEY);
       const parsed = safeParse(raw);
-      return parsed || null;
+
+      if (!parsed) return null;
+
+      if (Array.isArray(parsed.answers)) {
+        parsed.answers = normalizeAnswersForDisplay(parsed.answers);
+      }
+
+      return parsed;
     }
 
     function readControlState() {
@@ -1542,6 +1569,7 @@
 
     function saveDisplayState() {
       displayState.roundPoints = Number(displayState.roundPoints || 0);
+      displayState.answers = normalizeAnswersForDisplay(displayState.answers);
       writeStored(DISPLAY_KEY, displayState);
     }
 
@@ -1641,9 +1669,12 @@
 
       answersGridEl.innerHTML = "";
 
-      const answers = Array.isArray(displayState.answers) ? displayState.answers : [];
+      const answers = normalizeAnswersForDisplay(displayState.answers);
 
       answers.forEach((answer, index) => {
+        const position = positions[index];
+        if (!position) return;
+
         const card = document.createElement("button");
         const isBlockedRevealedAnswer = isStealStage() && !isRoundClosedAfterSteal() && !!answer.revealed;
         const isVisuallyRevealed = !!answer.revealed || optimisticRevealedIndexes.has(index);
@@ -1658,8 +1689,8 @@
         if (shouldDisable) card.classList.add("disabled");
         card.disabled = shouldDisable;
 
-        card.style.gridRow = positions[index]?.row || "auto";
-        card.style.gridColumn = positions[index]?.col || "auto";
+        card.style.gridRow = position.row;
+        card.style.gridColumn = position.col;
 
         card.innerHTML = `
           <div class="answer-points">${answer.points}</div>
