@@ -245,17 +245,26 @@
       font-size:48px;
       font-weight:900;
       cursor:pointer;
-      transition:transform .15s ease, filter .15s ease, opacity .15s ease;
+      transition:filter .15s ease, opacity .15s ease;
       box-shadow:0 10px 18px rgba(0,0,0,.12);
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      white-space:nowrap;
+      overflow:hidden;
+      line-height:1;
     }
 
     .start-btn:hover:not(:disabled){
-      transform:translateY(-1px);
       filter:brightness(1.03);
     }
 
     .start-btn:active:not(:disabled){
-      transform:scale(.985);
+      filter:brightness(1.01);
+    }
+
+    .start-btn.loading{
+      font-size:30px;
     }
 
     .start-btn:disabled{
@@ -282,17 +291,16 @@
       font-size:26px;
       font-weight:900;
       cursor:pointer;
-      transition:transform .15s ease, filter .15s ease, opacity .15s ease;
+      transition:filter .15s ease, opacity .15s ease;
       white-space:nowrap;
     }
 
     .action-btn:hover{
-      transform:translateY(-1px);
       filter:brightness(1.04);
     }
 
     .action-btn:active{
-      transform:scale(.985);
+      filter:brightness(1.01);
     }
 
     .action-btn[disabled]{
@@ -479,6 +487,10 @@
       font-size:54px;
     }
 
+    body.portrait .start-btn.loading{
+      font-size:31px;
+    }
+
     body.portrait .actions-grid{
       grid-template-columns:1fr 1fr;
       gap:14px;
@@ -651,8 +663,18 @@
     let stableViewport = { width: window.innerWidth, height: window.innerHeight };
     let stableOrientationPortrait = window.innerHeight > window.innerWidth;
     let currentRoomId = createFreshRoomId();
+    let layoutFrozenUntil = 0;
+    let loadingCount = 0;
 
     persistRoomId(currentRoomId);
+
+    function freezeLayout(ms = 900) {
+      layoutFrozenUntil = Math.max(layoutFrozenUntil, Date.now() + ms);
+    }
+
+    function isLayoutFrozen() {
+      return loadingCount > 0 || Date.now() < layoutFrozenUntil;
+    }
 
     function readStored(key) {
       try {
@@ -722,7 +744,7 @@
     }
 
     function updateStableViewport() {
-      if (isTypingNow()) return;
+      if (isTypingNow() || isLayoutFrozen()) return;
       const vp = getCurrentViewport();
       stableViewport = { width: vp.width, height: vp.height };
       stableOrientationPortrait = vp.height > vp.width;
@@ -740,14 +762,14 @@
     }
 
     function setAppHeight(force = false) {
-      if (!isTypingNow() || force) {
+      if ((!isTypingNow() && !isLayoutFrozen()) || (force && !isLayoutFrozen())) {
         updateStableViewport();
       }
       root.style.setProperty("--app-height", stableViewport.height + "px");
     }
 
     function fitGameToViewport(force = false) {
-      if (!isTypingNow() || force) {
+      if ((!isTypingNow() && !isLayoutFrozen()) || (force && !isLayoutFrozen())) {
         updateStableViewport();
       }
 
@@ -766,7 +788,7 @@
     }
 
     function nudgeSafariBar() {
-      if (isTypingNow()) return;
+      if (isTypingNow() || isLayoutFrozen()) return;
 
       const visibleHeight = stableViewport.height;
       const fullHeight = Math.max(
@@ -782,7 +804,7 @@
     }
 
     function updateLayout(force = false) {
-      if (!isTypingNow() || force) {
+      if ((!isTypingNow() && !isLayoutFrozen()) || (force && !isLayoutFrozen())) {
         updateStableViewport();
       }
 
@@ -791,10 +813,39 @@
 
       requestAnimationFrame(() => {
         fitGameToViewport(force);
-        if (!isTypingNow() || force) {
+        if (!isTypingNow() && !isLayoutFrozen()) {
           nudgeSafariBar();
         }
       });
+    }
+
+    function setStartLoading(loading) {
+      if (loading) {
+        freezeLayout(1400);
+
+        if (startBtn.dataset.loadingActive !== "1") {
+          loadingCount += 1;
+          startBtn.dataset.loadingActive = "1";
+        }
+
+        startBtn.dataset.originalText = startBtn.textContent;
+        startBtn.textContent = "جاري البدء…";
+        startBtn.classList.add("loading");
+        startBtn.disabled = true;
+      } else {
+        if (startBtn.dataset.loadingActive === "1") {
+          loadingCount = Math.max(0, loadingCount - 1);
+          startBtn.dataset.loadingActive = "0";
+        }
+
+        startBtn.textContent = startBtn.dataset.originalText || "ابدأ";
+        startBtn.classList.remove("loading");
+        updateStartButtonState();
+
+        setTimeout(() => {
+          updateLayout(true);
+        }, 120);
+      }
     }
 
     function buildPageLink(fileName) {
@@ -840,14 +891,21 @@
     }
 
     function openOverlay(el) {
+      freezeLayout(700);
       el.classList.add("show");
     }
 
     function closeOverlay(el) {
+      freezeLayout(700);
       el.classList.remove("show");
     }
 
     function updateStartButtonState() {
+      if (startBtn.dataset.loadingActive === "1") {
+        startBtn.disabled = true;
+        return;
+      }
+
       const ready =
         teamOneInput.value.trim().length > 0 &&
         teamTwoInput.value.trim().length > 0;
@@ -942,6 +1000,8 @@
     startBtn.addEventListener("click", async () => {
       if (startBtn.disabled) return;
 
+      freezeLayout(1400);
+
       const team1 = teamOneInput.value.trim();
       const team2 = teamTwoInput.value.trim();
 
@@ -950,21 +1010,17 @@
       writeStored("familyfeud_team1", team1);
       writeStored("familyfeud_team2", team2);
 
-      startBtn.disabled = true;
-      const originalText = startBtn.textContent;
-      startBtn.textContent = "جارٍ البدء...";
+      setStartLoading(true);
 
       const remoteOk = await initializeRemoteGame(currentRoomId, team1, team2);
 
       if (!remoteOk) {
-        startBtn.disabled = false;
-        startBtn.textContent = originalText;
+        setStartLoading(false);
         window.alert("تعذر تجهيز الغرفة الآن. تأكد من أن الباكند منشور ثم حاول مرة أخرى.");
         return;
       }
 
       initializeLocalGameState(team1, team2);
-      startBtn.textContent = originalText;
       window.location.href = buildGameLink();
     });
 
@@ -990,6 +1046,8 @@
     });
 
     copyBtn.addEventListener("click", async () => {
+      freezeLayout(700);
+
       try {
         await navigator.clipboard.writeText(answersLinkInput.value);
         copyMsg.textContent = "تم نسخ الرابط";
@@ -1005,6 +1063,8 @@
     });
 
     buzzCopyBtn.addEventListener("click", async () => {
+      freezeLayout(700);
+
       try {
         await navigator.clipboard.writeText(buzzLinkInput.value);
         buzzCopyMsg.textContent = "تم نسخ الرابط";
@@ -1034,16 +1094,40 @@
       updateStartButtonState();
     });
 
+    document.addEventListener("touchstart", (event) => {
+      const target = event.target;
+      if (target && target.closest && target.closest(".start-btn, .action-btn, .close-btn, .copy-btn, .team-input")) {
+        freezeLayout(900);
+      }
+    }, { passive:true, capture:true });
+
+    document.addEventListener("pointerdown", (event) => {
+      const target = event.target;
+      if (target && target.closest && target.closest(".start-btn, .action-btn, .close-btn, .copy-btn, .team-input")) {
+        freezeLayout(900);
+      }
+    }, { passive:true, capture:true });
+
     nameInputs.forEach(input => {
       input.addEventListener("focus", () => {
+        freezeLayout(1000);
         document.body.classList.add("typing");
       });
 
       input.addEventListener("blur", () => {
+        freezeLayout(650);
+
         setTimeout(() => {
           document.body.classList.remove("typing");
-          updateLayout(true);
         }, 80);
+
+        setTimeout(() => {
+          updateLayout(true);
+        }, 850);
+
+        setTimeout(() => {
+          updateLayout(true);
+        }, 1150);
       });
     });
 
@@ -1071,7 +1155,7 @@
     }, { passive: true });
 
     window.addEventListener("resize", () => {
-      if (!isTypingNow()) updateLayout();
+      if (!isTypingNow() && !isLayoutFrozen()) updateLayout();
     }, { passive: true });
 
     window.addEventListener("orientationchange", () => {
@@ -1082,16 +1166,13 @@
 
     if (window.visualViewport) {
       window.visualViewport.addEventListener("resize", () => {
-        if (!isTypingNow()) updateLayout();
+        if (!isTypingNow() && !isLayoutFrozen()) updateLayout();
       }, { passive: true });
 
       window.visualViewport.addEventListener("scroll", () => {
-        if (!isTypingNow()) updateLayout();
+        if (!isTypingNow() && !isLayoutFrozen()) updateLayout();
       }, { passive: true });
     }
-
-    document.addEventListener("touchstart", nudgeSafariBar, { passive: true });
-    document.addEventListener("touchend", nudgeSafariBar, { passive: true });
   </script>
 </body>
 </html>
