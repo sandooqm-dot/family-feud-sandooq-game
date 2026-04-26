@@ -1,4 +1,7 @@
-import { FAMILY_FEUD_QUESTIONS } from "../../_shared/family-feud-questions.js";
+const EMPTY_QUESTION = {
+  question: "نص السؤال",
+  answers: []
+};
 
 export async function onRequestOptions() {
   return new Response(null, {
@@ -35,7 +38,7 @@ export async function onRequestGet(context) {
       .prepare(`
         SELECT state_json
         FROM game_rooms
-        WHERE room_id = ?1
+        WHERE room = ?1
         LIMIT 1
       `)
       .bind(room)
@@ -46,15 +49,17 @@ export async function onRequestGet(context) {
 
       await db
         .prepare(`
-          INSERT OR REPLACE INTO game_rooms
-            (room_id, state_json, created_at, updated_at)
+          INSERT INTO game_rooms
+            (room, state_json, updated_at)
           VALUES
-            (?1, ?2, ?3, ?4)
+            (?1, ?2, ?3)
+          ON CONFLICT(room) DO UPDATE SET
+            state_json = excluded.state_json,
+            updated_at = excluded.updated_at
         `)
         .bind(
           room,
           JSON.stringify(initialState),
-          Date.now(),
           Date.now()
         )
         .run();
@@ -98,9 +103,8 @@ function getDb(env) {
 async function ensureSchema(db) {
   await db.exec(`
     CREATE TABLE IF NOT EXISTS game_rooms (
-      room_id TEXT PRIMARY KEY,
+      room TEXT PRIMARY KEY,
       state_json TEXT NOT NULL,
-      created_at INTEGER NOT NULL,
       updated_at INTEGER NOT NULL
     );
 
@@ -110,14 +114,13 @@ async function ensureSchema(db) {
 }
 
 function buildInitialState(room) {
-  const questionIndex = 0;
-  const question = getQuestionByIndex(questionIndex);
-
   return {
     room,
+    updatedAt: Date.now(),
+
     display: {
       showQuestion: false,
-      question: question.question,
+      question: EMPTY_QUESTION.question,
       team1Name: "الفريق الأول",
       team2Name: "الفريق الثاني",
       team1Score: 0,
@@ -125,31 +128,28 @@ function buildInitialState(room) {
       team1Strikes: 0,
       team2Strikes: 0,
       roundPoints: 0,
-      answers: normalizeAnswers(question.answers)
+      answers: []
     },
+
     control: {
-      currentQuestionIndex: questionIndex,
-      totalQuestions: FAMILY_FEUD_QUESTIONS.length,
+      currentQuestionIndex: 0,
+      totalQuestions: 0,
       phase: "idle",
       currentTurnTeam: "",
       confrontationWinner: "",
-      stealingTeam: ""
+      stealingTeam: "",
+      firstBuzzName: "",
+      firstBuzzTeam: ""
     },
+
     buzz: {
       enabled: true,
-      firstBuzz: {
-        name: "",
-        team: "",
-        at: 0
-      }
+      firstBuzz: null
     },
+
     effects: {
       displayErrorSeq: 0,
       displayErrorReason: ""
-    },
-    meta: {
-      createdAt: Date.now(),
-      updatedAt: Date.now()
     }
   };
 }
@@ -158,97 +158,68 @@ function normalizeState(raw, room) {
   const fallback = buildInitialState(room);
   const source = raw && typeof raw === "object" ? raw : fallback;
 
-  const control = source.control || {};
-  const questionIndex = clampQuestionIndex(control.currentQuestionIndex);
-  const question = getQuestionByIndex(questionIndex);
-
   const display = source.display || {};
+  const control = source.control || {};
   const buzz = source.buzz || {};
   const effects = source.effects || {};
   const firstBuzz = buzz.firstBuzz || {};
 
   return {
     room,
+    updatedAt: toSafeNumber(source.updatedAt) || Date.now(),
+
     display: {
       showQuestion: typeof display.showQuestion === "boolean" ? display.showQuestion : false,
-      question: String(display.question || question.question || "").trim(),
-      team1Name: String(display.team1Name || "الفريق الأول").trim(),
-      team2Name: String(display.team2Name || "الفريق الثاني").trim(),
+      question: cleanText(display.question) || EMPTY_QUESTION.question,
+      team1Name: cleanText(display.team1Name) || "الفريق الأول",
+      team2Name: cleanText(display.team2Name) || "الفريق الثاني",
       team1Score: toSafeNumber(display.team1Score),
       team2Score: toSafeNumber(display.team2Score),
       team1Strikes: clampStrike(display.team1Strikes),
       team2Strikes: clampStrike(display.team2Strikes),
       roundPoints: toSafeNumber(display.roundPoints),
-      answers: normalizeAnswers(
-        Array.isArray(display.answers) && display.answers.length
-          ? display.answers
-          : question.answers
-      )
+      answers: normalizeAnswers(display.answers)
     },
+
     control: {
-      currentQuestionIndex: questionIndex,
-      totalQuestions: FAMILY_FEUD_QUESTIONS.length,
-      phase: String(control.phase || control.stage || "idle").trim(),
+      currentQuestionIndex: toSafeNumber(control.currentQuestionIndex),
+      totalQuestions: toSafeNumber(control.totalQuestions),
+      phase: cleanText(control.phase || control.stage) || "idle",
       currentTurnTeam: normalizeTeam(control.currentTurnTeam),
       confrontationWinner: normalizeTeam(control.confrontationWinner),
-      stealingTeam: normalizeTeam(control.stealingTeam)
+      stealingTeam: normalizeTeam(control.stealingTeam),
+      firstBuzzName: cleanText(control.firstBuzzName),
+      firstBuzzTeam: normalizeTeam(control.firstBuzzTeam)
     },
+
     buzz: {
       enabled: typeof buzz.enabled === "boolean" ? buzz.enabled : true,
       firstBuzz: {
-        name: String(firstBuzz.name || "").trim(),
+        name: cleanText(firstBuzz.name),
         team: normalizeTeam(firstBuzz.team),
         at: toSafeNumber(firstBuzz.at)
       }
     },
+
     effects: {
       displayErrorSeq: toSafeNumber(effects.displayErrorSeq),
-      displayErrorReason: String(effects.displayErrorReason || "").trim()
-    },
-    meta: {
-      createdAt: toSafeNumber(source.meta?.createdAt),
-      updatedAt: toSafeNumber(source.meta?.updatedAt) || Date.now()
+      displayErrorReason: cleanText(effects.displayErrorReason)
     }
   };
-}
-
-function getQuestionByIndex(index) {
-  if (!Array.isArray(FAMILY_FEUD_QUESTIONS) || FAMILY_FEUD_QUESTIONS.length === 0) {
-    return {
-      question: "نص السؤال",
-      answers: []
-    };
-  }
-
-  const safeIndex = clampQuestionIndex(index);
-  return FAMILY_FEUD_QUESTIONS[safeIndex] || FAMILY_FEUD_QUESTIONS[0];
-}
-
-function clampQuestionIndex(value) {
-  const total = Array.isArray(FAMILY_FEUD_QUESTIONS) ? FAMILY_FEUD_QUESTIONS.length : 0;
-  const n = toSafeNumber(value);
-
-  if (total <= 0) return 0;
-  if (n < 0) return 0;
-  if (n >= total) return 0;
-
-  return n;
 }
 
 function normalizeAnswers(answers) {
   if (!Array.isArray(answers)) return [];
 
   return answers
-    .filter((answer) => {
-      const text = String(answer?.text || "").trim();
-      return text.length > 0;
-    })
+    .filter((answer) => cleanText(answer?.text))
     .slice(0, 6)
     .map((answer) => ({
-      text: String(answer.text || "").trim(),
+      text: cleanText(answer.text),
       points: toSafeNumber(answer.points),
       revealed: answer.revealed === true
-    }));
+    }))
+    .filter((answer) => answer.text);
 }
 
 function normalizeRoom(value) {
@@ -275,6 +246,10 @@ function toSafeNumber(value) {
   const n = Number(value);
   if (!Number.isFinite(n)) return 0;
   return Math.max(0, Math.floor(n));
+}
+
+function cleanText(value) {
+  return String(value || "").trim();
 }
 
 function safeParse(value) {
