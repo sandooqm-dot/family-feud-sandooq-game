@@ -5,6 +5,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <title>Family Feud - Activate</title>
 
+  <link rel="preload" as="image" href="logo-family-feud.PNG">
+  <link rel="preload" as="image" href="logo.PNG">
+
   <style>
     :root{
       --gold:#f1d14f;
@@ -13,19 +16,19 @@
       --app-scale:1;
       --safari-nudge:34px;
 
-      --blue-1:#3a53b6;
-      --blue-2:#2e47a8;
-      --panel-1:#0f2c88;
-      --panel-2:#081d61;
-      --field-bg:#f3f3f3;
-      --field-text:#222;
-      --field-placeholder:#777;
-      --border-dark:#101010;
-      --btn-orange-1:#ff922b;
-      --btn-orange-2:#ff7b14;
-      --btn-blue-1:#2b3fc2;
-      --btn-blue-2:#0e2f91;
-      --muted:#d9ddf6;
+      --panel-blue-1:#0f2c88;
+      --panel-blue-2:#081d61;
+      --soft-blue:rgba(46,81,198,.28);
+      --orange-1:#ff922b;
+      --orange-2:#ff7b14;
+      --green-1:#16a34a;
+      --green-2:#15803d;
+      --red-1:#d91f1f;
+      --red-2:#b51717;
+      --dark:#0f0f0f;
+      --input-bg:#f3f3f3;
+      --input-text:#222;
+      --muted:#d7def8;
     }
 
     *{
@@ -57,7 +60,7 @@
       min-height:calc(var(--app-height) + var(--safari-nudge));
       background:
         radial-gradient(circle, rgba(176,138,79,.95) 0 4px, transparent 4.5px) 0 0 / 48px 48px,
-        linear-gradient(180deg, var(--blue-1) 0%, var(--blue-2) 100%);
+        linear-gradient(180deg, #3a53b6 0%, #2e47a8 100%);
     }
 
     .fit-root{
@@ -96,10 +99,11 @@
 
     .hero-logo-wrap{
       position:absolute;
-      top:26px;
+      top:8px;
       left:50%;
       transform:translateX(-50%);
-      width:360px;
+      width:390px;
+      min-height:170px;
       display:flex;
       align-items:center;
       justify-content:center;
@@ -109,7 +113,7 @@
     .hero-logo{
       display:block;
       max-width:100%;
-      max-height:150px;
+      max-height:170px;
       object-fit:contain;
     }
 
@@ -117,7 +121,7 @@
       display:none;
       width:100%;
       text-align:center;
-      font-size:52px;
+      font-size:56px;
       font-weight:900;
       color:#ffd34d;
       text-shadow:
@@ -125,135 +129,209 @@
         0 8px 20px rgba(0,0,0,.22);
     }
 
-    .login-panel{
+    .auth-panel{
       position:absolute;
       left:50%;
-      top:440px;
+      top:430px;
       transform:translate(-50%, -50%);
-      width:620px;
+      width:820px;
       min-height:470px;
       border-radius:36px;
-      border:10px solid var(--border-dark);
-      background:linear-gradient(180deg, var(--panel-1) 0%, var(--panel-2) 100%);
+      border:10px solid var(--dark);
+      background:linear-gradient(180deg, var(--panel-blue-1) 0%, var(--panel-blue-2) 100%);
       box-shadow:
         inset 0 0 0 1px rgba(255,255,255,.05),
         0 18px 40px rgba(0,0,0,.22);
-      padding:34px 32px 30px;
+      padding:26px 30px 28px;
       display:flex;
       flex-direction:column;
-      align-items:center;
-      text-align:center;
+      z-index:3;
+    }
+
+    .tabs{
+      display:grid;
+      grid-template-columns:1fr 1fr;
+      gap:14px;
+      margin-bottom:18px;
+    }
+
+    .tab-btn{
+      height:66px;
+      border-radius:22px;
+      border:4px solid rgba(243,242,234,.95);
+      background:rgba(255,255,255,.08);
+      color:var(--white);
+      font-size:28px;
+      font-weight:900;
+      cursor:pointer;
+      transition:transform .15s ease, filter .15s ease, background .15s ease, border-color .15s ease;
+    }
+
+    .tab-btn:hover{
+      transform:translateY(-1px);
+      filter:brightness(1.04);
+    }
+
+    .tab-btn.active{
+      background:linear-gradient(180deg, #2b3fc2 0%, #0e2f91 100%);
+      border-color:var(--gold);
     }
 
     .panel-title{
+      text-align:center;
       color:var(--white);
-      font-size:44px;
+      font-size:38px;
       font-weight:900;
       line-height:1.15;
-      margin-bottom:14px;
+      margin-bottom:12px;
     }
 
     .panel-subtitle{
+      text-align:center;
       color:var(--muted);
-      font-size:22px;
+      font-size:20px;
       font-weight:700;
       line-height:1.7;
-      margin-bottom:26px;
-      max-width:500px;
+      margin-bottom:18px;
+      min-height:60px;
     }
 
-    .form{
-      width:100%;
+    .status-box{
+      min-height:52px;
+      border-radius:18px;
+      border:3px solid rgba(243,242,234,.25);
+      background:rgba(255,255,255,.07);
+      color:#fff;
       display:flex;
-      flex-direction:column;
-      gap:16px;
+      align-items:center;
+      justify-content:center;
+      text-align:center;
+      padding:10px 14px;
+      font-size:18px;
+      font-weight:800;
+      line-height:1.6;
+      margin-bottom:16px;
     }
 
-    .field{
+    .status-box.success{
+      border-color:rgba(22,163,74,.55);
+      background:rgba(22,163,74,.16);
+      color:#dcfce7;
+    }
+
+    .status-box.error{
+      border-color:rgba(217,31,31,.55);
+      background:rgba(217,31,31,.16);
+      color:#ffe2e2;
+    }
+
+    .form-view{
+      display:none;
+      flex-direction:column;
+      gap:14px;
+    }
+
+    .form-view.active{
+      display:flex;
+    }
+
+    .input{
       width:100%;
-      height:78px;
+      height:72px;
       border-radius:999px;
-      border:4px solid var(--border-dark);
-      background:var(--field-bg);
-      color:var(--field-text);
-      font-size:25px;
+      border:4px solid #101010;
+      background:var(--input-bg);
+      color:var(--input-text);
+      font-size:24px;
       font-weight:700;
       text-align:center;
       outline:none;
-      padding:0 22px;
+      padding:0 18px;
       box-shadow: inset 0 2px 0 rgba(255,255,255,.75);
     }
 
-    .field::placeholder{
-      color:var(--field-placeholder);
+    .input::placeholder{
+      color:#777;
       font-weight:700;
       font-size:20px;
     }
 
-    .main-btn{
-      width:100%;
+    .primary-btn{
+      width:260px;
       height:82px;
-      border:none;
+      margin:8px auto 0;
       border-radius:999px;
       border:5px solid rgba(243,242,234,.95);
+      background:linear-gradient(180deg, var(--orange-1) 0%, var(--orange-2) 100%);
       color:#fff;
-      font-size:34px;
+      font-size:38px;
+      font-weight:900;
+      cursor:pointer;
+      transition:transform .15s ease, filter .15s ease, opacity .15s ease;
+      box-shadow:0 10px 18px rgba(0,0,0,.12);
+    }
+
+    .primary-btn:hover:not(:disabled){
+      transform:translateY(-1px);
+      filter:brightness(1.03);
+    }
+
+    .primary-btn:active:not(:disabled){
+      transform:scale(.985);
+    }
+
+    .primary-btn:disabled{
+      opacity:.55;
+      cursor:not-allowed;
+      filter:none;
+      transform:none;
+    }
+
+    .secondary-row{
+      margin-top:14px;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      gap:12px;
+      flex-wrap:wrap;
+    }
+
+    .secondary-btn{
+      min-width:190px;
+      height:62px;
+      border-radius:22px;
+      border:4px solid rgba(243,242,234,.95);
+      background:var(--soft-blue);
+      color:var(--white);
+      font-size:24px;
       font-weight:900;
       cursor:pointer;
       transition:transform .15s ease, filter .15s ease, opacity .15s ease;
     }
 
-    .main-btn:hover{
-      transform:translateY(-1px);
-      filter:brightness(1.03);
-    }
-
-    .main-btn:active{
-      transform:scale(.985);
-    }
-
-    .main-btn.primary{
-      margin-top:8px;
-      background:linear-gradient(180deg, var(--btn-orange-1) 0%, var(--btn-orange-2) 100%);
-      box-shadow:0 10px 18px rgba(0,0,0,.12);
-    }
-
-    .sub-actions{
-      width:100%;
-      display:grid;
-      grid-template-columns:1fr 1fr;
-      gap:14px;
-      margin-top:16px;
-    }
-
-    .sub-btn{
-      height:68px;
-      border-radius:26px;
-      border:4px solid rgba(243,242,234,.95);
-      background:linear-gradient(180deg, var(--btn-blue-1) 0%, var(--btn-blue-2) 100%);
-      color:var(--white);
-      font-size:24px;
-      font-weight:900;
-      cursor:pointer;
-      transition:transform .15s ease, filter .15s ease;
-    }
-
-    .sub-btn:hover{
+    .secondary-btn:hover:not(:disabled){
       transform:translateY(-1px);
       filter:brightness(1.04);
     }
 
-    .sub-btn:active{
-      transform:scale(.985);
+    .secondary-btn:disabled{
+      opacity:.55;
+      cursor:not-allowed;
+      transform:none;
+      filter:none;
     }
 
-    .note{
-      margin-top:22px;
-      color:#f3e8b1;
+    .code-note{
+      text-align:center;
+      color:var(--gold);
       font-size:18px;
-      font-weight:700;
-      line-height:1.8;
-      max-width:500px;
+      font-weight:800;
+      line-height:1.7;
+      margin-top:4px;
+    }
+
+    .hidden{
+      display:none !important;
     }
 
     body.portrait .game-shell{
@@ -269,59 +347,60 @@
     }
 
     body.portrait .hero-logo-wrap{
-      top:90px;
-      width:420px;
+      top:95px;
+      width:430px;
+      min-height:220px;
     }
 
     body.portrait .hero-logo{
-      max-height:170px;
+      max-height:220px;
     }
 
-    body.portrait .login-panel{
+    body.portrait .auth-panel{
       top:760px;
       width:610px;
       min-height:620px;
-      padding:38px 24px 30px;
+      padding:30px 24px 28px;
     }
 
-    body.portrait .panel-title{
-      font-size:42px;
-      margin-bottom:14px;
-    }
-
-    body.portrait .panel-subtitle{
-      font-size:24px;
-      margin-bottom:28px;
-    }
-
-    body.portrait .field{
-      height:84px;
-      font-size:27px;
-    }
-
-    body.portrait .field::placeholder{
-      font-size:19px;
-    }
-
-    body.portrait .main-btn{
-      height:88px;
-      font-size:36px;
-    }
-
-    body.portrait .sub-actions{
-      grid-template-columns:1fr;
+    body.portrait .tabs{
       gap:12px;
-      margin-top:16px;
+      margin-bottom:16px;
     }
 
-    body.portrait .sub-btn{
+    body.portrait .tab-btn{
       height:72px;
       font-size:26px;
     }
 
-    body.portrait .note{
+    body.portrait .panel-title{
+      font-size:38px;
+    }
+
+    body.portrait .panel-subtitle{
+      font-size:20px;
+      min-height:72px;
+    }
+
+    body.portrait .input{
+      height:78px;
+      font-size:24px;
+    }
+
+    body.portrait .input::placeholder{
       font-size:19px;
-      margin-top:24px;
+    }
+
+    body.portrait .primary-btn{
+      width:250px;
+      height:90px;
+      font-size:42px;
+    }
+
+    body.portrait .secondary-btn{
+      min-width:170px;
+      height:64px;
+      font-size:22px;
     }
   </style>
 </head>
@@ -331,47 +410,77 @@
     <div class="fit-root">
       <div class="game-shell">
 
-        <img id="storeLogo" class="store-logo" src="logo.PNG" alt="صندوق المسابقات" />
+        <img
+          id="storeLogo"
+          class="store-logo"
+          src="logo.PNG"
+          alt="صندوق المسابقات"
+          width="150"
+          height="150"
+          loading="eager"
+          decoding="async"
+          fetchpriority="low"
+        />
 
         <div class="hero-logo-wrap">
-          <img id="familyLogo" class="hero-logo" src="logo-family-feud.PNG" alt="فاميلي فيود" />
+          <img
+            id="familyLogo"
+            class="hero-logo"
+            src="logo-family-feud.PNG"
+            alt="فاميلي فيود"
+            width="1536"
+            height="1024"
+            loading="eager"
+            decoding="async"
+            fetchpriority="high"
+          />
           <div id="familyLogoFallback" class="hero-logo-fallback">فاميلي فيود</div>
         </div>
 
-        <section class="login-panel">
-          <div class="panel-title">تسجيل الدخول</div>
-          <div class="panel-subtitle">
-            سجّل دخولك أولًا للدخول إلى اللعبة، وإذا كان حسابك غير مفعّل راح يطلب منك كود التفعيل في الخطوة التالية.
+        <section class="auth-panel">
+          <div class="tabs">
+            <button id="loginTabBtn" class="tab-btn active" type="button">تسجيل الدخول</button>
+            <button id="registerTabBtn" class="tab-btn" type="button">إنشاء حساب</button>
           </div>
 
-          <form class="form" onsubmit="return false;">
-            <input
-              id="emailInput"
-              class="field"
-              type="email"
-              inputmode="email"
-              autocomplete="email"
-              placeholder="البريد الإلكتروني"
-            />
+          <div id="panelTitle" class="panel-title">تسجيل الدخول</div>
+          <div id="panelSubtitle" class="panel-subtitle">
+            سجّل دخولك بحسابك، وإذا كان الحساب جديدًا فعِّل اللعبة بالكود داخل نفس الصفحة.
+          </div>
 
-            <input
-              id="passwordInput"
-              class="field"
-              type="password"
-              autocomplete="current-password"
-              placeholder="كلمة المرور"
-            />
+          <div id="statusBox" class="status-box">جاهز</div>
 
-            <button id="loginBtn" class="main-btn primary" type="button">دخول</button>
+          <div id="loginView" class="form-view active">
+            <input id="loginEmail" class="input" type="email" placeholder="البريد الإلكتروني" autocomplete="email">
+            <input id="loginPassword" class="input" type="password" placeholder="كلمة المرور" autocomplete="current-password">
 
-            <div class="sub-actions">
-              <button id="createAccountBtn" class="sub-btn" type="button">إنشاء حساب</button>
-              <button id="forgotPasswordBtn" class="sub-btn" type="button">نسيت كلمة المرور</button>
+            <button id="loginBtn" class="primary-btn" type="button">دخول</button>
+
+            <div class="secondary-row">
+              <button id="goActivateBtn" class="secondary-btn" type="button">تفعيل بالكود</button>
             </div>
-          </form>
+          </div>
 
-          <div class="note">
-            هذه الصفحة واجهة جاهزة فقط، والخطوة التالية نربطها فعليًا مع نظام الدخول والتفعيل.
+          <div id="registerView" class="form-view">
+            <input id="registerEmail" class="input" type="email" placeholder="البريد الإلكتروني" autocomplete="email">
+            <input id="registerPassword" class="input" type="password" placeholder="كلمة المرور" autocomplete="new-password">
+            <input id="registerPassword2" class="input" type="password" placeholder="تأكيد كلمة المرور" autocomplete="new-password">
+
+            <button id="registerBtn" class="primary-btn" type="button">إنشاء</button>
+
+            <div class="code-note">بعد إنشاء الحساب مباشرة تنتقل خطوة التفعيل بالكود.</div>
+          </div>
+
+          <div id="activateView" class="form-view">
+            <input id="activateCode" class="input" type="text" placeholder="اكتب كود التفعيل هنا" autocomplete="off">
+
+            <button id="activateBtn" class="primary-btn" type="button">تفعيل</button>
+
+            <div class="secondary-row">
+              <button id="backToLoginBtn" class="secondary-btn" type="button">العودة للدخول</button>
+            </div>
+
+            <div class="code-note">بعد نجاح التفعيل يتم إدخالك مباشرة للعبة.</div>
           </div>
         </section>
 
@@ -387,24 +496,129 @@
     const PORTRAIT_WIDTH = 640;
     const PORTRAIT_HEIGHT = 1280;
 
+    const TOKEN_KEY = "familyfeud_token_v1";
+    const API_BASE_KEY = "familyfeud_api_base";
+    const BUZZ_API_BASE_KEY = "familyfeud_buzz_api_base";
+
     const root = document.documentElement;
-    const emailInput = document.getElementById("emailInput");
-    const passwordInput = document.getElementById("passwordInput");
-    const inputs = [emailInput, passwordInput];
+
+    const loginTabBtn = document.getElementById("loginTabBtn");
+    const registerTabBtn = document.getElementById("registerTabBtn");
+
+    const panelTitle = document.getElementById("panelTitle");
+    const panelSubtitle = document.getElementById("panelSubtitle");
+    const statusBox = document.getElementById("statusBox");
+
+    const loginView = document.getElementById("loginView");
+    const registerView = document.getElementById("registerView");
+    const activateView = document.getElementById("activateView");
+
+    const loginEmail = document.getElementById("loginEmail");
+    const loginPassword = document.getElementById("loginPassword");
+    const loginBtn = document.getElementById("loginBtn");
+    const goActivateBtn = document.getElementById("goActivateBtn");
+
+    const registerEmail = document.getElementById("registerEmail");
+    const registerPassword = document.getElementById("registerPassword");
+    const registerPassword2 = document.getElementById("registerPassword2");
+    const registerBtn = document.getElementById("registerBtn");
+
+    const activateCode = document.getElementById("activateCode");
+    const activateBtn = document.getElementById("activateBtn");
+    const backToLoginBtn = document.getElementById("backToLoginBtn");
+
+    const typingInputs = [
+      loginEmail, loginPassword,
+      registerEmail, registerPassword, registerPassword2,
+      activateCode
+    ];
 
     let stableViewport = { width: window.innerWidth, height: window.innerHeight };
     let stableOrientationPortrait = window.innerHeight > window.innerWidth;
+    let currentView = "login";
+    let currentApiBase = "";
 
-    function getCurrentViewport() {
-      const vv = window.visualViewport;
-      return {
-        width: vv ? vv.width : window.innerWidth,
-        height: vv ? vv.height : window.innerHeight
-      };
+    function readStored(key) {
+      try {
+        const localValue = localStorage.getItem(key);
+        if (localValue) return localValue;
+      } catch (e) {}
+
+      try {
+        const sessionValue = sessionStorage.getItem(key);
+        if (sessionValue) return sessionValue;
+      } catch (e) {}
+
+      return "";
+    }
+
+    function writeStored(key, value) {
+      try { localStorage.setItem(key, value); } catch (e) {}
+      try { sessionStorage.setItem(key, value); } catch (e) {}
+    }
+
+    function removeStored(key) {
+      try { localStorage.removeItem(key); } catch (e) {}
+      try { sessionStorage.removeItem(key); } catch (e) {}
+    }
+
+    function normalizeBase(base) {
+      return String(base || "").trim().replace(/\/+$/, "");
+    }
+
+    function getApiBases() {
+      const seen = new Set();
+      const result = [];
+
+      const candidates = [
+        currentApiBase,
+        readStored(API_BASE_KEY),
+        readStored(BUZZ_API_BASE_KEY),
+        window.location.origin.includes("workers.dev") ? window.location.origin : "",
+        "https://family-feud-buzz.sandooq-m.workers.dev",
+        "https://z.sandooq-m.workers.dev"
+      ];
+
+      candidates.forEach((base) => {
+        const normalized = normalizeBase(base);
+        if (!normalized || seen.has(normalized)) return;
+        seen.add(normalized);
+        result.push(normalized);
+      });
+
+      return result;
+    }
+
+    function setStatus(text, type = "") {
+      statusBox.textContent = text;
+      statusBox.className = "status-box";
+      if (type) statusBox.classList.add(type);
+    }
+
+    function setView(viewName) {
+      currentView = viewName;
+
+      loginView.classList.toggle("active", viewName === "login");
+      registerView.classList.toggle("active", viewName === "register");
+      activateView.classList.toggle("active", viewName === "activate");
+
+      loginTabBtn.classList.toggle("active", viewName === "login");
+      registerTabBtn.classList.toggle("active", viewName === "register");
+
+      if (viewName === "login") {
+        panelTitle.textContent = "تسجيل الدخول";
+        panelSubtitle.textContent = "سجّل دخولك بحسابك، وإذا كان الحساب جديدًا فعِّل اللعبة بالكود داخل نفس الصفحة.";
+      } else if (viewName === "register") {
+        panelTitle.textContent = "إنشاء حساب جديد";
+        panelSubtitle.textContent = "أنشئ حسابك أولًا، وبعدها تنتقل مباشرة لخطوة تفعيل اللعبة بالكود.";
+      } else {
+        panelTitle.textContent = "تفعيل اللعبة";
+        panelSubtitle.textContent = "أدخل كود التفعيل لمرة واحدة فقط، وبعد نجاحه تدخل للعبة مباشرة.";
+      }
     }
 
     function isTypingNow() {
-      return inputs.includes(document.activeElement);
+      return typingInputs.includes(document.activeElement);
     }
 
     function updateStableViewport() {
@@ -412,6 +626,14 @@
       const vp = getCurrentViewport();
       stableViewport = { width: vp.width, height: vp.height };
       stableOrientationPortrait = vp.height > vp.width;
+    }
+
+    function getCurrentViewport() {
+      const vv = window.visualViewport;
+      return {
+        width: vv ? vv.width : window.innerWidth,
+        height: vv ? vv.height : window.innerHeight
+      };
     }
 
     function applyOrientationClass() {
@@ -483,7 +705,348 @@
       });
     }
 
-    inputs.forEach(input => {
+    function buildIndexLink() {
+      const url = new URL(window.location.href);
+      const path = url.pathname;
+
+      if (/activate\.html?$/i.test(path)) {
+        url.pathname = path.replace(/activate\.html?$/i, "index.html");
+      } else if (path.endsWith("/")) {
+        url.pathname = path + "index.html";
+      } else {
+        url.pathname = path.replace(/\/[^/]*$/, "/index.html");
+      }
+
+      url.search = "";
+      url.hash = "";
+      return url.toString();
+    }
+
+    async function detectApiBase() {
+      const bases = getApiBases();
+
+      for (const base of bases) {
+        try {
+          const res = await fetch(`${base}/api2/health`, {
+            method: "GET",
+            cache: "no-store"
+          }).catch(() => null);
+
+          if (res && res.ok) {
+            currentApiBase = base;
+            writeStored(API_BASE_KEY, base);
+            writeStored(BUZZ_API_BASE_KEY, base);
+            return true;
+          }
+        } catch (e) {}
+
+        try {
+          const res2 = await fetch(`${base}/api/game/state?room=ping`, {
+            method: "GET",
+            cache: "no-store"
+          }).catch(() => null);
+
+          if (res2) {
+            currentApiBase = base;
+            writeStored(API_BASE_KEY, base);
+            writeStored(BUZZ_API_BASE_KEY, base);
+            return true;
+          }
+        } catch (e) {}
+      }
+
+      currentApiBase = bases[0] || "";
+      return !!currentApiBase;
+    }
+
+    async function apiRequest(path, payload = null, extraHeaders = {}) {
+      if (!currentApiBase) {
+        await detectApiBase();
+      }
+
+      if (!currentApiBase) {
+        throw new Error("API_BASE_NOT_FOUND");
+      }
+
+      const headers = {
+        "Accept": "application/json",
+        ...extraHeaders
+      };
+
+      const options = {
+        method: payload ? "POST" : "GET",
+        cache: "no-store",
+        headers
+      };
+
+      if (payload) {
+        headers["Content-Type"] = "application/json";
+        options.body = JSON.stringify(payload);
+      }
+
+      const response = await fetch(`${currentApiBase}${path}`, options);
+      const data = await response.json().catch(() => ({}));
+
+      return {
+        ok: response.ok,
+        status: response.status,
+        data
+      };
+    }
+
+    function getTokenFromResponse(data) {
+      return String(
+        data?.token ||
+        data?.session?.token ||
+        data?.data?.token ||
+        ""
+      ).trim();
+    }
+
+    function storeToken(token) {
+      if (!token) return;
+      writeStored(TOKEN_KEY, token);
+    }
+
+    function readToken() {
+      return readStored(TOKEN_KEY);
+    }
+
+    function getAuthHeaders() {
+      const token = readToken();
+      return token ? { Authorization: `Bearer ${token}` } : {};
+    }
+
+    async function requestMe() {
+      const headers = getAuthHeaders();
+      if (!headers.Authorization) {
+        return { ok: false, data: {} };
+      }
+
+      let res = await apiRequest("/api2/me", null, headers).catch(() => null);
+      if (res && res.ok) return res;
+
+      res = await apiRequest("/api/me", null, headers).catch(() => null);
+      return res || { ok: false, data: {} };
+    }
+
+    function isActivatedPayload(data) {
+      return !!(
+        data?.activated === true ||
+        data?.is_activated === true ||
+        data?.user?.activated === true ||
+        data?.user?.is_activated === true ||
+        data?.account?.activated === true
+      );
+    }
+
+    async function tryAutoLogin() {
+      const token = readToken();
+      if (!token) return;
+
+      setStatus("جارٍ التحقق من الجلسة...", "");
+
+      const me = await requestMe();
+      if (!me.ok) {
+        removeStored(TOKEN_KEY);
+        setStatus("سجّل دخولك أو أنشئ حسابًا جديدًا.", "");
+        return;
+      }
+
+      if (isActivatedPayload(me.data)) {
+        setStatus("تم التحقق بنجاح، جارٍ الدخول...", "success");
+        setTimeout(() => {
+          window.location.href = buildIndexLink();
+        }, 500);
+        return;
+      }
+
+      setView("activate");
+      setStatus("الحساب مسجل، بقي تفعيل اللعبة بالكود.", "");
+    }
+
+    async function handleLogin() {
+      const email = loginEmail.value.trim();
+      const password = loginPassword.value;
+
+      if (!email || !password) {
+        setStatus("أدخل البريد الإلكتروني وكلمة المرور.", "error");
+        return;
+      }
+
+      loginBtn.disabled = true;
+      setStatus("جارٍ تسجيل الدخول...", "");
+
+      try {
+        let res = await apiRequest("/api2/login", { email, password }).catch(() => null);
+        if (!res) {
+          res = await apiRequest("/api/login", { email, password }).catch(() => null);
+        }
+
+        if (!res || !res.ok) {
+          setStatus(
+            res?.data?.error || "تعذر تسجيل الدخول. تأكد من البيانات.",
+            "error"
+          );
+          return;
+        }
+
+        const token = getTokenFromResponse(res.data);
+        if (token) {
+          storeToken(token);
+        }
+
+        const me = await requestMe();
+        if (me.ok && isActivatedPayload(me.data)) {
+          setStatus("تم تسجيل الدخول بنجاح، جارٍ الدخول...", "success");
+          setTimeout(() => {
+            window.location.href = buildIndexLink();
+          }, 500);
+          return;
+        }
+
+        setView("activate");
+        setStatus("تم تسجيل الدخول. بقي تفعيل اللعبة بالكود.", "success");
+      } catch (error) {
+        setStatus("تعذر الاتصال بالخادم الآن.", "error");
+      } finally {
+        loginBtn.disabled = false;
+      }
+    }
+
+    async function handleRegister() {
+      const email = registerEmail.value.trim();
+      const password = registerPassword.value;
+      const password2 = registerPassword2.value;
+
+      if (!email || !password || !password2) {
+        setStatus("أكمل جميع الحقول المطلوبة.", "error");
+        return;
+      }
+
+      if (password.length < 6) {
+        setStatus("كلمة المرور لازم تكون 6 أحرف أو أكثر.", "error");
+        return;
+      }
+
+      if (password !== password2) {
+        setStatus("كلمتا المرور غير متطابقتين.", "error");
+        return;
+      }
+
+      registerBtn.disabled = true;
+      setStatus("جارٍ إنشاء الحساب...", "");
+
+      try {
+        let res = await apiRequest("/api2/register", { email, password }).catch(() => null);
+        if (!res) {
+          res = await apiRequest("/api/register", { email, password }).catch(() => null);
+        }
+
+        if (!res || !res.ok) {
+          setStatus(
+            res?.data?.error || "تعذر إنشاء الحساب الآن.",
+            "error"
+          );
+          return;
+        }
+
+        const token = getTokenFromResponse(res.data);
+        if (token) {
+          storeToken(token);
+          setView("activate");
+          setStatus("تم إنشاء الحساب بنجاح. الآن أدخل كود التفعيل.", "success");
+          return;
+        }
+
+        loginEmail.value = email;
+        loginPassword.value = password;
+        setView("login");
+        setStatus("تم إنشاء الحساب. سجّل دخولك الآن.", "success");
+      } catch (error) {
+        setStatus("تعذر الاتصال بالخادم الآن.", "error");
+      } finally {
+        registerBtn.disabled = false;
+      }
+    }
+
+    async function handleActivate() {
+      const code = activateCode.value.trim();
+      const token = readToken();
+
+      if (!code) {
+        setStatus("أدخل كود التفعيل أولًا.", "error");
+        return;
+      }
+
+      if (!token) {
+        setView("login");
+        setStatus("لازم تسجل دخولك أولًا قبل التفعيل.", "error");
+        return;
+      }
+
+      activateBtn.disabled = true;
+      setStatus("جارٍ تفعيل اللعبة...", "");
+
+      try {
+        let res = await apiRequest("/api2/activate", { code }, getAuthHeaders()).catch(() => null);
+        if (!res) {
+          res = await apiRequest("/api/activate", { code }, getAuthHeaders()).catch(() => null);
+        }
+
+        if (!res || !res.ok) {
+          setStatus(
+            res?.data?.error || "تعذر تفعيل الكود الآن.",
+            "error"
+          );
+          return;
+        }
+
+        setStatus("تم التفعيل بنجاح، جارٍ الدخول للعبة...", "success");
+        setTimeout(() => {
+          window.location.href = buildIndexLink();
+        }, 650);
+      } catch (error) {
+        setStatus("تعذر الاتصال بالخادم الآن.", "error");
+      } finally {
+        activateBtn.disabled = false;
+      }
+    }
+
+    loginTabBtn.addEventListener("click", () => {
+      setView("login");
+      setStatus("جاهز", "");
+    });
+
+    registerTabBtn.addEventListener("click", () => {
+      setView("register");
+      setStatus("جاهز", "");
+    });
+
+    goActivateBtn.addEventListener("click", () => {
+      setView("activate");
+      setStatus("أدخل كود التفعيل بعد تسجيل الدخول.", "");
+    });
+
+    backToLoginBtn.addEventListener("click", () => {
+      setView("login");
+      setStatus("جاهز", "");
+    });
+
+    loginBtn.addEventListener("click", handleLogin);
+    registerBtn.addEventListener("click", handleRegister);
+    activateBtn.addEventListener("click", handleActivate);
+
+    [loginPassword, registerPassword2, activateCode].forEach((input) => {
+      input.addEventListener("keydown", (event) => {
+        if (event.key !== "Enter") return;
+        if (input === loginPassword) handleLogin();
+        if (input === registerPassword2) handleRegister();
+        if (input === activateCode) handleActivate();
+      });
+    });
+
+    typingInputs.forEach(input => {
       input.addEventListener("focus", () => {
         document.body.classList.add("typing");
       });
@@ -509,19 +1072,8 @@
       storeLogo.style.display = "none";
     });
 
-    document.getElementById("loginBtn").addEventListener("click", () => {
-      alert("الخطوة القادمة: ربط تسجيل الدخول الفعلي");
-    });
-
-    document.getElementById("createAccountBtn").addEventListener("click", () => {
-      alert("الخطوة القادمة: شاشة إنشاء الحساب");
-    });
-
-    document.getElementById("forgotPasswordBtn").addEventListener("click", () => {
-      alert("الخطوة القادمة: استعادة كلمة المرور");
-    });
-
     updateLayout(true);
+    tryAutoLogin();
 
     window.addEventListener("load", () => {
       setTimeout(() => updateLayout(true), 60);
