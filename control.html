@@ -623,7 +623,7 @@
     let lastRemoteBuzzStateAt = 0;
 
     let syncStarted = false;
-    let apiBase = normalizeBase(readStored(API_BASE_KEY) || readStored(BUZZ_API_BASE_KEY));
+    let apiBase = normalizeBase(window.location.origin) || normalizeBase(readStored(API_BASE_KEY) || readStored(BUZZ_API_BASE_KEY));
     let initialAutoShowDone = false;
     let optimisticRevealedIndexes = new Set();
     let roundClosedAfterSteal = readRoundClosedAfterSteal();
@@ -636,6 +636,7 @@
       channel = null;
     }
 
+    pinCurrentOriginAsApiBase();
     persistRoomId(roomId);
     ensureInitialState();
     renderAll(true);
@@ -812,6 +813,14 @@
       }, HEAVY_ACTION_GUARD_MS);
     });
 
+    function pinCurrentOriginAsApiBase() {
+      const preferred = normalizeBase(window.location.origin);
+      if (!preferred) return;
+      apiBase = preferred;
+      writeStored(API_BASE_KEY, preferred);
+      writeStored(BUZZ_API_BASE_KEY, preferred);
+    }
+
     function resolveRoomId() {
       const url = new URL(window.location.href);
       const fromUrl = normalizeRoom(url.searchParams.get("room"));
@@ -920,15 +929,47 @@
       };
     }
 
+    function currentQuestionExistsInLocalBank() {
+      const bank = getControlQuestionBank();
+      if (!bank.length) return false;
+
+      const currentQuestion = String(displayState?.question || "").trim();
+      return bank.some((item) => item.question === currentQuestion);
+    }
+
+    async function ensureRoomUsesLocalQuestionBank() {
+      const bank = getControlQuestionBank();
+      if (!bank.length) return;
+
+      const currentQuestion = String(displayState?.question || "").trim();
+      const currentAnswers = Array.isArray(displayState?.answers) ? displayState.answers : [];
+      const existsInBank = bank.some((item) => item.question === currentQuestion);
+      const looksEmpty = !currentQuestion || !currentAnswers.length;
+
+      if (existsInBank && !looksEmpty) {
+        return;
+      }
+
+      const firstQuestion = cloneQuestionForApi(bank[0]);
+
+      await sendGameAction("init", {
+        team1Name: String(displayState?.team1Name || readStored("familyfeud_team1") || "الفريق الأول").trim(),
+        team2Name: String(displayState?.team2Name || readStored("familyfeud_team2") || "الفريق الثاني").trim(),
+        questionIndex: 0,
+        totalQuestions: bank.length,
+        question: firstQuestion
+      }, { skipBusy: true });
+    }
+
     function getApiBases() {
       const seen = new Set();
       const bases = [];
 
       const rawBases = [
+        window.location.origin,
         apiBase,
         readStored(API_BASE_KEY),
         readStored(BUZZ_API_BASE_KEY),
-        window.location.origin.includes("workers.dev") ? window.location.origin : "",
         "https://family-feud-buzz.sandooq-m.workers.dev",
         "https://z.sandooq-m.workers.dev"
       ];
@@ -977,6 +1018,8 @@
       const ok = await detectApiBase();
 
       if (ok) {
+        await fetchRemoteGameState({ force: true });
+        await ensureRoomUsesLocalQuestionBank();
         await fetchRemoteGameState({ force: true });
         await fetchRemoteBuzzState({ force: true });
         await maybeInitialAutoShowQuestion();
