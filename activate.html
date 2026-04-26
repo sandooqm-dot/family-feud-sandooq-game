@@ -205,36 +205,49 @@
       padding:0 8px;
     }
 
-    .status-text{
-      min-height:28px;
+    .banner{
+      min-height:58px;
+      border-radius:20px;
+      border:3px solid transparent;
+      padding:12px 16px;
+      display:none;
+      align-items:center;
+      justify-content:center;
       text-align:center;
+      line-height:1.7;
       font-size:18px;
       font-weight:800;
-      line-height:1.5;
-      margin-bottom:10px;
-      color:var(--muted);
+      margin-bottom:12px;
     }
 
-    .status-text.error{
-      color:var(--danger);
+    .banner.show{
+      display:flex;
     }
 
-    .status-text.success{
+    .banner.info{
+      background:rgba(217,233,248,.20);
+      border-color:rgba(184,206,223,.50);
+      color:#e6f0ff;
+    }
+
+    .banner.success{
+      background:rgba(217,255,228,.18);
+      border-color:rgba(143,207,147,.50);
       color:var(--success);
     }
 
-    .status-text.hidden{
-      visibility:hidden;
+    .banner.error{
+      background:rgba(255,216,216,.18);
+      border-color:rgba(216,139,122,.50);
+      color:var(--danger);
     }
 
-    .form-view{
-      display:none;
-      flex-direction:column;
-      gap:14px;
+    .form-box{
+      display:block;
     }
 
-    .form-view.active{
-      display:flex;
+    .form-box.hidden{
+      display:none !important;
     }
 
     .input{
@@ -250,6 +263,7 @@
       outline:none;
       padding:0 18px;
       box-shadow:inset 0 2px 0 rgba(255,255,255,.75);
+      margin-bottom:14px;
     }
 
     .input::placeholder{
@@ -258,10 +272,16 @@
       font-size:20px;
     }
 
+    .input[readonly]{
+      background:#edf1f5;
+      color:#444;
+    }
+
     .primary-btn{
       width:220px;
       height:74px;
       margin:8px auto 0;
+      display:block;
       border-radius:999px;
       border:5px solid rgba(243,242,234,.95);
       background:linear-gradient(180deg, var(--orange-1) 0%, var(--orange-2) 100%);
@@ -329,7 +349,32 @@
       font-size:18px;
       font-weight:800;
       line-height:1.7;
-      margin-top:2px;
+      margin-top:8px;
+    }
+
+    .linked-email{
+      margin-top:6px;
+      margin-bottom:16px;
+      text-align:center;
+      color:var(--white);
+      font-size:20px;
+      line-height:1.8;
+      word-break:break-word;
+    }
+
+    .helper{
+      margin-top:16px;
+      text-align:center;
+      color:var(--muted);
+      font-size:18px;
+      line-height:1.8;
+      font-weight:700;
+    }
+
+    .ready-actions{
+      display:grid;
+      gap:14px;
+      margin-top:8px;
     }
 
     body.portrait .game-shell{
@@ -438,7 +483,9 @@
         </div>
 
         <section class="auth-panel">
-          <div class="tabs-dock">
+          <div id="statusBanner" class="banner info"></div>
+
+          <div id="authTabs" class="tabs-dock">
             <button id="loginTabBtn" class="tab-btn active" type="button">تسجيل الدخول</button>
             <button id="registerTabBtn" class="tab-btn" type="button">إنشاء حساب</button>
           </div>
@@ -448,31 +495,42 @@
             سجّل الدخول إلى حسابك، أو أنشئ حسابًا جديدًا إذا لم يكن لديك حساب.
           </div>
 
-          <div id="statusText" class="status-text hidden">.</div>
+          <form id="loginForm" class="form-box">
+            <input id="loginEmail" class="input" type="email" inputmode="email" autocomplete="email" placeholder="البريد الإلكتروني" />
+            <input id="loginPassword" class="input" type="password" autocomplete="current-password" placeholder="كلمة المرور" />
+            <button id="loginBtn" class="primary-btn" type="submit">دخول</button>
+          </form>
 
-          <div id="loginView" class="form-view active">
-            <input id="loginEmail" class="input" type="email" placeholder="البريد الإلكتروني" autocomplete="email">
-            <input id="loginPassword" class="input" type="password" placeholder="كلمة المرور" autocomplete="current-password">
-            <button id="loginBtn" class="primary-btn" type="button">دخول</button>
-          </div>
+          <form id="registerForm" class="form-box hidden">
+            <input id="registerEmail" class="input" type="email" inputmode="email" autocomplete="email" placeholder="البريد الإلكتروني" />
+            <input id="registerPassword" class="input" type="password" autocomplete="new-password" placeholder="كلمة المرور" />
+            <input id="registerPassword2" class="input" type="password" autocomplete="new-password" placeholder="تأكيد كلمة المرور" />
+            <button id="registerBtn" class="primary-btn" type="submit">إنشاء</button>
+          </form>
 
-          <div id="registerView" class="form-view">
-            <input id="registerEmail" class="input" type="email" placeholder="البريد الإلكتروني" autocomplete="email">
-            <input id="registerPassword" class="input" type="password" placeholder="كلمة المرور" autocomplete="new-password">
-            <input id="registerPassword2" class="input" type="password" placeholder="تأكيد كلمة المرور" autocomplete="new-password">
-            <button id="registerBtn" class="primary-btn" type="button">إنشاء</button>
-          </div>
-
-          <div id="activateView" class="form-view">
-            <input id="activateCode" class="input" type="text" placeholder="اكتب كود التفعيل هنا" autocomplete="off">
+          <section id="activateStep" class="form-box hidden">
+            <input id="linkedEmail" class="input" type="text" readonly />
+            <input id="activateCode" class="input" type="text" autocomplete="off" placeholder="اكتب كود التفعيل هنا" />
             <button id="activateBtn" class="primary-btn" type="button">تفعيل</button>
 
             <div class="secondary-row">
-              <button id="backToLoginBtn" class="secondary-btn" type="button">العودة للدخول</button>
+              <button id="logoutBtn1" class="secondary-btn" type="button">تسجيل الخروج</button>
             </div>
 
-            <div class="activate-note">بعد نجاح التفعيل يتم إدخالك مباشرة إلى اللعبة.</div>
-          </div>
+            <p id="activateHint" class="activate-note">هذا الحساب غير مفعّل بعد. أدخل الكود مرة واحدة فقط لإكمال التفعيل.</p>
+          </section>
+
+          <section id="readyStep" class="form-box hidden">
+            <div class="banner success show">تم تفعيل اللعبة بنجاح ✅</div>
+            <div id="readyEmail" class="linked-email"></div>
+
+            <div class="ready-actions">
+              <button id="enterGameBtn" class="primary-btn" type="button">دخول اللعبة</button>
+              <button id="logoutBtn2" class="secondary-btn" type="button">تسجيل الخروج</button>
+            </div>
+          </section>
+
+          <p id="bottomHint" class="helper">إذا كان لديك حساب سابقًا، سجّل دخولك ثم أكمل التفعيل إذا لزم.</p>
         </section>
 
       </div>
@@ -487,43 +545,78 @@
     const PORTRAIT_WIDTH = 640;
     const PORTRAIT_HEIGHT = 1280;
 
-    const TOKEN_KEY = "familyfeud_token_v1";
-    const DEVICE_KEY = "familyfeud_device_id_v1";
-    const API_BASE_KEY = "familyfeud_api_base";
-    const BUZZ_API_BASE_KEY = "familyfeud_buzz_api_base";
+    const API_BASE = window.location.origin;
+    const GAME_ENTRY = "index.html";
 
-    const ENDPOINTS = {
-      me: ["/api2/me", "/api/me"],
-      login: ["/api2/login", "/api/login"],
-      register: ["/api2/register", "/api/register"],
-      activate: ["/api2/activate", "/api/activate"]
+    const API = {
+      register: `${API_BASE}/api/register`,
+      login: `${API_BASE}/api/login`,
+      me: `${API_BASE}/api/me`,
+      activate: `${API_BASE}/api/activate`
     };
+
+    const TOKEN_KEYS = [
+      "familyfeud_token_v1",
+      "familyfeud_token",
+      "sandooq_token_v1",
+      "sandooq_token",
+      "token"
+    ];
+
+    const EMAIL_KEYS = [
+      "familyfeud_email_v1",
+      "familyfeud_email",
+      "sandooq_email",
+      "user_email",
+      "email"
+    ];
+
+    const DEVICE_KEYS = [
+      "familyfeud_device_id_v1",
+      "familyfeud_device_id",
+      "familyfeud_device_key_v1",
+      "familyfeud_device_key",
+      "sandooq_device_id_v1",
+      "sandooq_device_id",
+      "sandooq_device_key_v1",
+      "sandooq_device_key",
+      "deviceId",
+      "device_id",
+      "device_key"
+    ];
 
     const root = document.documentElement;
 
     const loginTabBtn = document.getElementById("loginTabBtn");
     const registerTabBtn = document.getElementById("registerTabBtn");
+    const authTabs = document.getElementById("authTabs");
 
-    const panelTitle = document.getElementById("panelTitle");
-    const panelSubtitle = document.getElementById("panelSubtitle");
-    const statusText = document.getElementById("statusText");
-
-    const loginView = document.getElementById("loginView");
-    const registerView = document.getElementById("registerView");
-    const activateView = document.getElementById("activateView");
+    const loginForm = document.getElementById("loginForm");
+    const registerForm = document.getElementById("registerForm");
+    const activateStep = document.getElementById("activateStep");
+    const readyStep = document.getElementById("readyStep");
 
     const loginEmail = document.getElementById("loginEmail");
     const loginPassword = document.getElementById("loginPassword");
-    const loginBtn = document.getElementById("loginBtn");
 
     const registerEmail = document.getElementById("registerEmail");
     const registerPassword = document.getElementById("registerPassword");
     const registerPassword2 = document.getElementById("registerPassword2");
-    const registerBtn = document.getElementById("registerBtn");
 
+    const linkedEmail = document.getElementById("linkedEmail");
     const activateCode = document.getElementById("activateCode");
+    const readyEmail = document.getElementById("readyEmail");
+    const activateHint = document.getElementById("activateHint");
+
+    const loginBtn = document.getElementById("loginBtn");
+    const registerBtn = document.getElementById("registerBtn");
     const activateBtn = document.getElementById("activateBtn");
-    const backToLoginBtn = document.getElementById("backToLoginBtn");
+    const enterGameBtn = document.getElementById("enterGameBtn");
+    const logoutBtn1 = document.getElementById("logoutBtn1");
+    const logoutBtn2 = document.getElementById("logoutBtn2");
+
+    const statusBanner = document.getElementById("statusBanner");
+    const bottomHint = document.getElementById("bottomHint");
 
     const typingInputs = [
       loginEmail, loginPassword,
@@ -533,109 +626,631 @@
 
     let stableViewport = { width: window.innerWidth, height: window.innerHeight };
     let stableOrientationPortrait = window.innerHeight > window.innerWidth;
-    let currentView = "login";
-    let currentApiBase = "";
-    const deviceId = getOrCreateDeviceId();
 
-    function readStored(key) {
+    function readCookie(name) {
       try {
-        const localValue = localStorage.getItem(key);
-        if (localValue) return localValue;
-      } catch (e) {}
+        const cookie = document.cookie || "";
+        const parts = cookie.split(";");
+        for (const part of parts) {
+          const [k, ...rest] = part.trim().split("=");
+          if (k === name) {
+            return decodeURIComponent(rest.join("=") || "");
+          }
+        }
+      } catch (_) {}
+      return "";
+    }
+
+    function readStoredValue(key) {
+      try {
+        const value = localStorage.getItem(key);
+        if (value && String(value).trim()) return String(value).trim();
+      } catch (_) {}
 
       try {
-        const sessionValue = sessionStorage.getItem(key);
-        if (sessionValue) return sessionValue;
-      } catch (e) {}
+        const value = sessionStorage.getItem(key);
+        if (value && String(value).trim()) return String(value).trim();
+      } catch (_) {}
+
+      const cookieValue = readCookie(key);
+      if (cookieValue && String(cookieValue).trim()) return String(cookieValue).trim();
 
       return "";
     }
 
-    function writeStored(key, value) {
-      try { localStorage.setItem(key, value); } catch (e) {}
-      try { sessionStorage.setItem(key, value); } catch (e) {}
+    function writeStoredValue(key, value) {
+      if (!value) return;
+      try { localStorage.setItem(key, value); } catch (_) {}
+      try { sessionStorage.setItem(key, value); } catch (_) {}
     }
 
-    function removeStored(key) {
-      try { localStorage.removeItem(key); } catch (e) {}
-      try { sessionStorage.removeItem(key); } catch (e) {}
+    function deleteStoredValue(key) {
+      try { localStorage.removeItem(key); } catch (_) {}
+      try { sessionStorage.removeItem(key); } catch (_) {}
     }
 
-    function normalizeBase(base) {
-      return String(base || "").trim().replace(/\/+$/, "");
+    function writeCookie(name, value, maxAgeSeconds = 2592000) {
+      try {
+        const secure = location.protocol === "https:" ? "; Secure" : "";
+        document.cookie =
+          `${name}=${encodeURIComponent(value)}; Path=/; Max-Age=${maxAgeSeconds}; SameSite=Lax${secure}`;
+      } catch (_) {}
     }
 
-    function getApiBases() {
-      const seen = new Set();
-      const result = [];
+    function clearCookie(name) {
+      try {
+        const secure = location.protocol === "https:" ? "; Secure" : "";
+        document.cookie =
+          `${name}=; Path=/; Max-Age=0; SameSite=Lax${secure}`;
+      } catch (_) {}
+    }
 
-      const candidates = [
-        currentApiBase,
-        readStored(API_BASE_KEY),
-        readStored(BUZZ_API_BASE_KEY),
-        window.location.origin.includes("workers.dev") ? window.location.origin : "",
-        "https://family-feud-buzz.sandooq-m.workers.dev",
-        "https://z.sandooq-m.workers.dev"
-      ];
+    function readAny(keys) {
+      for (const key of keys) {
+        const value = readStoredValue(key);
+        if (value) return value;
+      }
+      return "";
+    }
 
-      candidates.forEach((base) => {
-        const normalized = normalizeBase(base);
-        if (!normalized || seen.has(normalized)) return;
-        seen.add(normalized);
-        result.push(normalized);
+    function writeMany(keys, value) {
+      if (!value) return;
+      keys.forEach((key) => {
+        writeStoredValue(key, value);
+        writeCookie(key, value);
       });
-
-      return result;
     }
 
-    function getOrCreateDeviceId() {
-      let id = readStored(DEVICE_KEY);
-      if (id) return id;
+    function clearMany(keys) {
+      keys.forEach((key) => {
+        deleteStoredValue(key);
+        clearCookie(key);
+      });
+    }
 
-      if (window.crypto && crypto.randomUUID) {
-        id = crypto.randomUUID();
-      } else {
-        id = "ffdev_" + Math.random().toString(36).slice(2) + Date.now().toString(36);
+    function normalizeUA(ua) {
+      return String(ua || "")
+        .replace(/CriOS\/[^\s)]+/gi, "")
+        .replace(/FxiOS\/[^\s)]+/gi, "")
+        .replace(/EdgiOS\/[^\s)]+/gi, "")
+        .replace(/OPiOS\/[^\s)]+/gi, "")
+        .replace(/YaBrowser\/[^\s)]+/gi, "")
+        .replace(/Chrome\/[^\s)]+/gi, "")
+        .replace(/Firefox\/[^\s)]+/gi, "")
+        .replace(/Edg\/[^\s)]+/gi, "")
+        .replace(/OPR\/[^\s)]+/gi, "")
+        .replace(/Version\/[^\s)]+/gi, "")
+        .replace(/Safari\/[^\s)]+/gi, "")
+        .replace(/\s+/g, " ")
+        .trim();
+    }
+
+    function hashString(str) {
+      let h1 = 0xdeadbeef ^ str.length;
+      let h2 = 0x41c6ce57 ^ str.length;
+
+      for (let i = 0; i < str.length; i++) {
+        const ch = str.charCodeAt(i);
+        h1 = Math.imul(h1 ^ ch, 2654435761);
+        h2 = Math.imul(h2 ^ ch, 1597334677);
       }
 
-      id = String(id).replace(/[^\w-]/g, "").slice(0, 120);
-      writeStored(DEVICE_KEY, id);
-      return id;
+      h1 = Math.imul(h1 ^ (h1 >>> 16), 2246822507) ^ Math.imul(h2 ^ (h2 >>> 13), 3266489909);
+      h2 = Math.imul(h2 ^ (h2 >>> 16), 2246822507) ^ Math.imul(h1 ^ (h1 >>> 13), 3266489909);
+
+      return ((h2 >>> 0).toString(36) + (h1 >>> 0).toString(36));
     }
 
-    function showStatus(text = "", type = "") {
-      if (!text) {
-        statusText.textContent = ".";
-        statusText.className = "status-text hidden";
+    function buildStableDeviceId() {
+      const sw = Math.min(screen.width || 0, screen.height || 0);
+      const sh = Math.max(screen.width || 0, screen.height || 0);
+
+      const fingerprint = [
+        "family-feud-v2",
+        normalizeUA(navigator.userAgent || ""),
+        navigator.platform || "",
+        navigator.language || "",
+        Intl.DateTimeFormat().resolvedOptions().timeZone || "",
+        `${sw}x${sh}`,
+        String(screen.colorDepth || ""),
+        String(window.devicePixelRatio || ""),
+        String(navigator.maxTouchPoints || ""),
+        String(navigator.hardwareConcurrency || "")
+      ].join("|");
+
+      return "ff_" + hashString(fingerprint);
+    }
+
+    function getDeviceId() {
+      let deviceId = readAny(DEVICE_KEYS);
+
+      if (!deviceId || /^ff_rand_/i.test(deviceId) || !/^ff_/i.test(deviceId)) {
+        deviceId = buildStableDeviceId();
+      }
+
+      writeMany(DEVICE_KEYS, deviceId);
+      return deviceId;
+    }
+
+    function getToken() {
+      return readAny(TOKEN_KEYS);
+    }
+
+    function setToken(token) {
+      if (!token) return;
+      writeMany(TOKEN_KEYS, token);
+    }
+
+    function clearToken() {
+      clearMany(TOKEN_KEYS);
+    }
+
+    function getStoredEmail() {
+      return readAny(EMAIL_KEYS);
+    }
+
+    function setStoredEmail(email) {
+      if (!email) return;
+      writeMany(EMAIL_KEYS, email);
+    }
+
+    function clearStoredEmail() {
+      clearMany(EMAIL_KEYS);
+    }
+
+    function normalizeEmail(value) {
+      return String(value || "").trim().toLowerCase();
+    }
+
+    function normalizeCode(value) {
+      return String(value || "").trim().toUpperCase().replace(/\s+/g, "");
+    }
+
+    function showBanner(message, type = "info") {
+      statusBanner.textContent = message;
+      statusBanner.className = "banner show " + type;
+    }
+
+    function hideBanner() {
+      statusBanner.className = "banner info";
+      statusBanner.textContent = "";
+    }
+
+    function redirectToGame() {
+      window.location.replace(GAME_ENTRY);
+    }
+
+    function setMode(mode) {
+      const isLogin = mode === "login";
+
+      loginTabBtn.classList.toggle("active", isLogin);
+      registerTabBtn.classList.toggle("active", !isLogin);
+
+      loginForm.classList.toggle("hidden", !isLogin);
+      registerForm.classList.toggle("hidden", isLogin);
+
+      activateStep.classList.add("hidden");
+      readyStep.classList.add("hidden");
+      authTabs.style.display = "grid";
+      bottomHint.style.display = "block";
+      activateHint.textContent = "هذا الحساب غير مفعّل بعد. أدخل الكود مرة واحدة فقط لإكمال التفعيل.";
+      hideBanner();
+
+      if (isLogin) {
+        document.getElementById("panelTitle").textContent = "تسجيل الدخول";
+        document.getElementById("panelSubtitle").textContent = "سجّل الدخول إلى حسابك، أو أنشئ حسابًا جديدًا إذا لم يكن لديك حساب.";
+      } else {
+        document.getElementById("panelTitle").textContent = "إنشاء حساب";
+        document.getElementById("panelSubtitle").textContent = "أنشئ حسابًا جديدًا للمتابعة إلى خطوة التفعيل.";
+      }
+
+      const savedEmail = getStoredEmail();
+      if (savedEmail) {
+        loginEmail.value = savedEmail;
+        registerEmail.value = savedEmail;
+      }
+    }
+
+    function showActivateStep(email, message = "", options = {}) {
+      const {
+        bannerType = "info",
+        hintText = "هذا الحساب غير مفعّل بعد. أدخل الكود مرة واحدة فقط لإكمال التفعيل."
+      } = options;
+
+      authTabs.style.display = "none";
+      loginForm.classList.add("hidden");
+      registerForm.classList.add("hidden");
+      readyStep.classList.add("hidden");
+      activateStep.classList.remove("hidden");
+      linkedEmail.value = email || getStoredEmail() || "";
+      activateHint.textContent = hintText;
+      document.getElementById("panelTitle").textContent = "تفعيل اللعبة";
+      document.getElementById("panelSubtitle").textContent = "أدخل كود التفعيل لمرة واحدة فقط، وبعد نجاحه تدخل إلى اللعبة مباشرة.";
+      bottomHint.style.display = "block";
+
+      if (message) showBanner(message, bannerType);
+      else hideBanner();
+    }
+
+    function showReadyStep(email, message = "") {
+      authTabs.style.display = "none";
+      loginForm.classList.add("hidden");
+      registerForm.classList.add("hidden");
+      activateStep.classList.add("hidden");
+      readyStep.classList.remove("hidden");
+      document.getElementById("panelTitle").textContent = "اللعبة جاهزة";
+      document.getElementById("panelSubtitle").textContent = "تم ربط حسابك بنجاح، ويمكنك الآن الدخول إلى اللعبة.";
+      readyEmail.textContent = email ? "الإيميل المرتبط: " + email : "";
+      bottomHint.style.display = "none";
+      if (message) showBanner(message, "success");
+      else hideBanner();
+    }
+
+    function setLoading(button, loading, textWhenIdle) {
+      button.disabled = loading;
+      if (loading) {
+        button.dataset.originalText = button.textContent;
+        button.textContent = "جاري التنفيذ...";
+      } else {
+        button.textContent = button.dataset.originalText || textWhenIdle;
+      }
+    }
+
+    function pickToken(data) {
+      return data?.token || data?.access_token || data?.jwt || data?.session?.token || "";
+    }
+
+    function pickEmail(data) {
+      return data?.email || data?.user?.email || getStoredEmail() || "";
+    }
+
+    function isActivated(data) {
+      return !!(
+        data?.activated === true ||
+        data?.is_activated === true ||
+        data?.isActivated === true ||
+        data?.user?.activated === true ||
+        data?.user?.is_activated === true ||
+        data?.user?.isActivated === true ||
+        data?.has_access === true ||
+        data?.can_play === true ||
+        data?.status === "activated"
+      );
+    }
+
+    function needsActivation(data) {
+      if (isActivated(data)) return false;
+
+      return !!(
+        data?.needs_activation === true ||
+        data?.user?.activated === false ||
+        data?.activated === false
+      );
+    }
+
+    function isDeviceLocked(data) {
+      return !!(
+        data?.device_locked === true ||
+        data?.deviceLocked === true
+      );
+    }
+
+    function hasAccountActivation(data) {
+      return !!(
+        data?.account_has_activation === true ||
+        data?.accountHasActivation === true
+      );
+    }
+
+    function canEnterGame(stateOrData) {
+      return !!isActivated(stateOrData);
+    }
+
+    function getErrorMessage(data, fallback) {
+      return data?.message || data?.error || data?.detail || fallback;
+    }
+
+    function getActivationStepConfig(state) {
+      const locked = !!state?.deviceLocked;
+      const hadActivation = !!state?.accountHasActivation;
+
+      if (locked && hadActivation) {
+        return {
+          bannerType: "info",
+          message: "هذا الإيميل مرتبط بجهاز آخر. لتشغيل اللعبة على هذا الجهاز أدخل نفس كود التفعيل المرتبط بهذا الحساب.",
+          hintText: "هذا الحساب لديه تفعيل سابق على جهاز آخر. إذا أردت تشغيل اللعبة هنا فأدخل نفس كود التفعيل المرتبط بهذا الحساب."
+        };
+      }
+
+      return {
+        bannerType: "success",
+        message: "تم تسجيل الدخول بنجاح. أكمل التفعيل بإدخال الكود.",
+        hintText: "هذا الحساب غير مفعّل بعد. أدخل الكود مرة واحدة فقط لإكمال التفعيل."
+      };
+    }
+
+    async function apiRequest(url, options = {}) {
+      const token = getToken();
+      const deviceId = getDeviceId();
+
+      const headers = {
+        "Content-Type": "application/json",
+        "X-Device-Id": deviceId,
+        ...(options.headers || {})
+      };
+
+      if (token) {
+        headers.Authorization = "Bearer " + token;
+      }
+
+      const response = await fetch(url, {
+        method: options.method || "POST",
+        headers,
+        body: options.body ? JSON.stringify(options.body) : undefined,
+        cache: "no-store",
+        credentials: "include"
+      });
+
+      let data = {};
+      try {
+        data = await response.json();
+      } catch (_) {}
+
+      const newToken = pickToken(data);
+      const newEmail = normalizeEmail(pickEmail(data) || "");
+
+      if (newToken) setToken(newToken);
+      if (newEmail) setStoredEmail(newEmail);
+
+      return { ok: response.ok, status: response.status, data };
+    }
+
+    async function resolveSessionState() {
+      const result = await apiRequest(API.me, { method: "GET" });
+
+      if (!result.ok) {
+        clearToken();
+        return {
+          ok: false,
+          requiresLogin: true,
+          email: ""
+        };
+      }
+
+      const resolvedEmail = normalizeEmail(pickEmail(result.data) || getStoredEmail());
+      if (resolvedEmail) setStoredEmail(resolvedEmail);
+
+      return {
+        ok: true,
+        requiresLogin: false,
+        email: resolvedEmail,
+        activated: isActivated(result.data),
+        needsActivation: needsActivation(result.data),
+        deviceLocked: isDeviceLocked(result.data),
+        accountHasActivation: hasAccountActivation(result.data),
+        data: result.data
+      };
+    }
+
+    async function hydrateFromSession() {
+      const email = getStoredEmail();
+      if (email) {
+        loginEmail.value = email;
+        registerEmail.value = email;
+      }
+
+      getDeviceId();
+
+      const token = getToken();
+      if (!token) {
+        setMode("login");
         return;
       }
 
-      statusText.textContent = text;
-      statusText.className = "status-text";
-      if (type) statusText.classList.add(type);
-    }
+      try {
+        const state = await resolveSessionState();
 
-    function setView(viewName) {
-      currentView = viewName;
+        if (!state.ok || state.requiresLogin) {
+          setMode("login");
+          return;
+        }
 
-      loginView.classList.toggle("active", viewName === "login");
-      registerView.classList.toggle("active", viewName === "register");
-      activateView.classList.toggle("active", viewName === "activate");
+        if (canEnterGame(state)) {
+          redirectToGame();
+          return;
+        }
 
-      loginTabBtn.classList.toggle("active", viewName === "login");
-      registerTabBtn.classList.toggle("active", viewName === "register");
-
-      if (viewName === "login") {
-        panelTitle.textContent = "تسجيل الدخول";
-        panelSubtitle.textContent = "إذا كانت هذه أول مرة تدخل اللعبة، اضغط إنشاء حساب أولًا ثم أنشئ حسابك للدخول.";
-      } else if (viewName === "register") {
-        panelTitle.textContent = "إنشاء حساب";
-        panelSubtitle.textContent = "أنشئ حسابًا جديدًا للمتابعة، ثم انتقل إلى خطوة تفعيل اللعبة بالكود.";
-      } else {
-        panelTitle.textContent = "تفعيل اللعبة";
-        panelSubtitle.textContent = "أدخل كود التفعيل لمرة واحدة فقط، وبعد نجاحه تدخل إلى اللعبة مباشرة.";
+        const config = getActivationStepConfig(state);
+        showActivateStep(state.email, config.message, {
+          bannerType: config.bannerType,
+          hintText: config.hintText
+        });
+      } catch (_) {
+        setMode("login");
       }
     }
+
+    loginTabBtn.addEventListener("click", () => setMode("login"));
+    registerTabBtn.addEventListener("click", () => setMode("register"));
+
+    loginForm.addEventListener("submit", async (e) => {
+      e.preventDefault();
+
+      const email = normalizeEmail(loginEmail.value);
+      const password = String(loginPassword.value || "").trim();
+
+      if (!email || !password) {
+        showBanner("أدخل الإيميل وكلمة المرور.", "error");
+        return;
+      }
+
+      setLoading(loginBtn, true, "دخول");
+
+      try {
+        const result = await apiRequest(API.login, {
+          method: "POST",
+          body: { email, password }
+        });
+
+        if (!result.ok) {
+          showBanner(getErrorMessage(result.data, "فشل تسجيل الدخول."), "error");
+          return;
+        }
+
+        const token = pickToken(result.data);
+        const resolvedEmail = normalizeEmail(pickEmail(result.data) || email);
+
+        if (token) setToken(token);
+        if (resolvedEmail) setStoredEmail(resolvedEmail);
+
+        const state = await resolveSessionState();
+
+        if (!state.ok || state.requiresLogin) {
+          showBanner("فشل التحقق من الجلسة بعد تسجيل الدخول.", "error");
+          return;
+        }
+
+        if (canEnterGame(state)) {
+          redirectToGame();
+          return;
+        }
+
+        const config = getActivationStepConfig(state);
+        showActivateStep(state.email || resolvedEmail, config.message, {
+          bannerType: config.bannerType,
+          hintText: config.hintText
+        });
+      } catch (_) {
+        showBanner("تعذر الاتصال بالخادم.", "error");
+      } finally {
+        setLoading(loginBtn, false, "دخول");
+      }
+    });
+
+    registerForm.addEventListener("submit", async (e) => {
+      e.preventDefault();
+
+      const email = normalizeEmail(registerEmail.value);
+      const password = String(registerPassword.value || "").trim();
+      const password2 = String(registerPassword2.value || "").trim();
+
+      if (!email || !password || !password2) {
+        showBanner("أكمل جميع الحقول أولًا.", "error");
+        return;
+      }
+
+      if (password.length < 6) {
+        showBanner("كلمة المرور يجب أن تكون 6 أحرف أو أكثر.", "error");
+        return;
+      }
+
+      if (password !== password2) {
+        showBanner("كلمتا المرور غير متطابقتين.", "error");
+        return;
+      }
+
+      setLoading(registerBtn, true, "إنشاء");
+
+      try {
+        const result = await apiRequest(API.register, {
+          method: "POST",
+          body: { email, password }
+        });
+
+        if (!result.ok) {
+          showBanner(getErrorMessage(result.data, "فشل إنشاء الحساب."), "error");
+          return;
+        }
+
+        const token = pickToken(result.data);
+        const resolvedEmail = normalizeEmail(pickEmail(result.data) || email);
+
+        if (token) setToken(token);
+        if (resolvedEmail) setStoredEmail(resolvedEmail);
+
+        const state = await resolveSessionState();
+
+        if (!state.ok || state.requiresLogin) {
+          showBanner("فشل التحقق من الجلسة بعد إنشاء الحساب.", "error");
+          return;
+        }
+
+        if (canEnterGame(state)) {
+          redirectToGame();
+          return;
+        }
+
+        showActivateStep(state.email || resolvedEmail, "تم إنشاء الحساب بنجاح ✅ الآن أدخل كود اللعبة.", {
+          bannerType: "success",
+          hintText: "هذا الحساب غير مفعّل بعد. أدخل الكود مرة واحدة فقط لإكمال التفعيل."
+        });
+      } catch (_) {
+        showBanner("تعذر الاتصال بالخادم.", "error");
+      } finally {
+        setLoading(registerBtn, false, "إنشاء");
+      }
+    });
+
+    activateBtn.addEventListener("click", async () => {
+      const code = normalizeCode(activateCode.value);
+      const email = normalizeEmail(linkedEmail.value.trim() || getStoredEmail());
+
+      activateCode.value = code;
+
+      if (!code) {
+        showBanner("أدخل كود اللعبة أولًا.", "error");
+        return;
+      }
+
+      setLoading(activateBtn, true, "تفعيل");
+
+      try {
+        const result = await apiRequest(API.activate, {
+          method: "POST",
+          body: { code, email }
+        });
+
+        if (!result.ok) {
+          showBanner(getErrorMessage(result.data, "فشل تفعيل الكود."), "error");
+          return;
+        }
+
+        if (email) setStoredEmail(email);
+
+        const state = await resolveSessionState();
+
+        if (state.ok && canEnterGame(state)) {
+          redirectToGame();
+          return;
+        }
+
+        showReadyStep(email, "تم تفعيل اللعبة بنجاح ✅");
+      } catch (_) {
+        showBanner("تعذر الاتصال بالخادم.", "error");
+      } finally {
+        setLoading(activateBtn, false, "تفعيل");
+      }
+    });
+
+    function doLogout() {
+      clearToken();
+      clearStoredEmail();
+      activateCode.value = "";
+      linkedEmail.value = "";
+      readyEmail.textContent = "";
+      loginPassword.value = "";
+      registerPassword.value = "";
+      registerPassword2.value = "";
+      setMode("login");
+      showBanner("تم تسجيل الخروج.", "success");
+    }
+
+    logoutBtn1.addEventListener("click", doLogout);
+    logoutBtn2.addEventListener("click", doLogout);
+
+    enterGameBtn.addEventListener("click", () => {
+      redirectToGame();
+    });
 
     function isTypingNow() {
       return typingInputs.includes(document.activeElement);
@@ -725,374 +1340,6 @@
       });
     }
 
-    function buildIndexLink() {
-      const url = new URL(window.location.href);
-      const path = url.pathname;
-
-      if (/activate\.html?$/i.test(path)) {
-        url.pathname = path.replace(/activate\.html?$/i, "index.html");
-      } else if (path.endsWith("/")) {
-        url.pathname = path + "index.html";
-      } else {
-        url.pathname = path.replace(/\/[^/]*$/, "/index.html");
-      }
-
-      url.search = "";
-      url.hash = "";
-      return url.toString();
-    }
-
-    async function fetchJsonResponse(url, options) {
-      const response = await fetch(url, options);
-      const contentType = String(response.headers.get("content-type") || "").toLowerCase();
-      let data = null;
-
-      if (contentType.includes("application/json")) {
-        data = await response.json().catch(() => null);
-      } else {
-        const text = await response.text().catch(() => "");
-        data = text ? { raw: text } : null;
-      }
-
-      return {
-        ok: response.ok,
-        status: response.status,
-        contentType,
-        data
-      };
-    }
-
-    async function detectApiBase() {
-      const bases = getApiBases();
-      const authHeaders = getAuthHeaders();
-      const probeHeaders = {
-        "Accept": "application/json",
-        "X-Device-Id": deviceId,
-        ...authHeaders
-      };
-
-      for (const base of bases) {
-        for (const path of ENDPOINTS.me) {
-          try {
-            const result = await fetchJsonResponse(`${base}${path}`, {
-              method: "GET",
-              cache: "no-store",
-              headers: probeHeaders
-            });
-
-            const looksJson = result.contentType.includes("application/json") || typeof result.data === "object";
-            const looksValid = looksJson && result.status !== 404;
-
-            if (!looksValid) continue;
-
-            currentApiBase = base;
-            writeStored(API_BASE_KEY, base);
-            writeStored(BUZZ_API_BASE_KEY, base);
-            return true;
-          } catch (e) {}
-        }
-      }
-
-      currentApiBase = "";
-      return false;
-    }
-
-    async function apiRequest(paths, payload = null, extraHeaders = {}) {
-      if (!currentApiBase) {
-        const ok = await detectApiBase();
-        if (!ok) throw new Error("API_BASE_NOT_FOUND");
-      }
-
-      const pathList = Array.isArray(paths) ? paths : [paths];
-
-      for (const path of pathList) {
-        try {
-          const headers = {
-            "Accept": "application/json",
-            "X-Device-Id": deviceId,
-            ...extraHeaders
-          };
-
-          const options = {
-            method: payload ? "POST" : "GET",
-            cache: "no-store",
-            headers
-          };
-
-          if (payload) {
-            headers["Content-Type"] = "application/json";
-            options.body = JSON.stringify(payload);
-          }
-
-          const result = await fetchJsonResponse(`${currentApiBase}${path}`, options);
-          const isGoodJson = result.contentType.includes("application/json") || typeof result.data === "object";
-
-          if (!isGoodJson) continue;
-
-          if (result.status !== 404) {
-            return result;
-          }
-        } catch (e) {}
-      }
-
-      return {
-        ok: false,
-        status: 0,
-        data: { error: "NETWORK_OR_ENDPOINT_ERROR" }
-      };
-    }
-
-    function getTokenFromResponse(data) {
-      return String(
-        data?.token ||
-        data?.session?.token ||
-        data?.data?.token ||
-        ""
-      ).trim();
-    }
-
-    function storeToken(token) {
-      if (!token) return;
-      writeStored(TOKEN_KEY, token);
-    }
-
-    function readToken() {
-      return readStored(TOKEN_KEY);
-    }
-
-    function getAuthHeaders() {
-      const token = readToken();
-      return token ? { Authorization: `Bearer ${token}` } : {};
-    }
-
-    function humanizeError(errorCode, fallbackText) {
-      const code = String(errorCode || "").trim().toUpperCase();
-
-      const map = {
-        INVALID_CREDENTIALS: "بيانات الدخول غير صحيحة.",
-        INVALID_LOGIN: "بيانات الدخول غير صحيحة.",
-        USER_NOT_FOUND: "هذا الحساب غير موجود.",
-        EMAIL_ALREADY_EXISTS: "هذا البريد مستخدم من قبل.",
-        EMAIL_EXISTS: "هذا البريد مستخدم من قبل.",
-        PASSWORD_TOO_SHORT: "كلمة المرور قصيرة جدًا.",
-        UNAUTHORIZED: "يجب تسجيل الدخول أولًا.",
-        TOKEN_REQUIRED: "يجب تسجيل الدخول أولًا.",
-        INVALID_TOKEN: "انتهت الجلسة، سجّل الدخول مرة أخرى.",
-        CODE_REQUIRED: "أدخل كود التفعيل أولًا.",
-        INVALID_CODE: "كود التفعيل غير صحيح.",
-        CODE_NOT_FOUND: "كود التفعيل غير موجود.",
-        CODE_ALREADY_USED: "هذا الكود مستخدم مسبقًا.",
-        ALREADY_ACTIVATED: "تم تفعيل اللعبة مسبقًا على هذا الحساب.",
-        ACTIVATION_REQUIRED: "هذا الحساب يحتاج تفعيلًا بالكود.",
-        NETWORK_OR_ENDPOINT_ERROR: "تعذر الاتصال بالخادم الآن.",
-        API_BASE_NOT_FOUND: "تعذر العثور على رابط الباكند الصحيح."
-      };
-
-      return map[code] || fallbackText || "حدث خطأ غير متوقع.";
-    }
-
-    async function requestMe() {
-      const headers = getAuthHeaders();
-      if (!headers.Authorization) {
-        return { ok: false, data: {} };
-      }
-
-      return await apiRequest(ENDPOINTS.me, null, headers);
-    }
-
-    function isActivatedPayload(data) {
-      return !!(
-        data?.activated === true ||
-        data?.is_activated === true ||
-        data?.user?.activated === true ||
-        data?.user?.is_activated === true ||
-        data?.account?.activated === true
-      );
-    }
-
-    async function tryAutoLogin() {
-      const token = readToken();
-      if (!token) return;
-
-      const me = await requestMe();
-      if (!me.ok) {
-        removeStored(TOKEN_KEY);
-        return;
-      }
-
-      if (isActivatedPayload(me.data)) {
-        showStatus("تم التحقق من الجلسة، جارٍ الدخول...", "success");
-        setTimeout(() => {
-          window.location.href = buildIndexLink();
-        }, 450);
-        return;
-      }
-
-      setView("activate");
-      showStatus("الحساب مسجل، بقي إدخال كود التفعيل.", "success");
-    }
-
-    async function handleLogin() {
-      const email = loginEmail.value.trim();
-      const password = loginPassword.value;
-
-      if (!email || !password) {
-        showStatus("أدخل البريد الإلكتروني وكلمة المرور.", "error");
-        return;
-      }
-
-      loginBtn.disabled = true;
-      showStatus("جارٍ تسجيل الدخول...");
-
-      try {
-        const res = await apiRequest(ENDPOINTS.login, { email, password });
-
-        if (!res.ok) {
-          showStatus(humanizeError(res?.data?.error, "تعذر تسجيل الدخول. تأكد من البيانات."), "error");
-          return;
-        }
-
-        const token = getTokenFromResponse(res.data);
-        if (token) storeToken(token);
-
-        const me = await requestMe();
-
-        if (me.ok && isActivatedPayload(me.data)) {
-          showStatus("تم تسجيل الدخول بنجاح، جارٍ الدخول...", "success");
-          setTimeout(() => {
-            window.location.href = buildIndexLink();
-          }, 500);
-          return;
-        }
-
-        setView("activate");
-        showStatus("تم تسجيل الدخول. هذا الحساب يحتاج إلى التفعيل بالكود.", "success");
-      } catch (error) {
-        showStatus(humanizeError(error?.message, "تعذر الاتصال بالخادم الآن."), "error");
-      } finally {
-        loginBtn.disabled = false;
-      }
-    }
-
-    async function handleRegister() {
-      const email = registerEmail.value.trim();
-      const password = registerPassword.value;
-      const password2 = registerPassword2.value;
-
-      if (!email || !password || !password2) {
-        showStatus("أكمل جميع الحقول المطلوبة.", "error");
-        return;
-      }
-
-      if (password.length < 6) {
-        showStatus("كلمة المرور يجب أن تكون 6 أحرف أو أكثر.", "error");
-        return;
-      }
-
-      if (password !== password2) {
-        showStatus("كلمتا المرور غير متطابقتين.", "error");
-        return;
-      }
-
-      registerBtn.disabled = true;
-      showStatus("جارٍ إنشاء الحساب...");
-
-      try {
-        const res = await apiRequest(ENDPOINTS.register, { email, password });
-
-        if (!res.ok) {
-          showStatus(humanizeError(res?.data?.error, "تعذر إنشاء الحساب الآن."), "error");
-          return;
-        }
-
-        let token = getTokenFromResponse(res.data);
-
-        if (!token) {
-          const loginRes = await apiRequest(ENDPOINTS.login, { email, password });
-          if (loginRes.ok) {
-            token = getTokenFromResponse(loginRes.data);
-          }
-        }
-
-        if (token) storeToken(token);
-
-        setView("activate");
-        showStatus("تم إنشاء الحساب بنجاح. الآن أدخل كود التفعيل.", "success");
-      } catch (error) {
-        showStatus(humanizeError(error?.message, "تعذر الاتصال بالخادم الآن."), "error");
-      } finally {
-        registerBtn.disabled = false;
-      }
-    }
-
-    async function handleActivate() {
-      const code = activateCode.value.trim();
-      const token = readToken();
-
-      if (!code) {
-        showStatus("أدخل كود التفعيل أولًا.", "error");
-        return;
-      }
-
-      if (!token) {
-        setView("login");
-        showStatus("يجب تسجيل الدخول أولًا قبل التفعيل.", "error");
-        return;
-      }
-
-      activateBtn.disabled = true;
-      showStatus("جارٍ تفعيل اللعبة...");
-
-      try {
-        const res = await apiRequest(ENDPOINTS.activate, { code }, getAuthHeaders());
-
-        if (!res.ok) {
-          showStatus(humanizeError(res?.data?.error, "تعذر تفعيل الكود الآن."), "error");
-          return;
-        }
-
-        const tokenFromActivate = getTokenFromResponse(res.data);
-        if (tokenFromActivate) storeToken(tokenFromActivate);
-
-        showStatus("تم التفعيل بنجاح، جارٍ الدخول إلى اللعبة...", "success");
-        setTimeout(() => {
-          window.location.href = buildIndexLink();
-        }, 650);
-      } catch (error) {
-        showStatus(humanizeError(error?.message, "تعذر الاتصال بالخادم الآن."), "error");
-      } finally {
-        activateBtn.disabled = false;
-      }
-    }
-
-    loginTabBtn.addEventListener("click", () => {
-      setView("login");
-      showStatus("");
-    });
-
-    registerTabBtn.addEventListener("click", () => {
-      setView("register");
-      showStatus("");
-    });
-
-    backToLoginBtn.addEventListener("click", () => {
-      setView("login");
-      showStatus("");
-    });
-
-    loginBtn.addEventListener("click", handleLogin);
-    registerBtn.addEventListener("click", handleRegister);
-    activateBtn.addEventListener("click", handleActivate);
-
-    [loginPassword, registerPassword2, activateCode].forEach((input) => {
-      input.addEventListener("keydown", (event) => {
-        if (event.key !== "Enter") return;
-        if (input === loginPassword) handleLogin();
-        if (input === registerPassword2) handleRegister();
-        if (input === activateCode) handleActivate();
-      });
-    });
-
     typingInputs.forEach(input => {
       input.addEventListener("focus", () => {
         document.body.classList.add("typing");
@@ -1103,10 +1350,6 @@
           document.body.classList.remove("typing");
           updateLayout(true);
         }, 80);
-      });
-
-      input.addEventListener("input", () => {
-        if (!statusText.classList.contains("hidden")) showStatus("");
       });
     });
 
@@ -1123,8 +1366,8 @@
       storeLogo.style.display = "none";
     });
 
+    hydrateFromSession();
     updateLayout(true);
-    tryAutoLogin();
 
     window.addEventListener("load", () => {
       setTimeout(() => updateLayout(true), 60);
