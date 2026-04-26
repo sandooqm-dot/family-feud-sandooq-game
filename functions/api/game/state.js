@@ -1,3 +1,5 @@
+const DEFAULT_ROOM = "family-feud-demo";
+
 const EMPTY_QUESTION = {
   question: "نص السؤال",
   answers: []
@@ -25,14 +27,7 @@ export async function onRequestGet(context) {
     await ensureSchema(db);
 
     const url = new URL(request.url);
-    const room = normalizeRoom(url.searchParams.get("room"));
-
-    if (!room) {
-      return jsonResponse({
-        ok: false,
-        error: "رقم الغرفة غير موجود."
-      }, 400);
-    }
+    const room = normalizeRoom(url.searchParams.get("room")) || DEFAULT_ROOM;
 
     let row = await db
       .prepare(`
@@ -49,13 +44,10 @@ export async function onRequestGet(context) {
 
       await db
         .prepare(`
-          INSERT INTO game_rooms
+          INSERT OR REPLACE INTO game_rooms
             (room, state_json, updated_at)
           VALUES
             (?1, ?2, ?3)
-          ON CONFLICT(room) DO UPDATE SET
-            state_json = excluded.state_json,
-            updated_at = excluded.updated_at
         `)
         .bind(
           room,
@@ -162,7 +154,6 @@ function normalizeState(raw, room) {
   const control = source.control || {};
   const buzz = source.buzz || {};
   const effects = source.effects || {};
-  const firstBuzz = buzz.firstBuzz || {};
 
   return {
     room,
@@ -170,7 +161,7 @@ function normalizeState(raw, room) {
 
     display: {
       showQuestion: typeof display.showQuestion === "boolean" ? display.showQuestion : false,
-      question: cleanText(display.question) || EMPTY_QUESTION.question,
+      question: cleanText(display.question) || "نص السؤال",
       team1Name: cleanText(display.team1Name) || "الفريق الأول",
       team2Name: cleanText(display.team2Name) || "الفريق الثاني",
       team1Score: toSafeNumber(display.team1Score),
@@ -184,7 +175,7 @@ function normalizeState(raw, room) {
     control: {
       currentQuestionIndex: toSafeNumber(control.currentQuestionIndex),
       totalQuestions: toSafeNumber(control.totalQuestions),
-      phase: cleanText(control.phase || control.stage) || "idle",
+      phase: cleanText(control.phase || "idle") || "idle",
       currentTurnTeam: normalizeTeam(control.currentTurnTeam),
       confrontationWinner: normalizeTeam(control.confrontationWinner),
       stealingTeam: normalizeTeam(control.stealingTeam),
@@ -194,11 +185,7 @@ function normalizeState(raw, room) {
 
     buzz: {
       enabled: typeof buzz.enabled === "boolean" ? buzz.enabled : true,
-      firstBuzz: {
-        name: cleanText(firstBuzz.name),
-        team: normalizeTeam(firstBuzz.team),
-        at: toSafeNumber(firstBuzz.at)
-      }
+      firstBuzz: normalizeFirstBuzz(buzz.firstBuzz)
     },
 
     effects: {
@@ -212,23 +199,34 @@ function normalizeAnswers(answers) {
   if (!Array.isArray(answers)) return [];
 
   return answers
-    .filter((answer) => cleanText(answer?.text))
     .slice(0, 6)
     .map((answer) => ({
-      text: cleanText(answer.text),
-      points: toSafeNumber(answer.points),
-      revealed: answer.revealed === true
+      text: cleanText(answer?.text),
+      points: toSafeNumber(answer?.points),
+      revealed: answer?.revealed === true
     }))
     .filter((answer) => answer.text);
+}
+
+function normalizeFirstBuzz(firstBuzz) {
+  if (!firstBuzz || typeof firstBuzz !== "object") return null;
+
+  const name = cleanText(firstBuzz.name);
+  const team = normalizeTeam(firstBuzz.team);
+
+  if (!name && !team) return null;
+
+  return {
+    name,
+    team
+  };
 }
 
 function normalizeRoom(value) {
   const room = String(value || "").trim().toLowerCase();
   if (!room) return "";
 
-  return room
-    .replace(/[^a-z0-9_-]/g, "")
-    .slice(0, 64);
+  return room.replace(/[^a-z0-9_-]/g, "").slice(0, 64);
 }
 
 function normalizeTeam(value) {
