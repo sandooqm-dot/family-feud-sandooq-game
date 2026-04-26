@@ -1,0 +1,555 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Family Feud - Activate</title>
+
+  <style>
+    :root{
+      --gold:#f1d14f;
+      --white:#f4f2ea;
+      --app-height:100vh;
+      --app-scale:1;
+      --safari-nudge:34px;
+
+      --blue-1:#3a53b6;
+      --blue-2:#2e47a8;
+      --panel-1:#0f2c88;
+      --panel-2:#081d61;
+      --field-bg:#f3f3f3;
+      --field-text:#222;
+      --field-placeholder:#777;
+      --border-dark:#101010;
+      --btn-orange-1:#ff922b;
+      --btn-orange-2:#ff7b14;
+      --btn-blue-1:#2b3fc2;
+      --btn-blue-2:#0e2f91;
+      --muted:#d9ddf6;
+    }
+
+    *{
+      box-sizing:border-box;
+      margin:0;
+      padding:0;
+      -webkit-tap-highlight-color:transparent;
+    }
+
+    html{
+      min-height:100%;
+      background:#2f47aa;
+    }
+
+    body{
+      min-height:100%;
+      background:#2f47aa;
+      font-family:Arial, "Helvetica Neue", sans-serif;
+      -webkit-text-size-adjust:100%;
+      text-size-adjust:100%;
+      overflow-x:hidden;
+      overflow-y:auto;
+      -webkit-overflow-scrolling:touch;
+      overscroll-behavior-y:auto;
+    }
+
+    .page{
+      width:100%;
+      min-height:calc(var(--app-height) + var(--safari-nudge));
+      background:
+        radial-gradient(circle, rgba(176,138,79,.95) 0 4px, transparent 4.5px) 0 0 / 48px 48px,
+        linear-gradient(180deg, var(--blue-1) 0%, var(--blue-2) 100%);
+    }
+
+    .fit-root{
+      position:relative;
+      width:100%;
+      height:var(--app-height);
+      overflow:hidden;
+    }
+
+    .page-spacer{
+      height:var(--safari-nudge);
+      pointer-events:none;
+    }
+
+    .game-shell{
+      position:absolute;
+      left:50%;
+      top:50%;
+      width:1600px;
+      height:768px;
+      transform:translate(-50%, -50%) scale(var(--app-scale));
+      transform-origin:center center;
+      overflow:hidden;
+      direction:rtl;
+    }
+
+    .store-logo{
+      position:absolute;
+      top:18px;
+      left:18px;
+      width:150px;
+      height:150px;
+      object-fit:contain;
+      z-index:5;
+    }
+
+    .hero-logo-wrap{
+      position:absolute;
+      top:26px;
+      left:50%;
+      transform:translateX(-50%);
+      width:360px;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      z-index:4;
+    }
+
+    .hero-logo{
+      display:block;
+      max-width:100%;
+      max-height:150px;
+      object-fit:contain;
+    }
+
+    .hero-logo-fallback{
+      display:none;
+      width:100%;
+      text-align:center;
+      font-size:52px;
+      font-weight:900;
+      color:#ffd34d;
+      text-shadow:
+        0 3px 0 #9a1c13,
+        0 8px 20px rgba(0,0,0,.22);
+    }
+
+    .login-panel{
+      position:absolute;
+      left:50%;
+      top:440px;
+      transform:translate(-50%, -50%);
+      width:620px;
+      min-height:470px;
+      border-radius:36px;
+      border:10px solid var(--border-dark);
+      background:linear-gradient(180deg, var(--panel-1) 0%, var(--panel-2) 100%);
+      box-shadow:
+        inset 0 0 0 1px rgba(255,255,255,.05),
+        0 18px 40px rgba(0,0,0,.22);
+      padding:34px 32px 30px;
+      display:flex;
+      flex-direction:column;
+      align-items:center;
+      text-align:center;
+    }
+
+    .panel-title{
+      color:var(--white);
+      font-size:44px;
+      font-weight:900;
+      line-height:1.15;
+      margin-bottom:14px;
+    }
+
+    .panel-subtitle{
+      color:var(--muted);
+      font-size:22px;
+      font-weight:700;
+      line-height:1.7;
+      margin-bottom:26px;
+      max-width:500px;
+    }
+
+    .form{
+      width:100%;
+      display:flex;
+      flex-direction:column;
+      gap:16px;
+    }
+
+    .field{
+      width:100%;
+      height:78px;
+      border-radius:999px;
+      border:4px solid var(--border-dark);
+      background:var(--field-bg);
+      color:var(--field-text);
+      font-size:25px;
+      font-weight:700;
+      text-align:center;
+      outline:none;
+      padding:0 22px;
+      box-shadow: inset 0 2px 0 rgba(255,255,255,.75);
+    }
+
+    .field::placeholder{
+      color:var(--field-placeholder);
+      font-weight:700;
+      font-size:20px;
+    }
+
+    .main-btn{
+      width:100%;
+      height:82px;
+      border:none;
+      border-radius:999px;
+      border:5px solid rgba(243,242,234,.95);
+      color:#fff;
+      font-size:34px;
+      font-weight:900;
+      cursor:pointer;
+      transition:transform .15s ease, filter .15s ease, opacity .15s ease;
+    }
+
+    .main-btn:hover{
+      transform:translateY(-1px);
+      filter:brightness(1.03);
+    }
+
+    .main-btn:active{
+      transform:scale(.985);
+    }
+
+    .main-btn.primary{
+      margin-top:8px;
+      background:linear-gradient(180deg, var(--btn-orange-1) 0%, var(--btn-orange-2) 100%);
+      box-shadow:0 10px 18px rgba(0,0,0,.12);
+    }
+
+    .sub-actions{
+      width:100%;
+      display:grid;
+      grid-template-columns:1fr 1fr;
+      gap:14px;
+      margin-top:16px;
+    }
+
+    .sub-btn{
+      height:68px;
+      border-radius:26px;
+      border:4px solid rgba(243,242,234,.95);
+      background:linear-gradient(180deg, var(--btn-blue-1) 0%, var(--btn-blue-2) 100%);
+      color:var(--white);
+      font-size:24px;
+      font-weight:900;
+      cursor:pointer;
+      transition:transform .15s ease, filter .15s ease;
+    }
+
+    .sub-btn:hover{
+      transform:translateY(-1px);
+      filter:brightness(1.04);
+    }
+
+    .sub-btn:active{
+      transform:scale(.985);
+    }
+
+    .note{
+      margin-top:22px;
+      color:#f3e8b1;
+      font-size:18px;
+      font-weight:700;
+      line-height:1.8;
+      max-width:500px;
+    }
+
+    body.portrait .game-shell{
+      width:640px;
+      height:1280px;
+    }
+
+    body.portrait .store-logo{
+      top:10px;
+      left:2px;
+      width:132px;
+      height:132px;
+    }
+
+    body.portrait .hero-logo-wrap{
+      top:90px;
+      width:420px;
+    }
+
+    body.portrait .hero-logo{
+      max-height:170px;
+    }
+
+    body.portrait .login-panel{
+      top:760px;
+      width:610px;
+      min-height:620px;
+      padding:38px 24px 30px;
+    }
+
+    body.portrait .panel-title{
+      font-size:42px;
+      margin-bottom:14px;
+    }
+
+    body.portrait .panel-subtitle{
+      font-size:24px;
+      margin-bottom:28px;
+    }
+
+    body.portrait .field{
+      height:84px;
+      font-size:27px;
+    }
+
+    body.portrait .field::placeholder{
+      font-size:19px;
+    }
+
+    body.portrait .main-btn{
+      height:88px;
+      font-size:36px;
+    }
+
+    body.portrait .sub-actions{
+      grid-template-columns:1fr;
+      gap:12px;
+      margin-top:16px;
+    }
+
+    body.portrait .sub-btn{
+      height:72px;
+      font-size:26px;
+    }
+
+    body.portrait .note{
+      font-size:19px;
+      margin-top:24px;
+    }
+  </style>
+</head>
+<body>
+
+  <main class="page">
+    <div class="fit-root">
+      <div class="game-shell">
+
+        <img id="storeLogo" class="store-logo" src="logo.PNG" alt="صندوق المسابقات" />
+
+        <div class="hero-logo-wrap">
+          <img id="familyLogo" class="hero-logo" src="logo-family-feud.PNG" alt="فاميلي فيود" />
+          <div id="familyLogoFallback" class="hero-logo-fallback">فاميلي فيود</div>
+        </div>
+
+        <section class="login-panel">
+          <div class="panel-title">تسجيل الدخول</div>
+          <div class="panel-subtitle">
+            سجّل دخولك أولًا للدخول إلى اللعبة، وإذا كان حسابك غير مفعّل راح يطلب منك كود التفعيل في الخطوة التالية.
+          </div>
+
+          <form class="form" onsubmit="return false;">
+            <input
+              id="emailInput"
+              class="field"
+              type="email"
+              inputmode="email"
+              autocomplete="email"
+              placeholder="البريد الإلكتروني"
+            />
+
+            <input
+              id="passwordInput"
+              class="field"
+              type="password"
+              autocomplete="current-password"
+              placeholder="كلمة المرور"
+            />
+
+            <button id="loginBtn" class="main-btn primary" type="button">دخول</button>
+
+            <div class="sub-actions">
+              <button id="createAccountBtn" class="sub-btn" type="button">إنشاء حساب</button>
+              <button id="forgotPasswordBtn" class="sub-btn" type="button">نسيت كلمة المرور</button>
+            </div>
+          </form>
+
+          <div class="note">
+            هذه الصفحة واجهة جاهزة فقط، والخطوة التالية نربطها فعليًا مع نظام الدخول والتفعيل.
+          </div>
+        </section>
+
+      </div>
+    </div>
+
+    <div class="page-spacer" aria-hidden="true"></div>
+  </main>
+
+  <script>
+    const LANDSCAPE_WIDTH = 1600;
+    const LANDSCAPE_HEIGHT = 768;
+    const PORTRAIT_WIDTH = 640;
+    const PORTRAIT_HEIGHT = 1280;
+
+    const root = document.documentElement;
+    const emailInput = document.getElementById("emailInput");
+    const passwordInput = document.getElementById("passwordInput");
+    const inputs = [emailInput, passwordInput];
+
+    let stableViewport = { width: window.innerWidth, height: window.innerHeight };
+    let stableOrientationPortrait = window.innerHeight > window.innerWidth;
+
+    function getCurrentViewport() {
+      const vv = window.visualViewport;
+      return {
+        width: vv ? vv.width : window.innerWidth,
+        height: vv ? vv.height : window.innerHeight
+      };
+    }
+
+    function isTypingNow() {
+      return inputs.includes(document.activeElement);
+    }
+
+    function updateStableViewport() {
+      if (isTypingNow()) return;
+      const vp = getCurrentViewport();
+      stableViewport = { width: vp.width, height: vp.height };
+      stableOrientationPortrait = vp.height > vp.width;
+    }
+
+    function applyOrientationClass() {
+      document.body.classList.toggle("portrait", stableOrientationPortrait);
+    }
+
+    function getDesignSize() {
+      if (document.body.classList.contains("portrait")) {
+        return { width: PORTRAIT_WIDTH, height: PORTRAIT_HEIGHT };
+      }
+      return { width: LANDSCAPE_WIDTH, height: LANDSCAPE_HEIGHT };
+    }
+
+    function setAppHeight(force = false) {
+      if (!isTypingNow() || force) {
+        updateStableViewport();
+      }
+      root.style.setProperty("--app-height", stableViewport.height + "px");
+    }
+
+    function fitGameToViewport(force = false) {
+      if (!isTypingNow() || force) {
+        updateStableViewport();
+      }
+
+      const { width, height } = getDesignSize();
+      const horizontalPadding = 8;
+      const verticalPadding = 8;
+      const usableWidth = stableViewport.width - horizontalPadding;
+      const usableHeight = stableViewport.height - verticalPadding;
+
+      const scale = Math.min(
+        usableWidth / width,
+        usableHeight / height
+      );
+
+      root.style.setProperty("--app-scale", String(scale));
+    }
+
+    function nudgeSafariBar() {
+      if (isTypingNow()) return;
+
+      const visibleHeight = stableViewport.height;
+      const fullHeight = Math.max(
+        document.body.scrollHeight,
+        document.documentElement.scrollHeight
+      );
+
+      if (fullHeight <= visibleHeight + 8) return;
+
+      window.scrollTo(0, 1);
+      setTimeout(() => window.scrollTo(0, 1), 120);
+      setTimeout(() => window.scrollTo(0, 1), 280);
+    }
+
+    function updateLayout(force = false) {
+      if (!isTypingNow() || force) {
+        updateStableViewport();
+      }
+
+      applyOrientationClass();
+      setAppHeight(force);
+
+      requestAnimationFrame(() => {
+        fitGameToViewport(force);
+        if (!isTypingNow() || force) {
+          nudgeSafariBar();
+        }
+      });
+    }
+
+    inputs.forEach(input => {
+      input.addEventListener("focus", () => {
+        document.body.classList.add("typing");
+      });
+
+      input.addEventListener("blur", () => {
+        setTimeout(() => {
+          document.body.classList.remove("typing");
+          updateLayout(true);
+        }, 80);
+      });
+    });
+
+    const familyLogo = document.getElementById("familyLogo");
+    const familyLogoFallback = document.getElementById("familyLogoFallback");
+
+    familyLogo.addEventListener("error", () => {
+      familyLogo.style.display = "none";
+      familyLogoFallback.style.display = "block";
+    });
+
+    const storeLogo = document.getElementById("storeLogo");
+    storeLogo.addEventListener("error", () => {
+      storeLogo.style.display = "none";
+    });
+
+    document.getElementById("loginBtn").addEventListener("click", () => {
+      alert("الخطوة القادمة: ربط تسجيل الدخول الفعلي");
+    });
+
+    document.getElementById("createAccountBtn").addEventListener("click", () => {
+      alert("الخطوة القادمة: شاشة إنشاء الحساب");
+    });
+
+    document.getElementById("forgotPasswordBtn").addEventListener("click", () => {
+      alert("الخطوة القادمة: استعادة كلمة المرور");
+    });
+
+    updateLayout(true);
+
+    window.addEventListener("load", () => {
+      setTimeout(() => updateLayout(true), 60);
+      setTimeout(() => updateLayout(true), 220);
+    }, { passive: true });
+
+    window.addEventListener("resize", () => {
+      if (!isTypingNow()) updateLayout();
+    }, { passive: true });
+
+    window.addEventListener("orientationchange", () => {
+      setTimeout(() => updateLayout(true), 80);
+      setTimeout(() => updateLayout(true), 250);
+      setTimeout(() => updateLayout(true), 500);
+    }, { passive: true });
+
+    if (window.visualViewport) {
+      window.visualViewport.addEventListener("resize", () => {
+        if (!isTypingNow()) updateLayout();
+      }, { passive: true });
+
+      window.visualViewport.addEventListener("scroll", () => {
+        if (!isTypingNow()) updateLayout();
+      }, { passive: true });
+    }
+
+    document.addEventListener("touchstart", nudgeSafariBar, { passive: true });
+    document.addEventListener("touchend", nudgeSafariBar, { passive: true });
+  </script>
+</body>
+</html>
