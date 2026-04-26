@@ -713,11 +713,22 @@
       return String(base || "").trim().replace(/\/+$/, "");
     }
 
+    function getCurrentOriginBase() {
+      try {
+        if (window.location.protocol === "http:" || window.location.protocol === "https:") {
+          return window.location.origin;
+        }
+      } catch (e) {}
+
+      return "";
+    }
+
     function getApiBases() {
       const seen = new Set();
       const result = [];
 
       const candidates = [
+        getCurrentOriginBase(),
         readStored(API_BASE_KEY),
         readStored(BUZZ_API_BASE_KEY),
         "https://family-feud-buzz.sandooq-m.workers.dev",
@@ -931,6 +942,54 @@
       writeStored("familyfeud_buzz_enabled_presenter", "1");
     }
 
+    function saveRemoteStateLocally(state) {
+      if (!state || !state.display) return;
+
+      try {
+        const display = state.display || {};
+        const control = state.control || {};
+        const buzz = state.buzz || {};
+
+        const displayState = {
+          showQuestion: !!display.showQuestion,
+          question: String(display.question || ""),
+          team1Name: String(display.team1Name || "الفريق الأول"),
+          team2Name: String(display.team2Name || "الفريق الثاني"),
+          team1Score: Number(display.team1Score || 0),
+          team2Score: Number(display.team2Score || 0),
+          team1Strikes: Number(display.team1Strikes || 0),
+          team2Strikes: Number(display.team2Strikes || 0),
+          roundPoints: Number(display.roundPoints || 0),
+          answers: Array.isArray(display.answers)
+            ? display.answers
+                .filter((answer) => String(answer?.text || "").trim())
+                .slice(0, 6)
+                .map((answer) => ({
+                  text: String(answer.text || "").trim(),
+                  points: Number(answer.points || 0),
+                  revealed: !!answer.revealed
+                }))
+            : []
+        };
+
+        const controlState = {
+          currentQuestionIndex: Number(control.currentQuestionIndex || 0),
+          totalQuestions: Number(control.totalQuestions || 0),
+          stage: String(control.phase || "idle"),
+          currentTurnTeam: String(control.currentTurnTeam || ""),
+          confrontationWinner: String(control.confrontationWinner || ""),
+          stealingTeam: String(control.stealingTeam || ""),
+          firstBuzzName: String(buzz.firstBuzz?.name || ""),
+          firstBuzzTeam: String(buzz.firstBuzz?.team || ""),
+          buzzVisible: typeof buzz.enabled === "boolean" ? !!buzz.enabled : true
+        };
+
+        writeStored(DISPLAY_KEY, JSON.stringify(displayState));
+        writeStored(CONTROL_KEY, JSON.stringify(controlState));
+        writeStored("familyfeud_buzz_enabled_presenter", "1");
+      } catch (e) {}
+    }
+
     async function fetchWithTimeout(url, options = {}, timeoutMs = 2600) {
       const controller = new AbortController();
       const timeout = setTimeout(() => controller.abort(), timeoutMs);
@@ -950,7 +1009,7 @@
 
       for (const base of bases) {
         try {
-          const response = await fetchWithTimeout(`${base}/api/game/init?room=${encodeURIComponent(room)}`, {
+          const response = await fetchWithTimeout(`${base}/api/game/action?room=${encodeURIComponent(room)}`, {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
@@ -958,6 +1017,7 @@
               "Pragma": "no-cache"
             },
             body: JSON.stringify({
+              action: "init",
               team1Name: team1,
               team2Name: team2,
               questionIndex: 0
@@ -971,6 +1031,11 @@
 
           writeStored(API_BASE_KEY, base);
           writeStored(BUZZ_API_BASE_KEY, base);
+
+          if (data.state) {
+            saveRemoteStateLocally(data.state);
+          }
+
           return true;
         } catch (error) {}
       }
@@ -1043,11 +1108,18 @@
 
       const remotePromise = startRoomWarmup(team1, team2);
 
-      try {
-        await remotePromise;
-      } catch (e) {}
+      let remoteOk = false;
 
-      initializeLocalGameState(team1, team2);
+      try {
+        remoteOk = await remotePromise;
+      } catch (e) {
+        remoteOk = false;
+      }
+
+      if (!remoteOk) {
+        initializeLocalGameState(team1, team2);
+      }
+
       window.location.href = buildGameLink();
     });
 
