@@ -1089,11 +1089,12 @@
     function normalizeState(raw) {
       const defaults = getDefaultState();
       const source = raw || defaults;
-      const answers = Array.isArray(source.answers) ? source.answers : defaults.answers;
+      const answersSource = Array.isArray(source.answers) ? source.answers : defaults.answers;
+      const answerCount = Math.max(0, Math.min(6, answersSource.length));
 
       const normalizedAnswers = [];
-      for (let i = 0; i < 6; i++) {
-        normalizedAnswers.push(normalizeAnswer(answers[i], defaults.answers[i]));
+      for (let i = 0; i < answerCount; i++) {
+        normalizedAnswers.push(normalizeAnswer(answersSource[i], defaults.answers[i]));
       }
 
       return {
@@ -1616,6 +1617,9 @@
       answersGrid.innerHTML = "";
 
       state.answers.forEach((answer, index) => {
+        const position = positions[index];
+        if (!position) return;
+
         const slot = document.createElement("div");
         const revealed = !!answer.revealed;
         const justRevealed = revealIndexes.has(index);
@@ -1624,8 +1628,8 @@
         if (revealed) slot.classList.add("is-revealed");
         if (justRevealed) slot.classList.add("just-revealed");
 
-        slot.style.gridRow = positions[index].row;
-        slot.style.gridColumn = positions[index].col;
+        slot.style.gridRow = position.row;
+        slot.style.gridColumn = position.col;
 
         slot.innerHTML = `
           <div class="answer-flip">
