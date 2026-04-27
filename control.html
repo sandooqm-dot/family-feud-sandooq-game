@@ -516,7 +516,7 @@
         <div id="questionNumber" class="question-number">سؤال 1</div>
 
         <div class="question-box">
-          <div id="questionText" class="question-text">إضافة شعبية تنحط مع الشاي الأحمر لتعطيه نكهة؟</div>
+          <div id="questionText" class="question-text">نص السؤال</div>
         </div>
 
         <section class="answers-panel">
@@ -4286,41 +4286,19 @@ window.FAMILY_FEUD_QUESTIONS = [
 
       await runGuardedAction("toggle-question", async () => {
         const previousVisible = !!displayState.showQuestion;
-        const previousQuestion = String(displayState.question || "");
-        const previousAnswers = normalizeAnswersForDisplay(displayState.answers);
-        const previousQuestionIndex = Number(controlState.currentQuestionIndex || 0);
-        const previousTotalQuestions = Number(controlState.totalQuestions || 0);
         const nextVisible = !previousVisible;
-        const currentQuestionBundle = getCurrentLocalQuestionBundle();
 
         toggleActionInFlight = true;
-
-        if (currentQuestionBundle.question) {
-          applyLocalQuestionBundle(currentQuestionBundle);
-        }
-
         displayState.showQuestion = nextVisible;
         renderAll();
 
         try {
-          let ok = true;
-
-          if (currentQuestionBundle.question) {
-            ok = await sendGameAction("next_question_bundle", currentQuestionBundle, { skipBusy: true });
-          }
-
-          if (ok) {
-            ok = await sendGameAction("show_question", {
-              visible: nextVisible
-            }, { skipBusy: true });
-          }
+          const ok = await sendGameAction("show_question", {
+            visible: nextVisible
+          }, { skipBusy: true });
 
           if (!ok) {
             displayState.showQuestion = previousVisible;
-            displayState.question = previousQuestion;
-            displayState.answers = previousAnswers;
-            controlState.currentQuestionIndex = previousQuestionIndex;
-            controlState.totalQuestions = previousTotalQuestions;
             renderAll();
             await fetchRemoteGameState({ force: true });
           }
@@ -5099,8 +5077,6 @@ window.FAMILY_FEUD_QUESTIONS = [
         buzzVisible: !!buzz.enabled
       };
 
-      forceDisplayStateToLocalBankOnly();
-
       const questionChanged =
         previousQuestion !== displayState.question ||
         previousQuestionIndex !== controlState.currentQuestionIndex;
@@ -5143,27 +5119,6 @@ window.FAMILY_FEUD_QUESTIONS = [
       });
     }
 
-    function forceDisplayStateToLocalBankOnly() {
-      const bank = getControlQuestionBank();
-      if (!bank.length || !displayState || !controlState) return;
-
-      const currentQuestion = String(displayState.question || "").trim();
-      let localIndex = bank.findIndex((item) => item.question === currentQuestion);
-
-      if (localIndex < 0) {
-        const rawIndex = Number(controlState.currentQuestionIndex || 0);
-        const safeIndex = Number.isFinite(rawIndex) ? Math.floor(rawIndex) : 0;
-        localIndex = ((safeIndex % bank.length) + bank.length) % bank.length;
-
-        const localQuestion = cloneQuestionForApi(bank[localIndex]);
-        displayState.question = String(localQuestion.question || "").trim();
-        displayState.answers = normalizeAnswersForDisplay(localQuestion.answers);
-      }
-
-      controlState.currentQuestionIndex = localIndex;
-      controlState.totalQuestions = bank.length;
-    }
-
     function ensureInitialState() {
       if (!displayState || !Array.isArray(displayState.answers)) {
         const currentBundle = getCurrentLocalQuestionBundle();
@@ -5192,12 +5147,7 @@ window.FAMILY_FEUD_QUESTIONS = [
         saveDisplayState();
       } else {
         displayState.answers = normalizeAnswersForDisplay(displayState.answers);
-
-        controlState = controlState || getDefaultControlState();
-        forceDisplayStateToLocalBankOnly();
-
         saveDisplayState();
-        saveControlState();
       }
 
       if (!controlState) {
@@ -5410,7 +5360,7 @@ window.FAMILY_FEUD_QUESTIONS = [
       const questionNumber = Number(controlState.currentQuestionIndex || 0) + 1;
       questionNumberEl.textContent = `سؤال ${questionNumber}`;
 
-      questionTextEl.textContent = displayState.question || (getControlQuestionBank()[0]?.question || "");
+      questionTextEl.textContent = displayState.question || "نص السؤال";
       firstPlayerBoxEl.textContent = getFirstBuzzLabel();
       firstPlayerBoxEl.classList.toggle("active", !!controlState.firstBuzzName);
 
