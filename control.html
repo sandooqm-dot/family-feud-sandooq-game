@@ -4292,10 +4292,6 @@ window.FAMILY_FEUD_QUESTIONS = [
         const previousTotalQuestions = Number(controlState.totalQuestions || 0);
         const nextVisible = !previousVisible;
         const currentQuestionBundle = getCurrentLocalQuestionBundle();
-        const shouldSyncQuestionBundle =
-          nextVisible &&
-          !!currentQuestionBundle.question &&
-          !questionBundleMatchesDisplay(currentQuestionBundle);
 
         toggleActionInFlight = true;
 
@@ -4307,22 +4303,21 @@ window.FAMILY_FEUD_QUESTIONS = [
         renderAll();
 
         try {
-          if (shouldSyncQuestionBundle) {
-            const bundleOk = await sendGameAction("next_question_bundle", currentQuestionBundle, { skipBusy: true });
+          let questionSynced = true;
 
-            if (!bundleOk) {
-              displayState.showQuestion = previousVisible;
-              displayState.question = previousQuestion;
-              displayState.answers = previousAnswers;
-              controlState.currentQuestionIndex = previousQuestionIndex;
-              controlState.totalQuestions = previousTotalQuestions;
+          if (nextVisible && currentQuestionBundle.question) {
+            questionSynced = await sendGameAction("next_question_bundle", currentQuestionBundle, { skipBusy: true });
+
+            if (questionSynced) {
+              applyLocalQuestionBundle(currentQuestionBundle);
+              displayState.showQuestion = nextVisible;
               renderAll();
-              await fetchRemoteGameState({ force: true });
-              return;
             }
           }
 
-          const ok = await sendGameAction("show_question", { visible: nextVisible }, { skipBusy: true });
+          const ok = questionSynced
+            ? await sendGameAction("show_question", { visible: nextVisible }, { skipBusy: true })
+            : false;
 
           if (!ok) {
             displayState.showQuestion = previousVisible;
@@ -4514,27 +4509,6 @@ window.FAMILY_FEUD_QUESTIONS = [
       saveControlState();
     }
 
-    function questionBundleMatchesDisplay(bundle) {
-      if (!bundle || !bundle.question) return false;
-
-      const bundleQuestion = String(bundle.question.question || "").trim();
-      const displayQuestion = String(displayState?.question || "").trim();
-      if (!bundleQuestion || bundleQuestion !== displayQuestion) return false;
-
-      const bundleAnswers = Array.isArray(bundle.question.answers)
-        ? bundle.question.answers.slice(0, 6)
-        : [];
-      const displayAnswers = normalizeAnswersForDisplay(displayState?.answers);
-
-      if (!bundleAnswers.length || bundleAnswers.length !== displayAnswers.length) return false;
-
-      return bundleAnswers.every((answer, index) => {
-        const displayAnswer = displayAnswers[index];
-        return String(answer.text || "").trim() === String(displayAnswer?.text || "").trim() &&
-          Number(answer.points || 0) === Number(displayAnswer?.points || 0);
-      });
-    }
-
     function getCurrentLocalQuestionBundle() {
       const bank = getControlQuestionBank();
 
@@ -4563,6 +4537,34 @@ window.FAMILY_FEUD_QUESTIONS = [
       };
     }
 
+    function getLocalQuestionBundleByIndex(index) {
+      const bank = getControlQuestionBank();
+
+      if (!bank.length) {
+        return {};
+      }
+
+      const rawIndex = Number(index || 0);
+      const safeIndex = Number.isFinite(rawIndex) ? Math.floor(rawIndex) : 0;
+      const normalizedIndex = ((safeIndex % bank.length) + bank.length) % bank.length;
+      const question = cloneQuestionForApi(bank[normalizedIndex]);
+
+      return {
+        questionIndex: normalizedIndex,
+        totalQuestions: bank.length,
+        question
+      };
+    }
+
+    function getLocalQuestionIndexByText(questionText) {
+      const bank = getControlQuestionBank();
+      const text = String(questionText || "").trim();
+
+      if (!bank.length || !text) return -1;
+
+      return bank.findIndex((item) => item.question === text);
+    }
+
     function getNextLocalQuestionBundle() {
       const bank = getControlQuestionBank();
 
@@ -4573,13 +4575,7 @@ window.FAMILY_FEUD_QUESTIONS = [
       const currentIndex = Number(controlState.currentQuestionIndex || 0);
       const safeCurrent = Number.isFinite(currentIndex) ? Math.floor(currentIndex) : 0;
       const nextIndex = ((safeCurrent + 1) % bank.length + bank.length) % bank.length;
-      const question = cloneQuestionForApi(bank[nextIndex]);
-
-      return {
-        questionIndex: nextIndex,
-        totalQuestions: bank.length,
-        question
-      };
+      return getLocalQuestionBundleByIndex(nextIndex);
     }
 
     async function ensureRoomUsesLocalQuestionBank() {
@@ -4595,15 +4591,12 @@ window.FAMILY_FEUD_QUESTIONS = [
         return;
       }
 
-      const firstQuestion = cloneQuestionForApi(bank[0]);
+      const firstQuestionBundle = getLocalQuestionBundleByIndex(0);
 
-      await sendGameAction("init", {
-        team1Name: String(displayState?.team1Name || readStored("familyfeud_team1") || "الفريق الأول").trim(),
-        team2Name: String(displayState?.team2Name || readStored("familyfeud_team2") || "الفريق الثاني").trim(),
-        questionIndex: 0,
-        totalQuestions: bank.length,
-        question: firstQuestion
-      }, { skipBusy: true });
+      if (firstQuestionBundle.question) {
+        applyLocalQuestionBundle(firstQuestionBundle);
+        await sendGameAction("next_question_bundle", firstQuestionBundle, { skipBusy: true });
+      }
     }
 
     function getApiBases() {
@@ -5128,6 +5121,20 @@ window.FAMILY_FEUD_QUESTIONS = [
         firstBuzzTeam: String(buzz.firstBuzz?.team || ""),
         buzzVisible: !!buzz.enabled
       };
+
+      const remoteQuestionIndexInLocalBank = getLocalQuestionIndexByText(displayState.question);
+
+      if (getControlQuestionBank().length && displayState.question && remoteQuestionIndexInLocalBank < 0) {
+        const previousLocalIndex = getLocalQuestionIndexByText(previousQuestion);
+        const fallbackIndex = previousLocalIndex >= 0 ? previousLocalIndex : previousQuestionIndex;
+        const fallbackBundle = getLocalQuestionBundleByIndex(fallbackIndex);
+
+        if (fallbackBundle.question) {
+          const remoteShowQuestion = !!display.showQuestion;
+          applyLocalQuestionBundle(fallbackBundle);
+          displayState.showQuestion = remoteShowQuestion;
+        }
+      }
 
       const questionChanged =
         previousQuestion !== displayState.question ||
