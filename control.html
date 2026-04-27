@@ -5077,6 +5077,8 @@ window.FAMILY_FEUD_QUESTIONS = [
         buzzVisible: !!buzz.enabled
       };
 
+      forceDisplayStateToLocalBankOnly();
+
       const questionChanged =
         previousQuestion !== displayState.question ||
         previousQuestionIndex !== controlState.currentQuestionIndex;
@@ -5119,6 +5121,27 @@ window.FAMILY_FEUD_QUESTIONS = [
       });
     }
 
+    function forceDisplayStateToLocalBankOnly() {
+      const bank = getControlQuestionBank();
+      if (!bank.length || !displayState || !controlState) return;
+
+      const currentQuestion = String(displayState.question || "").trim();
+      let localIndex = bank.findIndex((item) => item.question === currentQuestion);
+
+      if (localIndex < 0) {
+        const rawIndex = Number(controlState.currentQuestionIndex || 0);
+        const safeIndex = Number.isFinite(rawIndex) ? Math.floor(rawIndex) : 0;
+        localIndex = ((safeIndex % bank.length) + bank.length) % bank.length;
+
+        const localQuestion = cloneQuestionForApi(bank[localIndex]);
+        displayState.question = String(localQuestion.question || "").trim();
+        displayState.answers = normalizeAnswersForDisplay(localQuestion.answers);
+      }
+
+      controlState.currentQuestionIndex = localIndex;
+      controlState.totalQuestions = bank.length;
+    }
+
     function ensureInitialState() {
       if (!displayState || !Array.isArray(displayState.answers)) {
         const currentBundle = getCurrentLocalQuestionBundle();
@@ -5147,7 +5170,12 @@ window.FAMILY_FEUD_QUESTIONS = [
         saveDisplayState();
       } else {
         displayState.answers = normalizeAnswersForDisplay(displayState.answers);
+
+        controlState = controlState || getDefaultControlState();
+        forceDisplayStateToLocalBankOnly();
+
         saveDisplayState();
+        saveControlState();
       }
 
       if (!controlState) {
@@ -5360,7 +5388,7 @@ window.FAMILY_FEUD_QUESTIONS = [
       const questionNumber = Number(controlState.currentQuestionIndex || 0) + 1;
       questionNumberEl.textContent = `سؤال ${questionNumber}`;
 
-      questionTextEl.textContent = displayState.question || "نص السؤال";
+      questionTextEl.textContent = displayState.question || (getControlQuestionBank()[0]?.question || "");
       firstPlayerBoxEl.textContent = getFirstBuzzLabel();
       firstPlayerBoxEl.classList.toggle("active", !!controlState.firstBuzzName);
 
