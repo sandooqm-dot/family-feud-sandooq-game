@@ -39,601 +39,177 @@
       --buzz-name-bg-2:rgba(247,223,106,.14);
     }
 
-    *{
-      box-sizing:border-box;
-      margin:0;
-      padding:0;
-      -webkit-tap-highlight-color:transparent;
-      user-select:none;
-    }
+    *{ box-sizing:border-box; margin:0; padding:0; -webkit-tap-highlight-color:transparent; user-select:none; }
 
-    html{
-      min-height:100%;
-      background:var(--bg-2);
-    }
+    html{ min-height:100%; background:var(--bg-2); }
 
     body{
-      min-height:100%;
-      background:var(--bg-2);
+      min-height:100%; background:var(--bg-2);
       font-family:Arial, "Helvetica Neue", sans-serif;
-      -webkit-text-size-adjust:100%;
-      text-size-adjust:100%;
-      overflow-x:hidden;
-      overflow-y:auto;
-      -webkit-overflow-scrolling:touch;
-      overscroll-behavior-y:auto;
+      -webkit-text-size-adjust:100%; text-size-adjust:100%;
+      overflow-x:hidden; overflow-y:auto; -webkit-overflow-scrolling:touch; overscroll-behavior-y:auto;
     }
 
     .page{
-      width:100%;
-      min-height:calc(var(--app-height) + var(--safari-nudge));
+      width:100%; min-height:calc(var(--app-height) + var(--safari-nudge));
       background:
         radial-gradient(circle, rgba(150,170,231,.95) 0 4px, transparent 4.6px) 0 0 / 48px 48px,
         linear-gradient(180deg, var(--bg-1) 0%, var(--bg-2) 100%);
     }
 
-    .fit-root{
-      position:relative;
-      width:100%;
-      height:var(--app-height);
-      overflow:hidden;
-    }
-
-    .page-spacer{
-      height:var(--safari-nudge);
-      pointer-events:none;
-    }
+    .fit-root{ position:relative; width:100%; height:var(--app-height); overflow:hidden; }
+    .page-spacer{ height:var(--safari-nudge); pointer-events:none; }
 
     .game-shell{
-      position:absolute;
-      left:50%;
-      top:50%;
-      width:1600px;
-      height:768px;
-      transform:translate(-50%, -50%) scale(var(--app-scale));
-      transform-origin:center center;
-      overflow:hidden;
-      direction:rtl;
+      position:absolute; left:50%; top:50%; width:1600px; height:768px;
+      transform:translate(-50%, -50%) scale(var(--app-scale)); transform-origin:center center;
+      overflow:hidden; direction:rtl;
     }
 
-    .store-logo{
-      position:absolute;
-      top:12px;
-      left:16px;
-      width:145px;
-      height:92px;
-      object-fit:contain;
-      z-index:5;
-    }
-
-    .game-logo{
-      position:absolute;
-      top:10px;
-      right:16px;
-      width:150px;
-      height:88px;
-      object-fit:contain;
-      z-index:5;
-    }
+    .store-logo{ position:absolute; top:12px; left:16px; width:145px; height:92px; object-fit:contain; z-index:5; }
+    .game-logo{ position:absolute; top:10px; right:16px; width:150px; height:88px; object-fit:contain; z-index:5; }
 
     .question-box{
-      position:absolute;
-      top:34px;
-      left:50%;
-      transform:translateX(-50%);
-      width:888px;
-      height:150px;
-      border-radius:34px;
-      border:6px solid var(--gold);
-      background:linear-gradient(180deg, #0a1d56 0%, #08173d 100%);
-      display:flex;
-      align-items:center;
-      justify-content:center;
-      box-shadow:
-        inset 0 0 0 1px rgba(255,255,255,.04),
-        0 10px 20px rgba(0,0,0,.08);
+      position:absolute; top:34px; left:50%; transform:translateX(-50%); width:888px; height:150px;
+      border-radius:34px; border:6px solid var(--gold); background:linear-gradient(180deg, #0a1d56 0%, #08173d 100%);
+      display:flex; align-items:center; justify-content:center;
+      box-shadow:inset 0 0 0 1px rgba(255,255,255,.04), 0 10px 20px rgba(0,0,0,.08);
       overflow:hidden;
     }
 
     .question-text{
-      width:100%;
-      height:100%;
-      padding:0 32px;
-      display:flex;
-      align-items:center;
-      justify-content:center;
-      text-align:center;
-      color:var(--white);
-      font-size:58px;
-      line-height:1.1;
-      font-weight:900;
-      white-space:nowrap;
-      overflow:hidden;
-      text-overflow:ellipsis;
-      opacity:1;
-      visibility:visible;
+      width:100%; height:100%; padding:0 32px; display:flex; align-items:center; justify-content:center; text-align:center;
+      color:var(--white); font-size:58px; line-height:1.1; font-weight:900; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+      opacity:1; visibility:visible;
     }
 
-    .question-text.is-hidden{
-      opacity:0 !important;
-      visibility:hidden !important;
-      color:transparent !important;
-      text-shadow:none !important;
-    }
+    .question-text.is-hidden{ opacity:0 !important; visibility:hidden !important; color:transparent !important; text-shadow:none !important; }
 
     .round-box{
-      position:absolute;
-      top:194px;
-      left:50%;
-      transform:translateX(-50%);
-      width:250px;
-      height:112px;
-      border-radius:30px;
-      border:6px solid var(--gold);
-      background:linear-gradient(180deg, #0a1d56 0%, #08173d 100%);
-      display:flex;
-      flex-direction:column;
-      align-items:center;
-      justify-content:center;
-      z-index:4;
-      box-shadow:0 8px 16px rgba(0,0,0,.08);
+      position:absolute; top:194px; left:50%; transform:translateX(-50%); width:250px; height:112px;
+      border-radius:30px; border:6px solid var(--gold); background:linear-gradient(180deg, #0a1d56 0%, #08173d 100%);
+      display:flex; flex-direction:column; align-items:center; justify-content:center; z-index:4; box-shadow:0 8px 16px rgba(0,0,0,.08);
     }
 
-    .round-label{
-      color:var(--white);
-      font-size:24px;
-      line-height:1;
-      font-weight:900;
-      margin-bottom:8px;
-    }
-
-    .round-score{
-      color:var(--gold);
-      font-size:60px;
-      line-height:1;
-      font-weight:900;
-    }
+    .round-label{ color:var(--white); font-size:24px; line-height:1; font-weight:900; margin-bottom:8px; }
+    .round-score{ color:var(--gold); font-size:60px; line-height:1; font-weight:900; }
 
     .board{
-      position:absolute;
-      top:288px;
-      left:50%;
-      transform:translateX(-50%);
-      width:888px;
-      height:372px;
-      border-radius:36px;
-      border:7px solid var(--board-gold);
-      background:#2b47ad;
-      box-shadow: inset 0 0 0 1px rgba(255,255,255,.04);
+      position:absolute; top:288px; left:50%; transform:translateX(-50%); width:888px; height:372px;
+      border-radius:36px; border:7px solid var(--board-gold); background:#2b47ad; box-shadow: inset 0 0 0 1px rgba(255,255,255,.04);
     }
 
-    .answers-grid{
-      position:absolute;
-      inset:24px 22px 24px 22px;
-      display:grid;
-      grid-template-columns:1fr 1fr;
-      grid-template-rows:repeat(3, 1fr);
-      gap:16px 24px;
-      direction:ltr;
-    }
-
-    .answer-slot{
-      position:relative;
-      width:100%;
-      height:100%;
-      perspective:1200px;
-      border-radius:32px;
-    }
-
-    .answer-flip{
-      position:relative;
-      width:100%;
-      height:100%;
-      transform-style:preserve-3d;
-      border-radius:32px;
-    }
-
-    .answer-slot.is-revealed .answer-flip{
-      transform:rotateX(180deg);
-    }
-
-    .answer-slot.just-revealed .answer-flip{
-      animation:answerFlipReveal .72s cubic-bezier(.22,.9,.2,1) forwards;
-    }
+    .answers-grid{ position:absolute; inset:24px 22px 24px 22px; display:grid; grid-template-columns:1fr 1fr; grid-template-rows:repeat(3, 1fr); gap:16px 24px; direction:ltr; }
+    .answer-slot{ position:relative; width:100%; height:100%; perspective:1200px; border-radius:32px; }
+    .answer-flip{ position:relative; width:100%; height:100%; transform-style:preserve-3d; border-radius:32px; }
+    .answer-slot.is-revealed .answer-flip{ transform:rotateX(180deg); }
+    .answer-slot.just-revealed .answer-flip{ animation:answerFlipReveal .72s cubic-bezier(.22,.9,.2,1) forwards; }
 
     .answer-face{
-      position:absolute;
-      inset:0;
-      width:100%;
-      height:100%;
-      border-radius:32px;
-      border:4px solid rgba(246,242,232,.96);
-      background:linear-gradient(180deg, var(--answer-b) 0%, var(--answer-a) 100%);
-      overflow:hidden;
-      box-shadow: inset 0 0 0 1px rgba(255,255,255,.04);
-      backface-visibility:hidden;
-      -webkit-backface-visibility:hidden;
+      position:absolute; inset:0; width:100%; height:100%; border-radius:32px; border:4px solid rgba(246,242,232,.96);
+      background:linear-gradient(180deg, var(--answer-b) 0%, var(--answer-a) 100%); overflow:hidden;
+      box-shadow: inset 0 0 0 1px rgba(255,255,255,.04); backface-visibility:hidden; -webkit-backface-visibility:hidden;
     }
 
-    .answer-front{
-      display:flex;
-      align-items:center;
-      justify-content:center;
-      transform:rotateX(0deg);
-    }
-
-    .answer-back{
-      display:flex;
-      align-items:center;
-      justify-content:center;
-      padding:0 84px 0 78px;
-      transform:rotateX(180deg);
-    }
+    .answer-front{ display:flex; align-items:center; justify-content:center; transform:rotateX(0deg); }
+    .answer-back{ display:flex; align-items:center; justify-content:center; padding:0 84px 0 78px; transform:rotateX(180deg); }
 
     .rank-circle{
-      width:60px;
-      height:60px;
-      border-radius:50%;
-      border:4px solid #d9d9d9;
-      display:flex;
-      align-items:center;
-      justify-content:center;
-      color:var(--white);
-      font-size:30px;
-      font-weight:900;
-      background:rgba(7,23,62,.14);
-      box-shadow: inset 0 0 0 1px rgba(255,255,255,.03);
-      line-height:1;
+      width:60px; height:60px; border-radius:50%; border:4px solid #d9d9d9; display:flex; align-items:center; justify-content:center;
+      color:var(--white); font-size:30px; font-weight:900; background:rgba(7,23,62,.14); box-shadow: inset 0 0 0 1px rgba(255,255,255,.03); line-height:1;
     }
 
     .answer-points{
-      position:absolute;
-      left:14px;
-      top:50%;
-      transform:translateY(-50%);
-      width:58px;
-      height:58px;
-      border-radius:50%;
-      border:4px solid #171717;
-      background:var(--gold);
-      color:#000;
-      display:flex;
-      align-items:center;
-      justify-content:center;
-      font-size:28px;
-      font-weight:900;
-      line-height:1;
-      z-index:2;
+      position:absolute; left:14px; top:50%; transform:translateY(-50%); width:58px; height:58px; border-radius:50%; border:4px solid #171717;
+      background:var(--gold); color:#000; display:flex; align-items:center; justify-content:center; font-size:28px; font-weight:900; line-height:1; z-index:2;
     }
 
     .answer-label{
-      width:100%;
-      height:100%;
-      display:flex;
-      align-items:center;
-      justify-content:center;
-      text-align:center;
-      color:var(--white);
-      font-size:38px;
-      line-height:1.15;
-      font-weight:900;
-      white-space:nowrap;
-      overflow:hidden;
-      text-overflow:ellipsis;
-      padding:0 10px;
+      width:100%; height:100%; display:flex; align-items:center; justify-content:center; text-align:center; color:var(--white);
+      font-size:38px; line-height:1.15; font-weight:900; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; padding:0 10px;
     }
 
     .team-panel{
-      position:absolute;
-      top:126px;
-      width:252px;
-      height:494px;
-      border-radius:36px;
-      border:8px solid var(--panel-border);
+      position:absolute; top:126px; width:252px; height:494px; border-radius:36px; border:8px solid var(--panel-border);
       background:linear-gradient(180deg, #0b2270 0%, #091f64 100%);
-      box-shadow:
-        inset 0 0 0 1px rgba(255,255,255,.04),
-        0 10px 22px rgba(0,0,0,.10);
-      display:flex;
-      flex-direction:column;
-      align-items:center;
-      transition:
-        border-color .22s ease,
-        box-shadow .22s ease,
-        transform .22s ease;
+      box-shadow:inset 0 0 0 1px rgba(255,255,255,.04), 0 10px 22px rgba(0,0,0,.10);
+      display:flex; flex-direction:column; align-items:center; transition:border-color .22s ease, box-shadow .22s ease, transform .22s ease;
     }
-
-    .team-panel.left{
-      left:26px;
-    }
-
-    .team-panel.right{
-      right:26px;
-    }
+    .team-panel.left{ left:26px; }
+    .team-panel.right{ right:26px; }
 
     .team-panel.first-buzz-active{
       border-color:var(--buzz-glow);
-      box-shadow:
-        inset 0 0 0 1px rgba(255,255,255,.06),
-        0 0 0 4px var(--buzz-glow-soft),
-        0 0 28px rgba(247,223,106,.34),
-        0 10px 22px rgba(0,0,0,.12);
+      box-shadow:inset 0 0 0 1px rgba(255,255,255,.06), 0 0 0 4px var(--buzz-glow-soft), 0 0 28px rgba(247,223,106,.34), 0 10px 22px rgba(0,0,0,.12);
       transform:translateY(-2px);
     }
 
     .team-panel.turn-active{
       border-color:var(--buzz-glow);
-      box-shadow:
-        inset 0 0 0 1px rgba(255,255,255,.06),
-        0 0 0 4px var(--buzz-glow-soft),
-        0 0 28px rgba(247,223,106,.34),
-        0 10px 22px rgba(0,0,0,.12);
+      box-shadow:inset 0 0 0 1px rgba(255,255,255,.06), 0 0 0 4px var(--buzz-glow-soft), 0 0 28px rgba(247,223,106,.34), 0 10px 22px rgba(0,0,0,.12);
     }
 
     .team-name{
-      margin-top:34px;
-      width:calc(100% - 22px);
-      height:74px;
-      padding:0 14px;
-      display:flex;
-      align-items:center;
-      justify-content:center;
-      text-align:center;
-      color:var(--white);
-      font-size:48px;
-      line-height:1.1;
-      font-weight:900;
-      white-space:nowrap;
-      overflow:hidden;
-      text-overflow:ellipsis;
-      border-radius:22px;
-      transition:
-        background .22s ease,
-        box-shadow .22s ease,
-        border-color .22s ease;
+      margin-top:34px; width:calc(100% - 22px); height:74px; padding:0 14px;
+      display:flex; align-items:center; justify-content:center; text-align:center; color:var(--white); font-size:48px; line-height:1.1; font-weight:900;
+      white-space:nowrap; overflow:hidden; text-overflow:ellipsis; border-radius:22px; transition:background .22s ease, box-shadow .22s ease, border-color .22s ease;
     }
 
     .team-name.first-buzz-active{
       background:linear-gradient(180deg, var(--buzz-name-bg-1) 0%, var(--buzz-name-bg-2) 100%);
-      box-shadow:
-        inset 0 0 0 3px rgba(247,223,106,.24),
-        0 0 18px rgba(247,223,106,.16);
+      box-shadow:inset 0 0 0 3px rgba(247,223,106,.24), 0 0 18px rgba(247,223,106,.16);
     }
 
-    .team-score-box{
-      margin-top:28px;
-      width:184px;
-      height:112px;
-      border-radius:32px;
-      border:5px solid var(--gold);
-      background:var(--score-black);
-      display:flex;
-      align-items:center;
-      justify-content:center;
-      box-shadow: inset 0 0 0 1px rgba(255,255,255,.03);
-    }
+    .team-score-box{ margin-top:28px; width:184px; height:112px; border-radius:32px; border:5px solid var(--gold); background:var(--score-black); display:flex; align-items:center; justify-content:center; box-shadow: inset 0 0 0 1px rgba(255,255,255,.03); }
+    .team-score{ color:var(--gold); font-size:86px; line-height:1; font-weight:900; transform:translateY(-2px); }
+    .strikes-label{ margin-top:58px; color:var(--white); font-size:22px; line-height:1.1; font-weight:900; opacity:.95; }
+    .strikes-row{ margin-top:20px; display:flex; gap:16px; align-items:center; justify-content:center; direction:ltr; }
+    .strike{ font-size:84px; line-height:1; font-weight:900; color:var(--strike-off); transform:scale(.95); text-shadow:0 2px 0 rgba(0,0,0,.10); }
+    .strike.active{ color:var(--strike-on); text-shadow:0 0 10px rgba(255,44,63,.35), 0 3px 0 rgba(0,0,0,.15); }
 
-    .team-score{
-      color:var(--gold);
-      font-size:86px;
-      line-height:1;
-      font-weight:900;
-      transform:translateY(-2px);
-    }
-
-    .strikes-label{
-      margin-top:58px;
-      color:var(--white);
-      font-size:22px;
-      line-height:1.1;
-      font-weight:900;
-      opacity:.95;
-    }
-
-    .strikes-row{
-      margin-top:20px;
-      display:flex;
-      gap:16px;
-      align-items:center;
-      justify-content:center;
-      direction:ltr;
-    }
-
-    .strike{
-      font-size:84px;
-      line-height:1;
-      font-weight:900;
-      color:var(--strike-off);
-      transform:scale(.95);
-      text-shadow:0 2px 0 rgba(0,0,0,.10);
-    }
-
-    .strike.active{
-      color:var(--strike-on);
-      text-shadow:
-        0 0 10px rgba(255,44,63,.35),
-        0 3px 0 rgba(0,0,0,.15);
-    }
-
-    .strike-effect-layer{
-      position:absolute;
-      inset:0;
-      z-index:60;
-      pointer-events:none;
-      display:flex;
-      align-items:center;
-      justify-content:center;
-      opacity:0;
-    }
-
-    .strike-effect-layer.show{
-      opacity:1;
-    }
+    .strike-effect-layer{ position:absolute; inset:0; z-index:60; pointer-events:none; display:flex; align-items:center; justify-content:center; opacity:0; }
+    .strike-effect-layer.show{ opacity:1; }
 
     .big-strike-x{
-      position:absolute;
-      left:50%;
-      top:50%;
-      transform:translate(-50%, -50%) scale(.65);
-      color:#ff2638;
-      font-size:310px;
-      font-weight:900;
-      line-height:1;
-      opacity:0;
-      text-shadow:
-        0 0 18px rgba(255,255,255,.55),
-        0 0 42px rgba(255,38,56,.65),
-        0 12px 0 rgba(0,0,0,.25);
+      position:absolute; left:50%; top:50%; transform:translate(-50%, -50%) scale(.65); color:#ff2638; font-size:310px; font-weight:900; line-height:1; opacity:0;
+      text-shadow:0 0 18px rgba(255,255,255,.55), 0 0 42px rgba(255,38,56,.65), 0 12px 0 rgba(0,0,0,.25);
     }
-
-    .strike-effect-layer.show-x .big-strike-x{
-      animation:bigStrikePop 2s ease forwards;
-    }
+    .strike-effect-layer.show-x .big-strike-x{ animation:bigStrikePop 2s ease forwards; }
 
     .transfer-message-box{
-      position:absolute;
-      left:50%;
-      top:50%;
-      width:760px;
-      min-height:154px;
-      transform:translate(-50%, -50%) scale(.9);
-      border-radius:34px;
-      border:7px solid var(--gold);
-      background:linear-gradient(180deg, #0a1d56 0%, #08173d 100%);
-      color:var(--white);
-      display:flex;
-      align-items:center;
-      justify-content:center;
-      text-align:center;
-      padding:20px 32px;
-      font-size:52px;
-      line-height:1.25;
-      font-weight:900;
-      opacity:0;
-      box-shadow:
-        0 18px 40px rgba(0,0,0,.35),
-        inset 0 0 0 1px rgba(255,255,255,.05);
+      position:absolute; left:50%; top:50%; width:760px; min-height:154px; transform:translate(-50%, -50%) scale(.9);
+      border-radius:34px; border:7px solid var(--gold); background:linear-gradient(180deg, #0a1d56 0%, #08173d 100%);
+      color:var(--white); display:flex; align-items:center; justify-content:center; text-align:center; padding:20px 32px; font-size:52px; line-height:1.25; font-weight:900; opacity:0;
+      box-shadow:0 18px 40px rgba(0,0,0,.35), inset 0 0 0 1px rgba(255,255,255,.05);
     }
-
-    .strike-effect-layer.show-transfer .transfer-message-box{
-      animation:transferMessagePop 1.85s ease forwards;
-    }
+    .strike-effect-layer.show-transfer .transfer-message-box{ animation:transferMessagePop 1.85s ease forwards; }
 
     .audio-choice-box{
-      position:absolute;
-      left:50%;
-      top:50%;
-      transform:translate(-50%, -50%);
-      width:640px;
-      min-height:250px;
-      border-radius:34px;
-      border:7px solid var(--gold);
-      background:linear-gradient(180deg, #0a1d56 0%, #08173d 100%);
-      z-index:120;
-      display:none;
-      flex-direction:column;
-      align-items:center;
-      justify-content:center;
-      text-align:center;
-      padding:28px 28px 24px;
-      box-shadow:
-        0 18px 40px rgba(0,0,0,.35),
-        inset 0 0 0 1px rgba(255,255,255,.05);
+      position:absolute; left:50%; top:50%; transform:translate(-50%, -50%); width:640px; min-height:250px;
+      border-radius:34px; border:7px solid var(--gold); background:linear-gradient(180deg, #0a1d56 0%, #08173d 100%);
+      z-index:120; display:none; flex-direction:column; align-items:center; justify-content:center; text-align:center; padding:28px 28px 24px;
+      box-shadow:0 18px 40px rgba(0,0,0,.35), inset 0 0 0 1px rgba(255,255,255,.05);
     }
+    .audio-choice-box.show{ display:flex; }
+    .audio-choice-title{ color:var(--gold); font-size:54px; font-weight:900; line-height:1.1; margin-bottom:18px; }
+    .audio-choice-text{ color:var(--white); font-size:34px; font-weight:900; line-height:1.25; margin-bottom:28px; }
+    .audio-choice-actions{ display:flex; align-items:center; justify-content:center; gap:22px; direction:rtl; }
+    .audio-choice-btn{ min-width:190px; height:78px; border:none; border-radius:26px; color:var(--white); font-size:34px; font-weight:900; cursor:pointer; border:4px solid rgba(255,255,255,.92); }
+    .audio-choice-btn.yes{ background:linear-gradient(180deg, var(--green-1) 0%, var(--green-2) 100%); }
+    .audio-choice-btn.no{ background:linear-gradient(180deg, var(--red-1) 0%, var(--red-2) 100%); }
 
-    .audio-choice-box.show{
-      display:flex;
-    }
-
-    .audio-choice-title{
-      color:var(--gold);
-      font-size:54px;
-      font-weight:900;
-      line-height:1.1;
-      margin-bottom:18px;
-    }
-
-    .audio-choice-text{
-      color:var(--white);
-      font-size:34px;
-      font-weight:900;
-      line-height:1.25;
-      margin-bottom:28px;
-    }
-
-    .audio-choice-actions{
-      display:flex;
-      align-items:center;
-      justify-content:center;
-      gap:22px;
-      direction:rtl;
-    }
-
-    .audio-choice-btn{
-      min-width:190px;
-      height:78px;
-      border:none;
-      border-radius:26px;
-      color:var(--white);
-      font-size:34px;
-      font-weight:900;
-      cursor:pointer;
-      border:4px solid rgba(255,255,255,.92);
-    }
-
-    .audio-choice-btn.yes{
-      background:linear-gradient(180deg, var(--green-1) 0%, var(--green-2) 100%);
-    }
-
-    .audio-choice-btn.no{
-      background:linear-gradient(180deg, var(--red-1) 0%, var(--red-2) 100%);
-    }
-
-    @keyframes answerFlipReveal{
-      0%{
-        transform:rotateX(0deg);
-      }
-      100%{
-        transform:rotateX(180deg);
-      }
-    }
-
+    @keyframes answerFlipReveal{ 0%{ transform:rotateX(0deg); } 100%{ transform:rotateX(180deg); } }
     @keyframes bigStrikePop{
-      0%{
-        opacity:0;
-        transform:translate(-50%, -50%) scale(.45) rotate(-6deg);
-      }
-      12%{
-        opacity:1;
-        transform:translate(-50%, -50%) scale(1.08) rotate(0deg);
-      }
-      78%{
-        opacity:1;
-        transform:translate(-50%, -50%) scale(1);
-      }
-      100%{
-        opacity:0;
-        transform:translate(-50%, -50%) scale(.92);
-      }
+      0%{ opacity:0; transform:translate(-50%, -50%) scale(.45) rotate(-6deg); }
+      12%{ opacity:1; transform:translate(-50%, -50%) scale(1.08) rotate(0deg); }
+      78%{ opacity:1; transform:translate(-50%, -50%) scale(1); }
+      100%{ opacity:0; transform:translate(-50%, -50%) scale(.92); }
     }
-
     @keyframes transferMessagePop{
-      0%{
-        opacity:0;
-        transform:translate(-50%, -50%) scale(.84);
-      }
-      14%{
-        opacity:1;
-        transform:translate(-50%, -50%) scale(1.03);
-      }
-      78%{
-        opacity:1;
-        transform:translate(-50%, -50%) scale(1);
-      }
-      100%{
-        opacity:0;
-        transform:translate(-50%, -50%) scale(.94);
-      }
+      0%{ opacity:0; transform:translate(-50%, -50%) scale(.84); }
+      14%{ opacity:1; transform:translate(-50%, -50%) scale(1.03); }
+      78%{ opacity:1; transform:translate(-50%, -50%) scale(1); }
+      100%{ opacity:0; transform:translate(-50%, -50%) scale(.94); }
     }
   </style>
 </head>
@@ -646,49 +222,24 @@
         <img id="storeLogo" class="store-logo" src="logo.PNG" alt="صندوق المسابقات">
         <img id="gameLogo" class="game-logo" src="logo-family-feud.PNG" alt="فاميلي فيود">
 
-        <div class="question-box">
-          <div id="questionText" class="question-text"></div>
-        </div>
+        <div class="question-box"><div id="questionText" class="question-text"></div></div>
 
-        <div class="round-box">
-          <div class="round-label">نقاط الجولة</div>
-          <div id="roundScore" class="round-score">0</div>
-        </div>
+        <div class="round-box"><div class="round-label">نقاط الجولة</div><div id="roundScore" class="round-score">0</div></div>
 
         <aside id="teamTwoPanel" class="team-panel left">
           <div id="teamTwoName" class="team-name">الفريق الثاني</div>
-
-          <div class="team-score-box">
-            <div id="teamTwoScore" class="team-score">0</div>
-          </div>
-
+          <div class="team-score-box"><div id="teamTwoScore" class="team-score">0</div></div>
           <div class="strikes-label">الأخطاء</div>
-
-          <div id="teamTwoStrikes" class="strikes-row">
-            <div class="strike">X</div>
-            <div class="strike">X</div>
-            <div class="strike">X</div>
-          </div>
+          <div id="teamTwoStrikes" class="strikes-row"><div class="strike">X</div><div class="strike">X</div><div class="strike">X</div></div>
         </aside>
 
-        <div class="board">
-          <div id="answersGrid" class="answers-grid"></div>
-        </div>
+        <div class="board"><div id="answersGrid" class="answers-grid"></div></div>
 
         <aside id="teamOnePanel" class="team-panel right">
           <div id="teamOneName" class="team-name">الفريق الأول</div>
-
-          <div class="team-score-box">
-            <div id="teamOneScore" class="team-score">0</div>
-          </div>
-
+          <div class="team-score-box"><div id="teamOneScore" class="team-score">0</div></div>
           <div class="strikes-label">الأخطاء</div>
-
-          <div id="teamOneStrikes" class="strikes-row">
-            <div class="strike">X</div>
-            <div class="strike">X</div>
-            <div class="strike">X</div>
-          </div>
+          <div id="teamOneStrikes" class="strikes-row"><div class="strike">X</div><div class="strike">X</div><div class="strike">X</div></div>
         </aside>
 
         <div id="strikeEffectLayer" class="strike-effect-layer" aria-hidden="true">
@@ -705,26 +256,3571 @@
           </div>
         </div>
 
-        <audio id="answerSound" preload="auto" playsinline webkit-playsinline>
-          <source src="answer.MP4" type="audio/mp4">
-        </audio>
-
-        <audio id="wrongSound" preload="auto" playsinline webkit-playsinline>
-          <source src="rong.mp3" type="audio/mpeg">
-        </audio>
+        <audio id="answerSound" preload="auto" playsinline webkit-playsinline><source src="answer.MP4" type="audio/mp4"></audio>
+        <audio id="wrongSound" preload="auto" playsinline webkit-playsinline><source src="rong.mp3" type="audio/mpeg"></audio>
 
       </div>
     </div>
-
     <div class="page-spacer" aria-hidden="true"></div>
   </main>
 
   <script src="https://js.pusher.com/8.4.0/pusher.min.js"></script>
   <script>
+window.FAMILY_FEUD_QUESTIONS = [
+  {
+    "question": "إضافة شعبية تنحط مع الشاي الأحمر لتعطيه نكهة؟",
+    "answers": [
+      {
+        "text": "نعناع",
+        "points": 40
+      },
+      {
+        "text": "حبق",
+        "points": 30
+      },
+      {
+        "text": "سكر زيادة",
+        "points": 15
+      },
+      {
+        "text": "ليمون",
+        "points": 10
+      },
+      {
+        "text": "قرنفل / مسمار",
+        "points": 5
+      }
+    ]
+  },
+  {
+    "question": "أكلة تعتبر الخيار الأول للضيافة في العزايم الكبيرة؟",
+    "answers": [
+      {
+        "text": "مفطح / كبسة لحم",
+        "points": 31
+      },
+      {
+        "text": "مندي",
+        "points": 22
+      },
+      {
+        "text": "مظبي",
+        "points": 17
+      },
+      {
+        "text": "مثلوثة",
+        "points": 13
+      },
+      {
+        "text": "حاشي",
+        "points": 10
+      },
+      {
+        "text": "سليق",
+        "points": 7
+      }
+    ]
+  },
+  {
+    "question": "أكمل الفراغ في هذه الجملة الشهيرة: يا زين...",
+    "answers": [
+      {
+        "text": "الجو",
+        "points": 31
+      },
+      {
+        "text": "النوم",
+        "points": 22
+      },
+      {
+        "text": "العافية",
+        "points": 17
+      },
+      {
+        "text": "البرد / الشتاء",
+        "points": 13
+      },
+      {
+        "text": "أيام زمان",
+        "points": 10
+      },
+      {
+        "text": "الصمت / السكوت",
+        "points": 7
+      }
+    ]
+  },
+  {
+    "question": "لعبة تلعبها العائلة في الجمعات والاستراحات؟",
+    "answers": [
+      {
+        "text": "بلوت",
+        "points": 40
+      },
+      {
+        "text": "أونو",
+        "points": 25
+      },
+      {
+        "text": "جاكارو",
+        "points": 15
+      },
+      {
+        "text": "كيرم",
+        "points": 10
+      },
+      {
+        "text": "لودو ستار",
+        "points": 10
+      }
+    ]
+  },
+  {
+    "question": "عذر مشهور تقوله عشان تعتذر عن عزيمة أو طلعة؟",
+    "answers": [
+      {
+        "text": "مريض / تعبان",
+        "points": 35
+      },
+      {
+        "text": "عندي شغل / دوام",
+        "points": 30
+      },
+      {
+        "text": "الأهل محتاجيني",
+        "points": 15
+      },
+      {
+        "text": "سيارتي خربانة",
+        "points": 10
+      },
+      {
+        "text": "نمت وراحت علي",
+        "points": 10
+      }
+    ]
+  },
+  {
+    "question": "شيء دائماً يضيع أو تلخبط فيه في العزائم والمناسبات العائلية الكبيرة؟",
+    "answers": [
+      {
+        "text": "النعال / الجزم",
+        "points": 31
+      },
+      {
+        "text": "الجوال",
+        "points": 22
+      },
+      {
+        "text": "الشواحن",
+        "points": 17
+      },
+      {
+        "text": "الأطفال",
+        "points": 13
+      },
+      {
+        "text": "الملاعق / الفناجيل",
+        "points": 10
+      },
+      {
+        "text": "المفاتيح",
+        "points": 7
+      }
+    ]
+  },
+  {
+    "question": "شيء تراه في السماء ليلاً؟",
+    "answers": [
+      {
+        "text": "القمر",
+        "points": 40
+      },
+      {
+        "text": "النجوم",
+        "points": 30
+      },
+      {
+        "text": "الطائرات",
+        "points": 15
+      },
+      {
+        "text": "الغيوم",
+        "points": 10
+      },
+      {
+        "text": "الشهب",
+        "points": 5
+      }
+    ]
+  },
+  {
+    "question": "شيء تشوفه غالباً في محطة البنزين على الطريق السريع؟",
+    "answers": [
+      {
+        "text": "بقالة / تموينات",
+        "points": 35
+      },
+      {
+        "text": "كوفي شوب درايف ثرو",
+        "points": 25
+      },
+      {
+        "text": "صراف آلي",
+        "points": 20
+      },
+      {
+        "text": "مسجد / دورات مياه",
+        "points": 10
+      },
+      {
+        "text": "بنشر / ورشة إطارات",
+        "points": 10
+      }
+    ]
+  },
+  {
+    "question": "تصرف يسويه الشخص إذا عصب أو تنرفز؟",
+    "answers": [
+      {
+        "text": "يرفع صوته / يصارخ",
+        "points": 35
+      },
+      {
+        "text": "يسكت ويقفل على نفسه",
+        "points": 25
+      },
+      {
+        "text": "يتعوذ من إبليس / يستغفر",
+        "points": 20
+      },
+      {
+        "text": "يطلع من المكان",
+        "points": 10
+      },
+      {
+        "text": "يكسر أو يرمي شيء",
+        "points": 10
+      }
+    ]
+  },
+  {
+    "question": "عضو من أعضاء الوجه؟",
+    "answers": [
+      {
+        "text": "العين",
+        "points": 40
+      },
+      {
+        "text": "الأنف / الخشم",
+        "points": 25
+      },
+      {
+        "text": "الفم",
+        "points": 15
+      },
+      {
+        "text": "الأذن",
+        "points": 10
+      },
+      {
+        "text": "الحاجب",
+        "points": 10
+      }
+    ]
+  },
+  {
+    "question": "شيء تلبسه في قدمك؟",
+    "answers": [
+      {
+        "text": "حذاء / جزمة",
+        "points": 40
+      },
+      {
+        "text": "جوارب / شرابات",
+        "points": 30
+      },
+      {
+        "text": "شبشب / نعال",
+        "points": 15
+      },
+      {
+        "text": "بوت أمان",
+        "points": 10
+      },
+      {
+        "text": "صندل",
+        "points": 5
+      }
+    ]
+  },
+  {
+    "question": "لون طبيعي لشعر الإنسان؟",
+    "answers": [
+      {
+        "text": "أسود",
+        "points": 40
+      },
+      {
+        "text": "بني",
+        "points": 30
+      },
+      {
+        "text": "أشقر",
+        "points": 15
+      },
+      {
+        "text": "أبيض / شيب",
+        "points": 10
+      },
+      {
+        "text": "أحمر",
+        "points": 5
+      }
+    ]
+  },
+  {
+    "question": "إضافة تطلبها غالباً مع وجبة البروستد؟",
+    "answers": [
+      {
+        "text": "ثوم",
+        "points": 40
+      },
+      {
+        "text": "بطاطس زيادة",
+        "points": 25
+      },
+      {
+        "text": "حمص",
+        "points": 15
+      },
+      {
+        "text": "مشروب غازي",
+        "points": 10
+      },
+      {
+        "text": "خبز زيادة",
+        "points": 10
+      }
+    ]
+  },
+  {
+    "question": "شيء أساسي ومطلوب لفتح حساب بنكي جديد؟",
+    "answers": [
+      {
+        "text": "الهوية الوطنية",
+        "points": 40
+      },
+      {
+        "text": "رقم جوال مسجل باسمك",
+        "points": 30
+      },
+      {
+        "text": "حساب أبشر",
+        "points": 15
+      },
+      {
+        "text": "العنوان الوطني",
+        "points": 10
+      },
+      {
+        "text": "البريد الإلكتروني",
+        "points": 5
+      }
+    ]
+  },
+  {
+    "question": "شيء تستخدمه لمعرفة الوقت؟",
+    "answers": [
+      {
+        "text": "ساعة اليد",
+        "points": 40
+      },
+      {
+        "text": "الجوال",
+        "points": 30
+      },
+      {
+        "text": "ساعة الحائط",
+        "points": 15
+      },
+      {
+        "text": "الشمس / الظل",
+        "points": 10
+      },
+      {
+        "text": "راديو السيارة",
+        "points": 5
+      }
+    ]
+  },
+  {
+    "question": "نوع مشهور من أنواع التمور في السعودية؟",
+    "answers": [
+      {
+        "text": "خلاص",
+        "points": 40
+      },
+      {
+        "text": "سكري",
+        "points": 25
+      },
+      {
+        "text": "عجوة",
+        "points": 15
+      },
+      {
+        "text": "صقعي",
+        "points": 10
+      },
+      {
+        "text": "برحي",
+        "points": 10
+      }
+    ]
+  },
+  {
+    "question": "فاكهة الناس تأكلها بقشرها؟",
+    "answers": [
+      {
+        "text": "تفاح",
+        "points": 40
+      },
+      {
+        "text": "عنب",
+        "points": 25
+      },
+      {
+        "text": "خوخ",
+        "points": 15
+      },
+      {
+        "text": "كمثرى",
+        "points": 10
+      },
+      {
+        "text": "تين",
+        "points": 10
+      }
+    ]
+  },
+  {
+    "question": "مشروب ساخن يفضله الناس مع وجبة الإفطار؟",
+    "answers": [
+      {
+        "text": "الشاي",
+        "points": 40
+      },
+      {
+        "text": "القهوة",
+        "points": 30
+      },
+      {
+        "text": "الحليب",
+        "points": 15
+      },
+      {
+        "text": "الكرك",
+        "points": 10
+      },
+      {
+        "text": "النسكافيه",
+        "points": 5
+      }
+    ]
+  },
+  {
+    "question": "شيء يخليك تعرق بشكل كبير؟",
+    "answers": [
+      {
+        "text": "الجو الحار / شمس الصيف",
+        "points": 40
+      },
+      {
+        "text": "الرياضة / الركض",
+        "points": 30
+      },
+      {
+        "text": "الأكل الحار / السبايسي",
+        "points": 15
+      },
+      {
+        "text": "الخوف / التوتر",
+        "points": 10
+      },
+      {
+        "text": "شرب شيء حار جداً",
+        "points": 5
+      }
+    ]
+  },
+  {
+    "question": "شيء يخرب عليك الطلعة والتمشية في الحديقة أو المنتزه؟",
+    "answers": [
+      {
+        "text": "الحر / الغبار",
+        "points": 40
+      },
+      {
+        "text": "الزحمة",
+        "points": 30
+      },
+      {
+        "text": "الذباب / النامس",
+        "points": 15
+      },
+      {
+        "text": "إزعاج الأطفال",
+        "points": 10
+      },
+      {
+        "text": "الأكل يكب أو يخرب",
+        "points": 5
+      }
+    ]
+  },
+  {
+    "question": "مكان تذهب إليه لشراء ملابس جديدة؟",
+    "answers": [
+      {
+        "text": "المول / السوق",
+        "points": 40
+      },
+      {
+        "text": "المحلات التجارية / البوتيك",
+        "points": 25
+      },
+      {
+        "text": "المواقع الإلكترونية",
+        "points": 15
+      },
+      {
+        "text": "الخياط",
+        "points": 10
+      },
+      {
+        "text": "حراج أو أسواق شعبية",
+        "points": 10
+      }
+    ]
+  },
+  {
+    "question": "شيء تكرهه أو يزعجك في السفر بالسيارة؟",
+    "answers": [
+      {
+        "text": "طول الطريق / الملل",
+        "points": 40
+      },
+      {
+        "text": "نقاط التفتيش",
+        "points": 25
+      },
+      {
+        "text": "المطبات والحفر",
+        "points": 15
+      },
+      {
+        "text": "دورات المياه على الطريق",
+        "points": 10
+      },
+      {
+        "text": "حرارة الجو",
+        "points": 10
+      }
+    ]
+  },
+  {
+    "question": "شيء يتلف أو يخرب تماماً إذا طاح في الموية؟",
+    "answers": [
+      {
+        "text": "الجوال / الإلكترونيات",
+        "points": 40
+      },
+      {
+        "text": "الأوراق / الدفاتر",
+        "points": 25
+      },
+      {
+        "text": "السكر / الملح",
+        "points": 15
+      },
+      {
+        "text": "الخبز / البسكويت",
+        "points": 10
+      },
+      {
+        "text": "الحديد يصدي",
+        "points": 10
+      }
+    ]
+  },
+  {
+    "question": "اذكر سلاحاً قديماً يُستخدم للمواجهة أو الحماية؟",
+    "answers": [
+      {
+        "text": "السيف",
+        "points": 50
+      },
+      {
+        "text": "الرمح",
+        "points": 20
+      },
+      {
+        "text": "الدرع",
+        "points": 15
+      },
+      {
+        "text": "القوس والنشاب",
+        "points": 10
+      },
+      {
+        "text": "الخنجر",
+        "points": 5
+      }
+    ]
+  },
+  {
+    "question": "شيء أساسي تلقاه في شنطة أي شخص يروح النادي باستمرار؟",
+    "answers": [
+      {
+        "text": "مطارة موية",
+        "points": 31
+      },
+      {
+        "text": "منشفة",
+        "points": 22
+      },
+      {
+        "text": "ملابس غيار",
+        "points": 17
+      },
+      {
+        "text": "سماعات",
+        "points": 13
+      },
+      {
+        "text": "مزيج البروتين",
+        "points": 10
+      },
+      {
+        "text": "مزيل عرق",
+        "points": 7
+      }
+    ]
+  },
+  {
+    "question": "اذكر ركناً من أركان الإسلام؟",
+    "answers": [
+      {
+        "text": "الصلاة",
+        "points": 40
+      },
+      {
+        "text": "الحج",
+        "points": 25
+      },
+      {
+        "text": "الزكاة",
+        "points": 15
+      },
+      {
+        "text": "صوم رمضان",
+        "points": 10
+      },
+      {
+        "text": "الشهادتان",
+        "points": 10
+      }
+    ]
+  },
+  {
+    "question": "شيء تلقاه دائماً في الشنطة الخلفية للسيارة؟",
+    "answers": [
+      {
+        "text": "كفر استبنة / سبير",
+        "points": 40
+      },
+      {
+        "text": "عدة سيارة / مفكات",
+        "points": 25
+      },
+      {
+        "text": "عفش / شناط",
+        "points": 15
+      },
+      {
+        "text": "موية رديتر / زيت",
+        "points": 10
+      },
+      {
+        "text": "عزبة بر أو حطب",
+        "points": 10
+      }
+    ]
+  },
+  {
+    "question": "مناسبة تحتفل بها وتشتري لها كيكة؟",
+    "answers": [
+      {
+        "text": "يوم ميلاد",
+        "points": 40
+      },
+      {
+        "text": "نجاح / تخرج",
+        "points": 25
+      },
+      {
+        "text": "ذكرى زواج",
+        "points": 15
+      },
+      {
+        "text": "ترقية بالعمل",
+        "points": 10
+      },
+      {
+        "text": "سلامة مريض",
+        "points": 10
+      }
+    ]
+  },
+  {
+    "question": "مادة أو أداة تستخدم لإطفاء النار؟",
+    "answers": [
+      {
+        "text": "الماء",
+        "points": 40
+      },
+      {
+        "text": "طفاية الحريق",
+        "points": 30
+      },
+      {
+        "text": "البطانية / القماش",
+        "points": 15
+      },
+      {
+        "text": "الرمل / التراب",
+        "points": 10
+      },
+      {
+        "text": "الرغوة",
+        "points": 5
+      }
+    ]
+  },
+  {
+    "question": "شيء أساسي تلقاه في شنطة أي امرأة؟",
+    "answers": [
+      {
+        "text": "روج / مكياج",
+        "points": 40
+      },
+      {
+        "text": "عطر",
+        "points": 25
+      },
+      {
+        "text": "محفظة فلوس",
+        "points": 15
+      },
+      {
+        "text": "مناديل",
+        "points": 10
+      },
+      {
+        "text": "مفاتيح",
+        "points": 10
+      }
+    ]
+  },
+  {
+    "question": "كلمة دائماً نقولها للشخص اللي توه طالع من الحلاق أو متروش؟",
+    "answers": [
+      {
+        "text": "نعيماً",
+        "points": 31
+      },
+      {
+        "text": "ما شاء الله",
+        "points": 22
+      },
+      {
+        "text": "وش هالزين",
+        "points": 17
+      },
+      {
+        "text": "مبروك الحلاقة",
+        "points": 13
+      },
+      {
+        "text": "عشت",
+        "points": 10
+      },
+      {
+        "text": "منور",
+        "points": 7
+      }
+    ]
+  },
+  {
+    "question": "مكان عام يطلب منك فيه التزام الهدوء وعدم رفع الصوت؟",
+    "answers": [
+      {
+        "text": "المسجد",
+        "points": 40
+      },
+      {
+        "text": "المستشفى / العيادة",
+        "points": 25
+      },
+      {
+        "text": "المكتبة",
+        "points": 15
+      },
+      {
+        "text": "قاعة الامتحان",
+        "points": 10
+      },
+      {
+        "text": "العزاء",
+        "points": 10
+      }
+    ]
+  },
+  {
+    "question": "حشوة أساسية تطلبها في سندويتش الفطور؟",
+    "answers": [
+      {
+        "text": "جبن",
+        "points": 40
+      },
+      {
+        "text": "بيض",
+        "points": 25
+      },
+      {
+        "text": "كبدة",
+        "points": 15
+      },
+      {
+        "text": "فلافل",
+        "points": 10
+      },
+      {
+        "text": "تونة",
+        "points": 10
+      }
+    ]
+  },
+  {
+    "question": "حيوان يشتهر بأنه بطيء جداً؟",
+    "answers": [
+      {
+        "text": "السلحفاة",
+        "points": 40
+      },
+      {
+        "text": "الحلزون",
+        "points": 30
+      },
+      {
+        "text": "الكسلان",
+        "points": 15
+      },
+      {
+        "text": "الدودة",
+        "points": 10
+      },
+      {
+        "text": "التمساح",
+        "points": 5
+      }
+    ]
+  },
+  {
+    "question": "مهنة تتطلب مجهوداً وتعباً بدنياً كبيراً؟",
+    "answers": [
+      {
+        "text": "عامل بناء / مقاولات",
+        "points": 40
+      },
+      {
+        "text": "حداد",
+        "points": 25
+      },
+      {
+        "text": "نجار",
+        "points": 15
+      },
+      {
+        "text": "سباك",
+        "points": 10
+      },
+      {
+        "text": "مزارع",
+        "points": 10
+      }
+    ]
+  },
+  {
+    "question": "شيء في غرفتك مصنوع من الخشب؟",
+    "answers": [
+      {
+        "text": "السرير",
+        "points": 40
+      },
+      {
+        "text": "الدولاب",
+        "points": 25
+      },
+      {
+        "text": "الطاولة",
+        "points": 15
+      },
+      {
+        "text": "الكرسي",
+        "points": 10
+      },
+      {
+        "text": "الباب",
+        "points": 10
+      }
+    ]
+  },
+  {
+    "question": "رياضة أو هواية منتشرة بين الشباب في السعودية؟",
+    "answers": [
+      {
+        "text": "كرة القدم",
+        "points": 40
+      },
+      {
+        "text": "البادل",
+        "points": 30
+      },
+      {
+        "text": "البلايستيشن / الألعاب",
+        "points": 15
+      },
+      {
+        "text": "الحديد / كمال الأجسام",
+        "points": 10
+      },
+      {
+        "text": "التطعيس / البر",
+        "points": 5
+      }
+    ]
+  },
+  {
+    "question": "فاكهة طعمها حامض؟",
+    "answers": [
+      {
+        "text": "الليمون",
+        "points": 40
+      },
+      {
+        "text": "البرتقال",
+        "points": 25
+      },
+      {
+        "text": "الكيوي",
+        "points": 15
+      },
+      {
+        "text": "الرمان",
+        "points": 10
+      },
+      {
+        "text": "الفراولة",
+        "points": 10
+      }
+    ]
+  },
+  {
+    "question": "شيء تسويه أول ما تركب الطيارة وتجلس في مقعدك؟",
+    "answers": [
+      {
+        "text": "أربط حزام الأمان",
+        "points": 31
+      },
+      {
+        "text": "أحط وضع الطيران",
+        "points": 22
+      },
+      {
+        "text": "أدور دعاء السفر",
+        "points": 17
+      },
+      {
+        "text": "أنام",
+        "points": 13
+      },
+      {
+        "text": "أقرأ المجلة / الشاشة",
+        "points": 10
+      },
+      {
+        "text": "أصور من النافذة",
+        "points": 7
+      }
+    ]
+  },
+  {
+    "question": "صنف من المخبوزات تشتريه من المخبز؟",
+    "answers": [
+      {
+        "text": "خبز مفرود",
+        "points": 40
+      },
+      {
+        "text": "صامولي",
+        "points": 25
+      },
+      {
+        "text": "فطائر / معجنات",
+        "points": 15
+      },
+      {
+        "text": "كيك",
+        "points": 10
+      },
+      {
+        "text": "شابورة",
+        "points": 10
+      }
+    ]
+  },
+  {
+    "question": "سمّ حيواناً ضخماً؟",
+    "answers": [
+      {
+        "text": "الفيل",
+        "points": 45
+      },
+      {
+        "text": "الحوت",
+        "points": 20
+      },
+      {
+        "text": "النعامة",
+        "points": 15
+      },
+      {
+        "text": "وحيد القرن",
+        "points": 10
+      },
+      {
+        "text": "الزرافة",
+        "points": 10
+      }
+    ]
+  },
+  {
+    "question": "صنف أو نوع من الأفلام يجذب الناس لمتابعته أكثر من غيره؟",
+    "answers": [
+      {
+        "text": "الأكشن / الإثارة",
+        "points": 31
+      },
+      {
+        "text": "الكوميدي",
+        "points": 22
+      },
+      {
+        "text": "الرعب",
+        "points": 17
+      },
+      {
+        "text": "الغموض / الجريمة",
+        "points": 13
+      },
+      {
+        "text": "الدراما / قصص واقعية",
+        "points": 10
+      },
+      {
+        "text": "الخيال العلمي",
+        "points": 7
+      }
+    ]
+  },
+  {
+    "question": "مشروب ساخن يطلبه الناس في الكافيهات غير الشاي والقهوة؟",
+    "answers": [
+      {
+        "text": "كاكاو ساخن / هوت تشوكلت",
+        "points": 40
+      },
+      {
+        "text": "حليب بالزنجبيل",
+        "points": 25
+      },
+      {
+        "text": "سحلب",
+        "points": 15
+      },
+      {
+        "text": "نعناع / يانسون",
+        "points": 10
+      },
+      {
+        "text": "كرك",
+        "points": 10
+      }
+    ]
+  },
+  {
+    "question": "شيء أساسي تحطه في السلطة الخضراء؟",
+    "answers": [
+      {
+        "text": "طماطم",
+        "points": 31
+      },
+      {
+        "text": "خيار",
+        "points": 22
+      },
+      {
+        "text": "ملفوف",
+        "points": 17
+      },
+      {
+        "text": "خس",
+        "points": 13
+      },
+      {
+        "text": "ليمون / زيت زيتون",
+        "points": 10
+      },
+      {
+        "text": "جزر",
+        "points": 7
+      }
+    ]
+  },
+  {
+    "question": "أول ردة فعل لك إذا شفت حشرة أو صرصور في الغرفة؟",
+    "answers": [
+      {
+        "text": "أصرخ / أهرب",
+        "points": 35
+      },
+      {
+        "text": "أجيب بف باف / مبيد حشري",
+        "points": 30
+      },
+      {
+        "text": "أضربه بالنعال",
+        "points": 15
+      },
+      {
+        "text": "أطلع وأقفل الباب",
+        "points": 10
+      },
+      {
+        "text": "أنادي أحد يقتله",
+        "points": 10
+      }
+    ]
+  },
+  {
+    "question": "رياضة شهيرة يتم لعبها باستخدام الكرة؟",
+    "answers": [
+      {
+        "text": "كرة القدم",
+        "points": 31
+      },
+      {
+        "text": "كرة السلة",
+        "points": 22
+      },
+      {
+        "text": "الكرة الطائرة",
+        "points": 17
+      },
+      {
+        "text": "بيسبول",
+        "points": 13
+      },
+      {
+        "text": "التنس",
+        "points": 10
+      },
+      {
+        "text": "البلياردو",
+        "points": 7
+      }
+    ]
+  },
+  {
+    "question": "دولة خليجية يكثر سفر السعوديين لها في الإجازات القصيرة؟",
+    "answers": [
+      {
+        "text": "البحرين",
+        "points": 40
+      },
+      {
+        "text": "الإمارات / دبي",
+        "points": 30
+      },
+      {
+        "text": "الكويت",
+        "points": 15
+      },
+      {
+        "text": "قطر",
+        "points": 10
+      },
+      {
+        "text": "عمان",
+        "points": 5
+      }
+    ]
+  },
+  {
+    "question": "شيء تعطيه للطفل الصغير ليجعله يفرح فوراً؟",
+    "answers": [
+      {
+        "text": "لعبة",
+        "points": 40
+      },
+      {
+        "text": "حلاوة / شوكولاتة",
+        "points": 30
+      },
+      {
+        "text": "فلوس / عيدية",
+        "points": 15
+      },
+      {
+        "text": "آيس كريم",
+        "points": 10
+      },
+      {
+        "text": "جوال / آيباد",
+        "points": 5
+      }
+    ]
+  },
+  {
+    "question": "غرض تضعه في الحقيبة إذا كنت ذاهباً للبحر؟",
+    "answers": [
+      {
+        "text": "منشفة / فوطة",
+        "points": 40
+      },
+      {
+        "text": "ملابس سباحة",
+        "points": 25
+      },
+      {
+        "text": "واقي شمس",
+        "points": 15
+      },
+      {
+        "text": "شبشب / حذاء بحر",
+        "points": 10
+      },
+      {
+        "text": "نظارة غوص",
+        "points": 10
+      }
+    ]
+  },
+  {
+    "question": "تصرف يرفع ضغطك من السائقين في الشارع؟",
+    "answers": [
+      {
+        "text": "يلف بدون دق إشارة",
+        "points": 31
+      },
+      {
+        "text": "يسوق ببطء باليسار",
+        "points": 22
+      },
+      {
+        "text": "يسقط عليك",
+        "points": 17
+      },
+      {
+        "text": "يستخدم الجوال",
+        "points": 13
+      },
+      {
+        "text": "يوقف بمكان ممنوع",
+        "points": 10
+      },
+      {
+        "text": "يضرب بوري باستمرار",
+        "points": 7
+      }
+    ]
+  },
+  {
+    "question": "رسالة تجيك على الجوال تخليك تبتسم لا شعورياً؟",
+    "answers": [
+      {
+        "text": "إيداع الراتب / حوالة",
+        "points": 31
+      },
+      {
+        "text": "تم توصيل طلبك",
+        "points": 22
+      },
+      {
+        "text": "رسالة من شخص غالي",
+        "points": 17
+      },
+      {
+        "text": "خصم / إعفاء من رسوم",
+        "points": 13
+      },
+      {
+        "text": "إلغاء موعد / تعليق الدوام",
+        "points": 10
+      },
+      {
+        "text": "رسالة تفعيل / كود",
+        "points": 7
+      }
+    ]
+  },
+  {
+    "question": "وسيلة تسلية تستخدمها لتمضية الوقت في رحلة طيران طويلة؟",
+    "answers": [
+      {
+        "text": "أتابع فيلم أو مسلسل",
+        "points": 35
+      },
+      {
+        "text": "أنام",
+        "points": 30
+      },
+      {
+        "text": "أقرأ كتاب",
+        "points": 15
+      },
+      {
+        "text": "ألعب ألعاب في الجوال أو الشاشة",
+        "points": 10
+      },
+      {
+        "text": "أستمع لمقاطع صوتية / بودكاست",
+        "points": 10
+      }
+    ]
+  },
+  {
+    "question": "شيء موجود دائماً في الدرج الأمامي للسيارة؟",
+    "answers": [
+      {
+        "text": "مناديل",
+        "points": 40
+      },
+      {
+        "text": "استمارة وأوراق السيارة",
+        "points": 25
+      },
+      {
+        "text": "سلك أو شاحن إضافي",
+        "points": 15
+      },
+      {
+        "text": "عطر أو بخور",
+        "points": 10
+      },
+      {
+        "text": "نظارة شمسية",
+        "points": 10
+      }
+    ]
+  },
+  {
+    "question": "سبب يخلي الطفل الرضيع يبكي باستمرار؟",
+    "answers": [
+      {
+        "text": "جوعان / يبي حليب",
+        "points": 40
+      },
+      {
+        "text": "يبي ينام",
+        "points": 25
+      },
+      {
+        "text": "يحتاج تغيير حفاظة",
+        "points": 15
+      },
+      {
+        "text": "ممغوص / بطنه يوجعه",
+        "points": 10
+      },
+      {
+        "text": "يسنن",
+        "points": 10
+      }
+    ]
+  },
+  {
+    "question": "شيء لونه أبيض وموجود في أغلب الثلاجات؟",
+    "answers": [
+      {
+        "text": "لبن / حليب",
+        "points": 31
+      },
+      {
+        "text": "جبن كاسات",
+        "points": 22
+      },
+      {
+        "text": "بيض",
+        "points": 17
+      },
+      {
+        "text": "مايونيز",
+        "points": 13
+      },
+      {
+        "text": "قشطة",
+        "points": 10
+      },
+      {
+        "text": "زبادي",
+        "points": 7
+      }
+    ]
+  },
+  {
+    "question": "شيء تدهن به شريحة الخبز التوست؟",
+    "answers": [
+      {
+        "text": "جبن سائل",
+        "points": 40
+      },
+      {
+        "text": "قشطة",
+        "points": 25
+      },
+      {
+        "text": "مربى",
+        "points": 15
+      },
+      {
+        "text": "زبدة الفول السوداني",
+        "points": 10
+      },
+      {
+        "text": "نوتيلا / شوكولاتة",
+        "points": 10
+      }
+    ]
+  },
+  {
+    "question": "منتج يكثر شراؤه واستخدامه في فصل الصيف؟",
+    "answers": [
+      {
+        "text": "آيس كريم / بارد",
+        "points": 40
+      },
+      {
+        "text": "واقي شمس",
+        "points": 25
+      },
+      {
+        "text": "نظارة شمسية",
+        "points": 15
+      },
+      {
+        "text": "ملابس بحر / سباحة",
+        "points": 10
+      },
+      {
+        "text": "مزيل عرق",
+        "points": 10
+      }
+    ]
+  },
+  {
+    "question": "شيء يفعله الناس عادة عندما ينزل المطر؟",
+    "answers": [
+      {
+        "text": "الدعاء",
+        "points": 40
+      },
+      {
+        "text": "التصوير بالجوال",
+        "points": 25
+      },
+      {
+        "text": "الخروج للتمشية",
+        "points": 15
+      },
+      {
+        "text": "شرب مشروب دافئ",
+        "points": 10
+      },
+      {
+        "text": "شم رائحة المطر",
+        "points": 10
+      }
+    ]
+  },
+  {
+    "question": "شيء غالباً يضيع ويطيح بين مخدات الكنب؟",
+    "answers": [
+      {
+        "text": "ريموت التلفزيون",
+        "points": 40
+      },
+      {
+        "text": "هللات / فلوس خردة",
+        "points": 25
+      },
+      {
+        "text": "الجوال",
+        "points": 15
+      },
+      {
+        "text": "مفاتيح",
+        "points": 10
+      },
+      {
+        "text": "ألعاب أطفال صغيرة",
+        "points": 10
+      }
+    ]
+  },
+  {
+    "question": "شيء تضعه داخل أذنك؟",
+    "answers": [
+      {
+        "text": "سماعات",
+        "points": 40
+      },
+      {
+        "text": "أعواد قطن للتنظيف",
+        "points": 25
+      },
+      {
+        "text": "قطرة طبية",
+        "points": 15
+      },
+      {
+        "text": "سدادات أذن",
+        "points": 10
+      },
+      {
+        "text": "سماعة طبيب",
+        "points": 10
+      }
+    ]
+  },
+  {
+    "question": "شيء موجود في غرفة الانتظار في العيادات أو المستشفيات؟",
+    "answers": [
+      {
+        "text": "كراسي / كنب",
+        "points": 40
+      },
+      {
+        "text": "شاشة تلفزيون",
+        "points": 25
+      },
+      {
+        "text": "مجلات / بروشورات",
+        "points": 15
+      },
+      {
+        "text": "برادة موية",
+        "points": 10
+      },
+      {
+        "text": "لوحة الأرقام",
+        "points": 10
+      }
+    ]
+  },
+  {
+    "question": "اذكر شيئاً لونه أصفر؟",
+    "answers": [
+      {
+        "text": "الشمس",
+        "points": 40
+      },
+      {
+        "text": "الليمون",
+        "points": 25
+      },
+      {
+        "text": "الموز",
+        "points": 15
+      },
+      {
+        "text": "الذهب",
+        "points": 10
+      },
+      {
+        "text": "صفار البيض",
+        "points": 10
+      }
+    ]
+  },
+  {
+    "question": "حيوان يعيش في البيئة الصحراوية؟",
+    "answers": [
+      {
+        "text": "الجمل / البعير",
+        "points": 40
+      },
+      {
+        "text": "الضب",
+        "points": 25
+      },
+      {
+        "text": "الثعبان",
+        "points": 15
+      },
+      {
+        "text": "العقرب",
+        "points": 10
+      },
+      {
+        "text": "الثعلب",
+        "points": 10
+      }
+    ]
+  },
+  {
+    "question": "تخصص جامعي له شعبية كبيرة ومطلوب في سوق العمل؟",
+    "answers": [
+      {
+        "text": "علوم حاسب / أمن سيبراني",
+        "points": 40
+      },
+      {
+        "text": "طب بشري",
+        "points": 25
+      },
+      {
+        "text": "هندسة",
+        "points": 15
+      },
+      {
+        "text": "إدارة أعمال / مالية",
+        "points": 10
+      },
+      {
+        "text": "قانون",
+        "points": 10
+      }
+    ]
+  },
+  {
+    "question": "تصرف روتيني تسويه قبل ما تنام مباشرة؟",
+    "answers": [
+      {
+        "text": "أضبط المنبه",
+        "points": 40
+      },
+      {
+        "text": "أقرأ أذكار النوم",
+        "points": 25
+      },
+      {
+        "text": "أقلب في الجوال",
+        "points": 15
+      },
+      {
+        "text": "أطفي النور",
+        "points": 10
+      },
+      {
+        "text": "أشرب موية",
+        "points": 10
+      }
+    ]
+  },
+  {
+    "question": "اسم ولد سعودي يتكون من ٣ حروف؟",
+    "answers": [
+      {
+        "text": "فهد",
+        "points": 40
+      },
+      {
+        "text": "سعد",
+        "points": 25
+      },
+      {
+        "text": "عمر",
+        "points": 15
+      },
+      {
+        "text": "علي",
+        "points": 10
+      },
+      {
+        "text": "بدر",
+        "points": 10
+      }
+    ]
+  },
+  {
+    "question": "شيء يخلي الأب يهاوش العيال في البيت؟",
+    "answers": [
+      {
+        "text": "الإزعاج / الصراخ",
+        "points": 31
+      },
+      {
+        "text": "السهر لوقت متأخر",
+        "points": 22
+      },
+      {
+        "text": "اللعب في الجوال كثير",
+        "points": 17
+      },
+      {
+        "text": "ترك اللمبات شغالة",
+        "points": 13
+      },
+      {
+        "text": "المضاربات بين الإخوان",
+        "points": 10
+      },
+      {
+        "text": "عدم حل الواجبات",
+        "points": 7
+      }
+    ]
+  },
+  {
+    "question": "تطبيق في الجوال مستحيل يمر يوم بدون ما تفتحه وتستخدمه؟",
+    "answers": [
+      {
+        "text": "واتساب",
+        "points": 31
+      },
+      {
+        "text": "تيك توك",
+        "points": 22
+      },
+      {
+        "text": "تويتر / إكس",
+        "points": 17
+      },
+      {
+        "text": "سناب شات",
+        "points": 13
+      },
+      {
+        "text": "انستقرام",
+        "points": 10
+      },
+      {
+        "text": "تطبيق البنك",
+        "points": 7
+      }
+    ]
+  },
+  {
+    "question": "مهنة تتطلب لبس زي رسمي موحد؟",
+    "answers": [
+      {
+        "text": "عسكري / شرطي",
+        "points": 40
+      },
+      {
+        "text": "دكتور / ممرض",
+        "points": 25
+      },
+      {
+        "text": "طيار",
+        "points": 15
+      },
+      {
+        "text": "حارس أمن",
+        "points": 10
+      },
+      {
+        "text": "كاشير أو بائع",
+        "points": 10
+      }
+    ]
+  },
+  {
+    "question": "أكلة سريعة مشهورة تطلبها إذا كنت جوعان ومستعجل؟",
+    "answers": [
+      {
+        "text": "شاورما",
+        "points": 40
+      },
+      {
+        "text": "برجر",
+        "points": 30
+      },
+      {
+        "text": "بروستد",
+        "points": 15
+      },
+      {
+        "text": "فلافل / طعمية",
+        "points": 10
+      },
+      {
+        "text": "بيتزا",
+        "points": 5
+      }
+    ]
+  },
+  {
+    "question": "هدية شائعة تقدم لشخص بمناسبة التخرج؟",
+    "answers": [
+      {
+        "text": "فلوس / كاش / حوالة",
+        "points": 40
+      },
+      {
+        "text": "باقة ورد",
+        "points": 25
+      },
+      {
+        "text": "ساعة فخمة",
+        "points": 15
+      },
+      {
+        "text": "جوال جديد",
+        "points": 10
+      },
+      {
+        "text": "شوكولاتة / كيكة",
+        "points": 10
+      }
+    ]
+  },
+  {
+    "question": "مهنة أو حرفة تستخدم المقص بشكل أساسي؟",
+    "answers": [
+      {
+        "text": "حلاق",
+        "points": 40
+      },
+      {
+        "text": "خياط",
+        "points": 30
+      },
+      {
+        "text": "طبيب جراح",
+        "points": 15
+      },
+      {
+        "text": "مزارع",
+        "points": 10
+      },
+      {
+        "text": "طباخ",
+        "points": 5
+      }
+    ]
+  },
+  {
+    "question": "شيء تضعه في الثلاجة حتى لا يفسد؟",
+    "answers": [
+      {
+        "text": "الحليب والألبان",
+        "points": 40
+      },
+      {
+        "text": "اللحم أو الدجاج",
+        "points": 25
+      },
+      {
+        "text": "الخضروات",
+        "points": 15
+      },
+      {
+        "text": "الفواكه",
+        "points": 10
+      },
+      {
+        "text": "الأدوية",
+        "points": 10
+      }
+    ]
+  },
+  {
+    "question": "اذكر شخصاً يمكنك أن تسلمه سرك وأنت مرتاح؟",
+    "answers": [
+      {
+        "text": "أمي",
+        "points": 40
+      },
+      {
+        "text": "صديقي المقرب",
+        "points": 20
+      },
+      {
+        "text": "زوجتي / زوجي",
+        "points": 15
+      },
+      {
+        "text": "أختي",
+        "points": 15
+      },
+      {
+        "text": "أخوي",
+        "points": 10
+      }
+    ]
+  },
+  {
+    "question": "شيء تأخذه معك للمستشفى إذا بتزور مريض؟",
+    "answers": [
+      {
+        "text": "ورد",
+        "points": 40
+      },
+      {
+        "text": "شوكولاتة",
+        "points": 25
+      },
+      {
+        "text": "عصير",
+        "points": 15
+      },
+      {
+        "text": "قهوة",
+        "points": 10
+      },
+      {
+        "text": "مبلغ مالي",
+        "points": 10
+      }
+    ]
+  },
+  {
+    "question": "شيء تقدمه المطاعم البحرية كطبق جانبي مع السمك؟",
+    "answers": [
+      {
+        "text": "رز صيادية",
+        "points": 40
+      },
+      {
+        "text": "طحينة",
+        "points": 25
+      },
+      {
+        "text": "سلطة حمر / دقوس",
+        "points": 15
+      },
+      {
+        "text": "بطاطس مقلي",
+        "points": 10
+      },
+      {
+        "text": "جرجير / خبز",
+        "points": 10
+      }
+    ]
+  },
+  {
+    "question": "شيء يصحيك من النوم فجأة غير المنبه؟",
+    "answers": [
+      {
+        "text": "أحد يدخل الغرفة / يناديك",
+        "points": 35
+      },
+      {
+        "text": "صوت الباب أو الجرس",
+        "points": 25
+      },
+      {
+        "text": "ريحة أكل أو قهوة",
+        "points": 15
+      },
+      {
+        "text": "نور الشمس أو اللمبة",
+        "points": 15
+      },
+      {
+        "text": "حلم مزعج / كابوس",
+        "points": 10
+      }
+    ]
+  },
+  {
+    "question": "شيء يخاف منه السائق وهو ماسك خط سفر طويل؟",
+    "answers": [
+      {
+        "text": "كاميرات ساهر / الرادار",
+        "points": 40
+      },
+      {
+        "text": "الجمال والحيوانات السائبة",
+        "points": 25
+      },
+      {
+        "text": "ينفجر الكفر / بنشر",
+        "points": 15
+      },
+      {
+        "text": "ينام أو ينعس على الدركسون",
+        "points": 10
+      },
+      {
+        "text": "يخلص البنزين",
+        "points": 10
+      }
+    ]
+  },
+  {
+    "question": "جهاز إلكتروني يحتوي على شاشة؟",
+    "answers": [
+      {
+        "text": "الجوال الذكي",
+        "points": 40
+      },
+      {
+        "text": "التلفزيون",
+        "points": 30
+      },
+      {
+        "text": "اللابتوب / الكمبيوتر",
+        "points": 15
+      },
+      {
+        "text": "الآيباد / التابلت",
+        "points": 10
+      },
+      {
+        "text": "الساعة الذكية",
+        "points": 5
+      }
+    ]
+  },
+  {
+    "question": "أداة تستخدمها لتناول الطعام؟",
+    "answers": [
+      {
+        "text": "الملعقة",
+        "points": 40
+      },
+      {
+        "text": "الشوكة",
+        "points": 25
+      },
+      {
+        "text": "السكين",
+        "points": 15
+      },
+      {
+        "text": "اليد",
+        "points": 10
+      },
+      {
+        "text": "عيدان الأكل",
+        "points": 10
+      }
+    ]
+  },
+  {
+    "question": "عذر مشهور يقوله الطالب للمدير أو المعلم إذا تأخر عن طابور الصباح؟",
+    "answers": [
+      {
+        "text": "زحمة الطريق",
+        "points": 31
+      },
+      {
+        "text": "السيارة خربت",
+        "points": 22
+      },
+      {
+        "text": "راحت علي نومة",
+        "points": 17
+      },
+      {
+        "text": "السواق تأخر",
+        "points": 13
+      },
+      {
+        "text": "أخوي تأخر",
+        "points": 10
+      },
+      {
+        "text": "ما لقيت موقف",
+        "points": 7
+      }
+    ]
+  },
+  {
+    "question": "شيء يخليك تصحصح وتركز في الصباح؟",
+    "answers": [
+      {
+        "text": "القهوة",
+        "points": 40
+      },
+      {
+        "text": "شاور / ترويشة باردة",
+        "points": 25
+      },
+      {
+        "text": "الشاي",
+        "points": 15
+      },
+      {
+        "text": "غسيل الوجه بموية باردة",
+        "points": 10
+      },
+      {
+        "text": "الفطور",
+        "points": 10
+      }
+    ]
+  },
+  {
+    "question": "شيء تسويه إذا حسيت بالملل الشديد في البيت؟",
+    "answers": [
+      {
+        "text": "أفتح السوشيال ميديا",
+        "points": 35
+      },
+      {
+        "text": "أتابع مسلسل أو فيلم",
+        "points": 25
+      },
+      {
+        "text": "أنام",
+        "points": 20
+      },
+      {
+        "text": "أروح أفتح الثلاجة آكل",
+        "points": 10
+      },
+      {
+        "text": "أكلم أحد من أخوياي",
+        "points": 10
+      }
+    ]
+  },
+  {
+    "question": "شيء يخليك تقفل المتجر الإلكتروني أو الموقع فوراً بدون ما تشتري؟",
+    "answers": [
+      {
+        "text": "الأسعار مبالغ فيها",
+        "points": 31
+      },
+      {
+        "text": "رسوم التوصيل مرتفعة",
+        "points": 22
+      },
+      {
+        "text": "الموقع يعلق / بطيء",
+        "points": 17
+      },
+      {
+        "text": "يطلب تسجيل إجباري",
+        "points": 13
+      },
+      {
+        "text": "تصميم الموقع سيء",
+        "points": 10
+      },
+      {
+        "text": "ما فيه أبل باي",
+        "points": 7
+      }
+    ]
+  },
+  {
+    "question": "شيء ممكن تستعيره أو تطلبه من جيرانك؟",
+    "answers": [
+      {
+        "text": "بصل / طماطم",
+        "points": 35
+      },
+      {
+        "text": "خبز",
+        "points": 25
+      },
+      {
+        "text": "سكر / ملح",
+        "points": 20
+      },
+      {
+        "text": "دلة أو صحون عزيمة",
+        "points": 10
+      },
+      {
+        "text": "شاحن أو وصلة",
+        "points": 10
+      }
+    ]
+  },
+  {
+    "question": "شيء يتم استخدامه لتزيين الكيك والحلويات؟",
+    "answers": [
+      {
+        "text": "كريمة",
+        "points": 35
+      },
+      {
+        "text": "فراولة / فواكه",
+        "points": 25
+      },
+      {
+        "text": "شوكولاتة مبشورة",
+        "points": 20
+      },
+      {
+        "text": "مكسرات",
+        "points": 10
+      },
+      {
+        "text": "شموع",
+        "points": 10
+      }
+    ]
+  },
+  {
+    "question": "كلمة أو جملة دائماً يقولها المعلم للطلاب في الفصل؟",
+    "answers": [
+      {
+        "text": "الهدوء يا شباب",
+        "points": 31
+      },
+      {
+        "text": "افتحوا الكتاب صفحة...",
+        "points": 22
+      },
+      {
+        "text": "مين يجاوب؟ / ارفع يدك",
+        "points": 17
+      },
+      {
+        "text": "ركزوا معاي",
+        "points": 13
+      },
+      {
+        "text": "اللي ورا يجي قدام",
+        "points": 10
+      },
+      {
+        "text": "الواجب بكرة",
+        "points": 7
+      }
+    ]
+  },
+  {
+    "question": "موقف محرج يصير لك فجأة وأنت جالس في عزيمة رسمية؟",
+    "answers": [
+      {
+        "text": "تنكب القهوة أو الشاي عليك",
+        "points": 31
+      },
+      {
+        "text": "بطنك يطلع صوت",
+        "points": 22
+      },
+      {
+        "text": "تنسى اسم الشخص",
+        "points": 17
+      },
+      {
+        "text": "تطيح اللقمة من يدك",
+        "points": 13
+      },
+      {
+        "text": "يدق جوالك برنة محرجة",
+        "points": 10
+      },
+      {
+        "text": "ينشق ثوبك / ينقطع زرارك",
+        "points": 7
+      }
+    ]
+  },
+  {
+    "question": "أداة تنظيف موجودة في كل بيت؟",
+    "answers": [
+      {
+        "text": "مكنسة",
+        "points": 40
+      },
+      {
+        "text": "ممسحة",
+        "points": 25
+      },
+      {
+        "text": "إسفنجة",
+        "points": 15
+      },
+      {
+        "text": "صابون / كلوركس",
+        "points": 10
+      },
+      {
+        "text": "فوطة تمسيح",
+        "points": 10
+      }
+    ]
+  },
+  {
+    "question": "شيء يسويه السائق وهو واقف ينتظر الإشارة تفتح؟",
+    "answers": [
+      {
+        "text": "يمسك الجوال",
+        "points": 40
+      },
+      {
+        "text": "يطالع في السيارات الثانية",
+        "points": 25
+      },
+      {
+        "text": "يعدل الشماغ أو الميك أب",
+        "points": 15
+      },
+      {
+        "text": "يغير محطة الراديو",
+        "points": 10
+      },
+      {
+        "text": "يشرب موية أو قهوة",
+        "points": 10
+      }
+    ]
+  },
+  {
+    "question": "نوع من الخضروات لونه أخضر؟",
+    "answers": [
+      {
+        "text": "خيار",
+        "points": 40
+      },
+      {
+        "text": "خس",
+        "points": 25
+      },
+      {
+        "text": "فلفل رومي",
+        "points": 15
+      },
+      {
+        "text": "جرجير",
+        "points": 10
+      },
+      {
+        "text": "كوسة",
+        "points": 10
+      }
+    ]
+  },
+  {
+    "question": "معاملة تجبرك تروح لفرع البنك وماتقدر تخلصها بالتطبيق؟",
+    "answers": [
+      {
+        "text": "استلام بطاقة صراف جديدة",
+        "points": 40
+      },
+      {
+        "text": "فتح حساب لأول مرة",
+        "points": 25
+      },
+      {
+        "text": "إيداع مبلغ كاش كبير / شيك",
+        "points": 15
+      },
+      {
+        "text": "تحديث بيانات الهوية",
+        "points": 10
+      },
+      {
+        "text": "أخذ قرض أو تمويل",
+        "points": 10
+      }
+    ]
+  },
+  {
+    "question": "شيء تسويه إذا انقطع النت في البيت فجأة؟",
+    "answers": [
+      {
+        "text": "أطفي المودم وأشغله",
+        "points": 40
+      },
+      {
+        "text": "أنام",
+        "points": 25
+      },
+      {
+        "text": "أفتح بيانات الجوال",
+        "points": 15
+      },
+      {
+        "text": "أسولف مع أهلي",
+        "points": 10
+      },
+      {
+        "text": "أرتب غرفتي",
+        "points": 10
+      }
+    ]
+  },
+  {
+    "question": "شيء تتأكد إنه معك قبل ما تطلع من باب البيت؟",
+    "answers": [
+      {
+        "text": "الجوال",
+        "points": 35
+      },
+      {
+        "text": "المفاتيح",
+        "points": 30
+      },
+      {
+        "text": "المحفظة / الفلوس",
+        "points": 15
+      },
+      {
+        "text": "بطاقة العمل / الهوية",
+        "points": 10
+      },
+      {
+        "text": "النظارة الشمسية",
+        "points": 10
+      }
+    ]
+  },
+  {
+    "question": "مادة أو شيء ينكسر بسهولة إذا سقط؟",
+    "answers": [
+      {
+        "text": "الزجاج",
+        "points": 40
+      },
+      {
+        "text": "الصحون / الأكواب",
+        "points": 25
+      },
+      {
+        "text": "البيض",
+        "points": 15
+      },
+      {
+        "text": "شاشة الجوال",
+        "points": 10
+      },
+      {
+        "text": "الفخار",
+        "points": 10
+      }
+    ]
+  },
+  {
+    "question": "لون مشهور تتميز فيه سيارات الأجرة التاكسي حول العالم؟",
+    "answers": [
+      {
+        "text": "أصفر",
+        "points": 40
+      },
+      {
+        "text": "أبيض",
+        "points": 25
+      },
+      {
+        "text": "أخضر",
+        "points": 15
+      },
+      {
+        "text": "أسود",
+        "points": 10
+      },
+      {
+        "text": "أحمر",
+        "points": 10
+      }
+    ]
+  },
+  {
+    "question": "شخص تلجأ إليه لتستلف منه مبلغاً من المال إذا احتجت؟",
+    "answers": [
+      {
+        "text": "الأب",
+        "points": 40
+      },
+      {
+        "text": "الأخ",
+        "points": 25
+      },
+      {
+        "text": "الصديق المقرب",
+        "points": 15
+      },
+      {
+        "text": "الزوج / الزوجة",
+        "points": 10
+      },
+      {
+        "text": "الأم",
+        "points": 10
+      }
+    ]
+  },
+  {
+    "question": "شيء يصدر رائحة جميلة ومنعشة؟",
+    "answers": [
+      {
+        "text": "العطر",
+        "points": 40
+      },
+      {
+        "text": "البخور / العود",
+        "points": 25
+      },
+      {
+        "text": "الورد / الزهور",
+        "points": 15
+      },
+      {
+        "text": "الصابون",
+        "points": 10
+      },
+      {
+        "text": "الفواحة",
+        "points": 10
+      }
+    ]
+  },
+  {
+    "question": "مكون أساسي تحتاجه لطبخ الكبسة؟",
+    "answers": [
+      {
+        "text": "الأرز",
+        "points": 40
+      },
+      {
+        "text": "اللحم أو الدجاج",
+        "points": 25
+      },
+      {
+        "text": "البصل",
+        "points": 15
+      },
+      {
+        "text": "البهارات",
+        "points": 10
+      },
+      {
+        "text": "الطماطم",
+        "points": 10
+      }
+    ]
+  },
+  {
+    "question": "عادة أو عبادة يحرص عليها المسلمون في يوم الجمعة؟",
+    "answers": [
+      {
+        "text": "قراءة سورة الكهف",
+        "points": 35
+      },
+      {
+        "text": "صلاة الجمعة بالمسجد",
+        "points": 30
+      },
+      {
+        "text": "التبخير والتطيب",
+        "points": 15
+      },
+      {
+        "text": "غسل الجمعة",
+        "points": 10
+      },
+      {
+        "text": "الإكثار من الصلاة على النبي ﷺ",
+        "points": 10
+      }
+    ]
+  },
+  {
+    "question": "شيء مزعج يصير لك في السينما؟",
+    "answers": [
+      {
+        "text": "ناس تسولف وتتكلم",
+        "points": 35
+      },
+      {
+        "text": "جوال يرن أو نوره قوي",
+        "points": 25
+      },
+      {
+        "text": "طفل يبكي أو يزعج",
+        "points": 20
+      },
+      {
+        "text": "أحد يرفس كرسيك من ورا",
+        "points": 10
+      },
+      {
+        "text": "صوت أكل البوب كورن بصوت عالي",
+        "points": 10
+      }
+    ]
+  },
+  {
+    "question": "تصرف تسويه بسرعة إذا اتصل عليك ضيف وقال إنه قريب من البيت؟",
+    "answers": [
+      {
+        "text": "أرتب الصالة والمجلس",
+        "points": 35
+      },
+      {
+        "text": "أبخر البيت",
+        "points": 25
+      },
+      {
+        "text": "أجهز دلة القهوة",
+        "points": 20
+      },
+      {
+        "text": "أغير ملابسي",
+        "points": 10
+      },
+      {
+        "text": "أطلب حلا أو معجنات",
+        "points": 10
+      }
+    ]
+  },
+  {
+    "question": "شيء يخاف منه الأطفال الصغار عادة؟",
+    "answers": [
+      {
+        "text": "الطبيب / الإبرة",
+        "points": 40
+      },
+      {
+        "text": "الظلام",
+        "points": 25
+      },
+      {
+        "text": "الكلاب أو الحشرات",
+        "points": 15
+      },
+      {
+        "text": "الأصوات العالية",
+        "points": 10
+      },
+      {
+        "text": "الغرباء",
+        "points": 10
+      }
+    ]
+  },
+  {
+    "question": "شيء ينساه الناس غالباً عند تجهيز شنطة السفر؟",
+    "answers": [
+      {
+        "text": "فرشاة ومعجون الأسنان",
+        "points": 35
+      },
+      {
+        "text": "شاحن الجوال",
+        "points": 25
+      },
+      {
+        "text": "النظارة الشمسية",
+        "points": 20
+      },
+      {
+        "text": "مزيل العرق أو العطر",
+        "points": 10
+      },
+      {
+        "text": "الجوارب / الشرابات",
+        "points": 10
+      }
+    ]
+  },
+  {
+    "question": "أكلة شعبية سعودية يكثر الطلب عليها في فصل الشتاء؟",
+    "answers": [
+      {
+        "text": "الحنيني",
+        "points": 35
+      },
+      {
+        "text": "الجريش",
+        "points": 30
+      },
+      {
+        "text": "المرقوق",
+        "points": 15
+      },
+      {
+        "text": "العصيدة",
+        "points": 10
+      },
+      {
+        "text": "المطازيز",
+        "points": 10
+      }
+    ]
+  },
+  {
+    "question": "لون من ألوان قوس قزح؟",
+    "answers": [
+      {
+        "text": "أحمر",
+        "points": 40
+      },
+      {
+        "text": "أزرق",
+        "points": 25
+      },
+      {
+        "text": "أصفر",
+        "points": 15
+      },
+      {
+        "text": "أخضر",
+        "points": 10
+      },
+      {
+        "text": "بنفسجي",
+        "points": 10
+      }
+    ]
+  },
+  {
+    "question": "شيء مستحيل تروح السوبر ماركت للتسوق وما تشتريه؟",
+    "answers": [
+      {
+        "text": "خبز / صامولي",
+        "points": 31
+      },
+      {
+        "text": "حليب / لبن",
+        "points": 22
+      },
+      {
+        "text": "مويه",
+        "points": 17
+      },
+      {
+        "text": "بيض",
+        "points": 13
+      },
+      {
+        "text": "أجبان / نواشف",
+        "points": 10
+      },
+      {
+        "text": "حلويات / شيبس",
+        "points": 7
+      }
+    ]
+  },
+  {
+    "question": "اسم بنت سعودي مشهور ينتهي بالتاء المربوطة؟",
+    "answers": [
+      {
+        "text": "سارة",
+        "points": 40
+      },
+      {
+        "text": "نورة",
+        "points": 25
+      },
+      {
+        "text": "فاطمة",
+        "points": 15
+      },
+      {
+        "text": "حصة",
+        "points": 10
+      },
+      {
+        "text": "دانة",
+        "points": 10
+      }
+    ]
+  },
+  {
+    "question": "عبارة شهيرة تقولها لشخص مريض أو طالع من المستشفى؟",
+    "answers": [
+      {
+        "text": "ما تشوف شر",
+        "points": 40
+      },
+      {
+        "text": "قدامك العافية",
+        "points": 25
+      },
+      {
+        "text": "طهور إن شاء الله",
+        "points": 15
+      },
+      {
+        "text": "أجر وعافية",
+        "points": 10
+      },
+      {
+        "text": "الحمد لله على السلامة",
+        "points": 10
+      }
+    ]
+  },
+  {
+    "question": "شيء ضروري تحتاجه إذا أردت السفر خارج السعودية؟",
+    "answers": [
+      {
+        "text": "جواز السفر",
+        "points": 40
+      },
+      {
+        "text": "تذاكر الطيران",
+        "points": 25
+      },
+      {
+        "text": "تأشيرة / فيزا",
+        "points": 15
+      },
+      {
+        "text": "عملة أجنبية / فلوس",
+        "points": 10
+      },
+      {
+        "text": "حقيبة سفر",
+        "points": 10
+      }
+    ]
+  },
+  {
+    "question": "حيوان يصدر صوتاً عالياً ومزعجاً؟",
+    "answers": [
+      {
+        "text": "الأسد",
+        "points": 40
+      },
+      {
+        "text": "الكلب",
+        "points": 25
+      },
+      {
+        "text": "الديك",
+        "points": 15
+      },
+      {
+        "text": "الحمار",
+        "points": 10
+      },
+      {
+        "text": "القطط في الليل",
+        "points": 10
+      }
+    ]
+  },
+  {
+    "question": "شيء يعطيك طاقة ونشاطاً لبدء يومك؟",
+    "answers": [
+      {
+        "text": "القهوة",
+        "points": 40
+      },
+      {
+        "text": "مشروب الطاقة",
+        "points": 25
+      },
+      {
+        "text": "النوم الكافي",
+        "points": 15
+      },
+      {
+        "text": "الرياضة",
+        "points": 10
+      },
+      {
+        "text": "الفيتامينات",
+        "points": 10
+      }
+    ]
+  },
+  {
+    "question": "كيف تكتشف أن الشخص الذي أمامك يكذب؟",
+    "answers": [
+      {
+        "text": "التلعثم / الارتباك",
+        "points": 35
+      },
+      {
+        "text": "التهرب بنظرات العين",
+        "points": 25
+      },
+      {
+        "text": "التعرق",
+        "points": 15
+      },
+      {
+        "text": "تناقض الكلام",
+        "points": 15
+      },
+      {
+        "text": "لغة الجسد",
+        "points": 10
+      }
+    ]
+  },
+  {
+    "question": "غرض يتم بيعه في المكتبة؟",
+    "answers": [
+      {
+        "text": "أقلام",
+        "points": 40
+      },
+      {
+        "text": "دفاتر",
+        "points": 25
+      },
+      {
+        "text": "كتب",
+        "points": 15
+      },
+      {
+        "text": "شنط مدرسية",
+        "points": 10
+      },
+      {
+        "text": "ألوان",
+        "points": 10
+      }
+    ]
+  },
+  {
+    "question": "أكمل الفراغ في العبارة التي تقال دائماً في المناسبات: عقبال...",
+    "answers": [
+      {
+        "text": "ما نفرح فيك / بعرسك",
+        "points": 31
+      },
+      {
+        "text": "التخرج / الوظيفة",
+        "points": 22
+      },
+      {
+        "text": "العيال / الذرية الصالحة",
+        "points": 17
+      },
+      {
+        "text": "المية سنة / العمر كله",
+        "points": 13
+      },
+      {
+        "text": "أعلى المراتب / المناصب",
+        "points": 10
+      },
+      {
+        "text": "ما نردها لك في الأفراح",
+        "points": 7
+      }
+    ]
+  },
+  {
+    "question": "جزء من الزي الرسمي للرجل السعودي؟",
+    "answers": [
+      {
+        "text": "الشماغ / الغترة",
+        "points": 40
+      },
+      {
+        "text": "الثوب",
+        "points": 30
+      },
+      {
+        "text": "العقال",
+        "points": 15
+      },
+      {
+        "text": "الطاقية",
+        "points": 10
+      },
+      {
+        "text": "الكبك",
+        "points": 5
+      }
+    ]
+  },
+  {
+    "question": "مدينة سعودية تشتهر بأجوائها الباردة أو المعتدلة بالصيف؟",
+    "answers": [
+      {
+        "text": "أبها",
+        "points": 40
+      },
+      {
+        "text": "الطائف",
+        "points": 25
+      },
+      {
+        "text": "الباحة",
+        "points": 15
+      },
+      {
+        "text": "النماص",
+        "points": 10
+      },
+      {
+        "text": "تبوك",
+        "points": 10
+      }
+    ]
+  },
+  {
+    "question": "إضافة أساسية تنحط مع القهوة السعودية؟",
+    "answers": [
+      {
+        "text": "هيل",
+        "points": 40
+      },
+      {
+        "text": "زعفران",
+        "points": 30
+      },
+      {
+        "text": "مبيض / كوفي ميت",
+        "points": 15
+      },
+      {
+        "text": "قرنفل / مسمار",
+        "points": 10
+      },
+      {
+        "text": "زنجبيل",
+        "points": 5
+      }
+    ]
+  },
+  {
+    "question": "شيء تشتريه من الصيدلية غير الأدوية؟",
+    "answers": [
+      {
+        "text": "شامبو / صابون",
+        "points": 40
+      },
+      {
+        "text": "معجون أسنان",
+        "points": 30
+      },
+      {
+        "text": "قطن / مناديل",
+        "points": 15
+      },
+      {
+        "text": "مكياج / كريمات",
+        "points": 10
+      },
+      {
+        "text": "حلاوة مصاص",
+        "points": 5
+      }
+    ]
+  },
+  {
+    "question": "هدية متعارف عليها تنعطى للمولود الجديد؟",
+    "answers": [
+      {
+        "text": "فلوس / عانية",
+        "points": 40
+      },
+      {
+        "text": "طقم ملابس أطفال",
+        "points": 25
+      },
+      {
+        "text": "ذهب / تعليقة",
+        "points": 15
+      },
+      {
+        "text": "سرير أو عربية طفل",
+        "points": 10
+      },
+      {
+        "text": "ألعاب",
+        "points": 10
+      }
+    ]
+  },
+  {
+    "question": "عذر غريب أو مضحك يقوله الطالب للمعلم عشان يطلع من الفصل؟",
+    "answers": [
+      {
+        "text": "بروح الحمام",
+        "points": 31
+      },
+      {
+        "text": "بشرب مويه",
+        "points": 22
+      },
+      {
+        "text": "بطني يوجعني / بروح للمرشد",
+        "points": 17
+      },
+      {
+        "text": "بجيب دفتري من فصل ثاني",
+        "points": 13
+      },
+      {
+        "text": "أبوي ينتظرني برا",
+        "points": 10
+      },
+      {
+        "text": "بنظف ثوبي / نظارتي",
+        "points": 7
+      }
+    ]
+  },
+  {
+    "question": "مكان تروح له إذا بغيت تروق وتغير جو بعد أسبوع متعب؟",
+    "answers": [
+      {
+        "text": "كوفي شوب",
+        "points": 40
+      },
+      {
+        "text": "البحر / الكورنيش",
+        "points": 25
+      },
+      {
+        "text": "البر / المخيم",
+        "points": 15
+      },
+      {
+        "text": "الشاليه / استراحة",
+        "points": 10
+      },
+      {
+        "text": "المطعم",
+        "points": 10
+      }
+    ]
+  },
+  {
+    "question": "اذكر شيئاً يُفتح ويُغلق؟",
+    "answers": [
+      {
+        "text": "الباب",
+        "points": 40
+      },
+      {
+        "text": "النافذة / الدريشة",
+        "points": 30
+      },
+      {
+        "text": "الثلاجة",
+        "points": 15
+      },
+      {
+        "text": "العين",
+        "points": 10
+      },
+      {
+        "text": "الكتاب",
+        "points": 5
+      }
+    ]
+  },
+  {
+    "question": "جزء من جسم الإنسان ينمو فيه الشعر؟",
+    "answers": [
+      {
+        "text": "الرأس",
+        "points": 40
+      },
+      {
+        "text": "اللحية / الشارب",
+        "points": 30
+      },
+      {
+        "text": "اليد",
+        "points": 15
+      },
+      {
+        "text": "الساق",
+        "points": 10
+      },
+      {
+        "text": "الحاجب",
+        "points": 5
+      }
+    ]
+  },
+  {
+    "question": "شيء يطلبه الأطفال دائماً أول ما يركبون السيارة؟",
+    "answers": [
+      {
+        "text": "شغل أغاني / شيلات",
+        "points": 31
+      },
+      {
+        "text": "نبي بقالة / حلاوة",
+        "points": 22
+      },
+      {
+        "text": "عطني جوالك",
+        "points": 17
+      },
+      {
+        "text": "متى نوصل؟",
+        "points": 13
+      },
+      {
+        "text": "شغل المكيف",
+        "points": 10
+      },
+      {
+        "text": "أبي أقعد قدام",
+        "points": 7
+      }
+    ]
+  },
+  {
+    "question": "مهنة أو وظيفة تتطلب تركيزاً ودقة عالية جداً؟",
+    "answers": [
+      {
+        "text": "طبيب جراح",
+        "points": 40
+      },
+      {
+        "text": "طيار",
+        "points": 30
+      },
+      {
+        "text": "مهندس",
+        "points": 15
+      },
+      {
+        "text": "مبرمج",
+        "points": 10
+      },
+      {
+        "text": "محاسب",
+        "points": 5
+      }
+    ]
+  },
+  {
+    "question": "مقاضي أساسية يكثر شراؤها قبل شهر رمضان بيومين؟",
+    "answers": [
+      {
+        "text": "فيمتو / تانج",
+        "points": 40
+      },
+      {
+        "text": "شوفان / شوربة",
+        "points": 25
+      },
+      {
+        "text": "عجينة سمبوسة",
+        "points": 15
+      },
+      {
+        "text": "تمر",
+        "points": 10
+      },
+      {
+        "text": "زيت قلي",
+        "points": 10
+      }
+    ]
+  },
+  {
+    "question": "جهاز كهربائي موجود في كل مطبخ؟",
+    "answers": [
+      {
+        "text": "ثلاجة",
+        "points": 40
+      },
+      {
+        "text": "فرن / مايكروويف",
+        "points": 25
+      },
+      {
+        "text": "خلاط",
+        "points": 15
+      },
+      {
+        "text": "غلاية موية",
+        "points": 10
+      },
+      {
+        "text": "عجانة",
+        "points": 10
+      }
+    ]
+  },
+  {
+    "question": "كلمة عامية تستخدمها لمدح شخص شهم أو فزع لك؟",
+    "answers": [
+      {
+        "text": "كفو",
+        "points": 40
+      },
+      {
+        "text": "ذيب",
+        "points": 25
+      },
+      {
+        "text": "شنب",
+        "points": 15
+      },
+      {
+        "text": "بطل",
+        "points": 10
+      },
+      {
+        "text": "بيض الله وجهك",
+        "points": 10
+      }
+    ]
+  },
+  {
+    "question": "شيء موجود على الطاولة في كل صالة أو مجلس بيت؟",
+    "answers": [
+      {
+        "text": "دلة القهوة / الترامس",
+        "points": 31
+      },
+      {
+        "text": "تمر",
+        "points": 22
+      },
+      {
+        "text": "مبخرة / عود",
+        "points": 17
+      },
+      {
+        "text": "علبة مناديل",
+        "points": 13
+      },
+      {
+        "text": "ريموت التلفزيون",
+        "points": 10
+      },
+      {
+        "text": "حلاوة / مكسرات",
+        "points": 7
+      }
+    ]
+  },
+  {
+    "question": "شيء يطير في السماء غير الطائرة؟",
+    "answers": [
+      {
+        "text": "العصفور / الطيور",
+        "points": 40
+      },
+      {
+        "text": "الهليكوبتر",
+        "points": 25
+      },
+      {
+        "text": "الطائرة الورقية",
+        "points": 15
+      },
+      {
+        "text": "المنطاد",
+        "points": 10
+      },
+      {
+        "text": "الصاروخ",
+        "points": 10
+      }
+    ]
+  },
+  {
+    "question": "تصريفة مشهورة عشان تقفل المكالمة؟",
+    "answers": [
+      {
+        "text": "الخط يقطع / ما أسمعك",
+        "points": 35
+      },
+      {
+        "text": "وراي مشوار / بطلع",
+        "points": 30
+      },
+      {
+        "text": "أمي تناديني",
+        "points": 15
+      },
+      {
+        "text": "جوالي بيطفي شحن",
+        "points": 10
+      },
+      {
+        "text": "بدق عليك بعدين",
+        "points": 10
+      }
+    ]
+  },
+  {
+    "question": "أمنية يتمناها أي موظف في عمله؟",
+    "answers": [
+      {
+        "text": "زيادة الراتب",
+        "points": 40
+      },
+      {
+        "text": "ترقية",
+        "points": 25
+      },
+      {
+        "text": "إجازة طويلة",
+        "points": 15
+      },
+      {
+        "text": "بونص / مكافأة",
+        "points": 10
+      },
+      {
+        "text": "مدير متفهم",
+        "points": 10
+      }
+    ]
+  },
+  {
+    "question": "غرض أساسي تأخذه معك في الكشتة أو المخيم؟",
+    "answers": [
+      {
+        "text": "حطب / فحم",
+        "points": 35
+      },
+      {
+        "text": "دلال القهوة والشاي",
+        "points": 25
+      },
+      {
+        "text": "فرشة / رواق",
+        "points": 20
+      },
+      {
+        "text": "عزبة الطبخ",
+        "points": 10
+      },
+      {
+        "text": "كشاف / لمبات",
+        "points": 10
+      }
+    ]
+  },
+  {
+    "question": "مناسبة تلبس فيها المرأة ذهب ومجوهرات كثيرة؟",
+    "answers": [
+      {
+        "text": "زواج / شبكة",
+        "points": 40
+      },
+      {
+        "text": "يوم العيد",
+        "points": 25
+      },
+      {
+        "text": "ليلة الحناء / الغمرة",
+        "points": 15
+      },
+      {
+        "text": "استقبال مولود",
+        "points": 10
+      },
+      {
+        "text": "عزيمة رسمية / كبيرة",
+        "points": 10
+      }
+    ]
+  },
+  {
+    "question": "شيء صوته مزعج جداً وتسمعه عادة في الصباح؟",
+    "answers": [
+      {
+        "text": "منبه الجوال",
+        "points": 31
+      },
+      {
+        "text": "بوري السيارات",
+        "points": 22
+      },
+      {
+        "text": "عمال البناء / الحفريات",
+        "points": 17
+      },
+      {
+        "text": "دبابات / سيارات مسرعة",
+        "points": 13
+      },
+      {
+        "text": "بكاء طفل صغير",
+        "points": 10
+      },
+      {
+        "text": "قطط تتهاوش",
+        "points": 7
+      }
+    ]
+  },
+  {
+    "question": "اذكر شيئاً يحتاج للغسيل والتنظيف باستمرار؟",
+    "answers": [
+      {
+        "text": "الملابس",
+        "points": 40
+      },
+      {
+        "text": "الصحون / المواعين",
+        "points": 30
+      },
+      {
+        "text": "اليدين",
+        "points": 15
+      },
+      {
+        "text": "السيارة",
+        "points": 10
+      },
+      {
+        "text": "الأسنان",
+        "points": 5
+      }
+    ]
+  },
+  {
+    "question": "أول شيء تسويه أول ما تفتح عيونك من النوم؟",
+    "answers": [
+      {
+        "text": "أشيك على الجوال",
+        "points": 40
+      },
+      {
+        "text": "أطفي المنبه",
+        "points": 30
+      },
+      {
+        "text": "أروح دورة المياه",
+        "points": 15
+      },
+      {
+        "text": "أشرب موية",
+        "points": 10
+      },
+      {
+        "text": "أتمغط",
+        "points": 5
+      }
+    ]
+  }
+];
+  </script>
+  <script>
     const DESIGN_WIDTH = 1600;
     const DESIGN_HEIGHT = 768;
 
     const DISPLAY_KEY = "familyfeud_display_state_v1";
+    const CONTROL_KEY = "familyfeud_control_state_v1";
     const ROOM_KEY = "familyfeud_room_id";
     const BUZZ_ROOM_KEY = "familyfeud_buzz_room";
     const API_BASE_KEY = "familyfeud_api_base";
@@ -746,9 +3842,7 @@
     const roundScoreEl = document.getElementById("roundScore");
     const questionTextEl = document.getElementById("questionText");
     const answersGrid = document.getElementById("answersGrid");
-
     const strikeEffectLayer = document.getElementById("strikeEffectLayer");
-
     const audioChoiceBox = document.getElementById("audioChoiceBox");
     const audioYesBtn = document.getElementById("audioYesBtn");
     const audioNoBtn = document.getElementById("audioNoBtn");
@@ -760,31 +3854,21 @@
       team2: document.querySelectorAll("#teamTwoStrikes .strike")
     };
 
-    const teamPanelEls = {
-      team1: teamOnePanelEl,
-      team2: teamTwoPanelEl
-    };
-
-    const teamNameEls = {
-      team1: teamOneNameEl,
-      team2: teamTwoNameEl
-    };
+    const teamPanelEls = { team1: teamOnePanelEl, team2: teamTwoPanelEl };
+    const teamNameEls = { team1: teamOneNameEl, team2: teamTwoNameEl };
 
     let stableViewport = { width: window.innerWidth, height: window.innerHeight };
     let lastRenderedSignature = "";
     let lastPersistedSignature = "";
     let roomId = resolveRoomId();
     let channel = null;
-
-    let apiBase = normalizeBase(readStored(API_BASE_KEY) || readStored(BUZZ_API_BASE_KEY));
+    let apiBase = normalizeBase(readStored(API_BASE_KEY) || readStored(BUZZ_API_BASE_KEY) || window.location.origin);
     let pusher = null;
     let gameChannel = null;
     let fallbackPoll = null;
     let stateFetchInFlight = null;
-
     let syncStarted = false;
     let teamNamesSynced = false;
-
     let previousStrikeSnapshot = null;
     let previousRevealedSnapshot = null;
     let previousDisplayErrorSeq = null;
@@ -793,20 +3877,14 @@
     let audioEnabled = false;
     let audioChoiceResolved = false;
     let pendingRevealIndexes = new Set();
-
     let activeFirstBuzzTeam = "";
     let activeTurnTeam = "";
     let firstBuzzHighlightTimer = null;
     let lastFirstBuzzToken = "";
 
-    try {
-      channel = new BroadcastChannel(DISPLAY_CHANNEL);
-    } catch (e) {
-      channel = null;
-    }
+    try { channel = new BroadcastChannel(DISPLAY_CHANNEL); } catch (e) { channel = null; }
 
     lastPersistedSignature = JSON.stringify(currentDisplayState);
-
     persistRoomId(roomId);
     initAudioChoice();
     renderDisplay();
@@ -827,31 +3905,11 @@
       renderDisplay();
     });
 
-    window.addEventListener("pageshow", async () => {
-      await fetchRemoteGameState(true);
-      renderDisplay();
-      updateLayout();
-    });
-
-    window.addEventListener("focus", async () => {
-      await fetchRemoteGameState(true);
-      renderDisplay();
-      updateLayout();
-    });
-
-    window.addEventListener("load", () => {
-      renderDisplay();
-      setTimeout(updateLayout, 60);
-      setTimeout(updateLayout, 220);
-    }, { passive: true });
-
+    window.addEventListener("pageshow", async () => { await fetchRemoteGameState(true); renderDisplay(); updateLayout(); });
+    window.addEventListener("focus", async () => { await fetchRemoteGameState(true); renderDisplay(); updateLayout(); });
+    window.addEventListener("load", () => { renderDisplay(); setTimeout(updateLayout, 60); setTimeout(updateLayout, 220); }, { passive: true });
     window.addEventListener("resize", updateLayout, { passive: true });
-
-    window.addEventListener("orientationchange", () => {
-      setTimeout(updateLayout, 80);
-      setTimeout(updateLayout, 250);
-      setTimeout(updateLayout, 500);
-    }, { passive: true });
+    window.addEventListener("orientationchange", () => { setTimeout(updateLayout, 80); setTimeout(updateLayout, 250); setTimeout(updateLayout, 500); }, { passive: true });
 
     if (window.visualViewport) {
       window.visualViewport.addEventListener("resize", updateLayout, { passive: true });
@@ -864,145 +3922,61 @@
 
     function initAudioChoice() {
       showAudioChoice();
-
-      audioYesBtn.addEventListener("click", async () => {
-        audioEnabled = true;
-        audioChoiceResolved = true;
-        await unlockAllSounds();
-        hideAudioChoice();
-      });
-
-      audioNoBtn.addEventListener("click", () => {
-        audioEnabled = false;
-        audioChoiceResolved = true;
-        stopAllGameSounds();
-        hideAudioChoice();
-      });
+      audioYesBtn.addEventListener("click", async () => { audioEnabled = true; audioChoiceResolved = true; await unlockAllSounds(); hideAudioChoice(); });
+      audioNoBtn.addEventListener("click", () => { audioEnabled = false; audioChoiceResolved = true; stopAllGameSounds(); hideAudioChoice(); });
     }
 
-    function showAudioChoice() {
-      audioChoiceBox.classList.add("show");
-    }
-
-    function hideAudioChoice() {
-      audioChoiceBox.classList.remove("show");
-    }
+    function showAudioChoice() { audioChoiceBox.classList.add("show"); }
+    function hideAudioChoice() { audioChoiceBox.classList.remove("show"); }
 
     async function unlockAudioElement(audioEl) {
       if (!audioEl) return;
-
       const oldMuted = audioEl.muted;
       const oldVolume = audioEl.volume;
-
-      try {
-        audioEl.pause();
-        audioEl.currentTime = 0;
-      } catch (e) {}
-
-      try {
-        audioEl.muted = true;
-        audioEl.volume = 0;
-        await audioEl.play();
-      } catch (e) {}
-
-      try {
-        audioEl.pause();
-        audioEl.currentTime = 0;
-      } catch (e) {}
-
+      try { audioEl.pause(); audioEl.currentTime = 0; } catch (e) {}
+      try { audioEl.muted = true; audioEl.volume = 0; await audioEl.play(); } catch (e) {}
+      try { audioEl.pause(); audioEl.currentTime = 0; } catch (e) {}
       audioEl.muted = oldMuted;
       audioEl.volume = oldVolume;
     }
 
-    async function unlockAllSounds() {
-      await unlockAudioElement(answerSoundEl);
-      await unlockAudioElement(wrongSoundEl);
-    }
+    async function unlockAllSounds() { await unlockAudioElement(answerSoundEl); await unlockAudioElement(wrongSoundEl); }
 
     function stopAllGameSounds() {
       [answerSoundEl, wrongSoundEl].forEach((audioEl) => {
         if (!audioEl) return;
-        try {
-          audioEl.pause();
-          audioEl.currentTime = 0;
-        } catch (e) {}
+        try { audioEl.pause(); audioEl.currentTime = 0; } catch (e) {}
       });
     }
 
     async function playExclusiveSound(audioEl) {
       if (!audioEnabled || !audioChoiceResolved || !audioEl) return;
-
       stopAllGameSounds();
-
-      try {
-        audioEl.currentTime = 0;
-      } catch (e) {}
-
-      try {
-        await audioEl.play();
-      } catch (e) {}
+      try { audioEl.currentTime = 0; } catch (e) {}
+      try { await audioEl.play(); } catch (e) {}
     }
 
-    function playAnswerSound() {
-      playExclusiveSound(answerSoundEl);
-    }
-
-    function playWrongSound() {
-      playExclusiveSound(wrongSoundEl);
-    }
+    function playAnswerSound() { playExclusiveSound(answerSoundEl); }
+    function playWrongSound() { playExclusiveSound(wrongSoundEl); }
 
     function readStored(key) {
-      try {
-        const localValue = localStorage.getItem(key);
-        if (localValue) return localValue;
-      } catch (e) {}
-
-      try {
-        const sessionValue = sessionStorage.getItem(key);
-        if (sessionValue) return sessionValue;
-      } catch (e) {}
-
+      try { const localValue = localStorage.getItem(key); if (localValue) return localValue; } catch (e) {}
+      try { const sessionValue = sessionStorage.getItem(key); if (sessionValue) return sessionValue; } catch (e) {}
       return "";
     }
 
     function writeStored(key, value) {
       const stringValue = typeof value === "string" ? value : JSON.stringify(value);
-
       try { localStorage.setItem(key, stringValue); } catch (e) {}
       try { sessionStorage.setItem(key, stringValue); } catch (e) {}
-
-      if (channel) {
-        try { channel.postMessage({ key }); } catch (e) {}
-      }
+      if (channel) { try { channel.postMessage({ key }); } catch (e) {} }
     }
 
-    function safeParse(json) {
-      try {
-        return JSON.parse(json);
-      } catch (e) {
-        return null;
-      }
-    }
-
-    function normalizeBase(base) {
-      return String(base || "").trim().replace(/\/+$/, "");
-    }
-
-    function normalizeRoom(value) {
-      const v = String(value || "").trim().toLowerCase();
-      if (!v) return "";
-      return v.replace(/[^a-z0-9_-]/g, "").slice(0, 64);
-    }
-
-    function normalizeEffectReason(value) {
-      return String(value || "").trim().toLowerCase().slice(0, 40);
-    }
-
-    function normalizeTeam(value) {
-      const v = String(value || "").trim().toLowerCase();
-      if (v === "team1" || v === "team2") return v;
-      return "";
-    }
+    function safeParse(json) { try { return JSON.parse(json); } catch (e) { return null; } }
+    function normalizeBase(base) { return String(base || "").trim().replace(/\/+$/, ""); }
+    function normalizeRoom(value) { const v = String(value || "").trim().toLowerCase(); if (!v) return ""; return v.replace(/[^a-z0-9_-]/g, "").slice(0, 64); }
+    function normalizeEffectReason(value) { return String(value || "").trim().toLowerCase().slice(0, 40); }
+    function normalizeTeam(value) { const v = String(value || "").trim().toLowerCase(); if (v === "team1" || v === "team2") return v; return ""; }
 
     function resolveRoomId() {
       const url = new URL(window.location.href);
@@ -1011,38 +3985,59 @@
       return fromUrl || fromStorage || DEFAULT_ROOM;
     }
 
-    function persistRoomId(nextRoom) {
-      writeStored(ROOM_KEY, nextRoom);
-      writeStored(BUZZ_ROOM_KEY, nextRoom);
-    }
+    function persistRoomId(nextRoom) { writeStored(ROOM_KEY, nextRoom); writeStored(BUZZ_ROOM_KEY, nextRoom); }
 
     function getApiBases() {
       const seen = new Set();
       const result = [];
-
-      const candidates = [
-        apiBase,
-        readStored(API_BASE_KEY),
-        readStored(BUZZ_API_BASE_KEY),
-        window.location.origin.includes("workers.dev") ? window.location.origin : "",
-        "https://family-feud-buzz.sandooq-m.workers.dev",
-        "https://z.sandooq-m.workers.dev"
-      ];
-
-      candidates.forEach((base) => {
-        const normalized = normalizeBase(base);
-        if (!normalized || seen.has(normalized)) return;
-        seen.add(normalized);
-        result.push(normalized);
-      });
-
+      const candidates = [window.location.origin, apiBase, readStored(API_BASE_KEY), readStored(BUZZ_API_BASE_KEY), window.location.origin.includes("workers.dev") ? window.location.origin : "", "https://family-feud-buzz.sandooq-m.workers.dev", "https://z.sandooq-m.workers.dev"];
+      candidates.forEach((base) => { const normalized = normalizeBase(base); if (!normalized || seen.has(normalized)) return; seen.add(normalized); result.push(normalized); });
       return result;
     }
 
+    function normalizeNumber(value, fallback = 0) { const n = Number(value); return Number.isFinite(n) ? n : fallback; }
+
+    function getDisplayQuestionBank() {
+      const raw = window.FAMILY_FEUD_QUESTIONS || [];
+      if (!Array.isArray(raw)) return [];
+      return raw.map((item) => {
+        const question = String(item?.question || "").trim();
+        const answers = Array.isArray(item?.answers) ? item.answers.slice(0, 6).map((answer) => ({ text: String(answer?.text || "").trim(), points: Math.max(0, normalizeNumber(answer?.points, 0)) })).filter((answer) => answer.text && answer.points > 0) : [];
+        if (!question || !answers.length) return null;
+        return { question, answers };
+      }).filter(Boolean);
+    }
+
+    function getBankQuestionByIndex(index) {
+      const bank = getDisplayQuestionBank();
+      if (!bank.length) return null;
+      const safeIndex = Number.isFinite(Number(index)) ? Math.floor(Number(index)) : 0;
+      const normalizedIndex = ((safeIndex % bank.length) + bank.length) % bank.length;
+      return bank[normalizedIndex] || bank[0];
+    }
+
+    function isQuestionFromBank(question) {
+      const text = String(question || "").trim();
+      if (!text) return false;
+      return getDisplayQuestionBank().some((item) => item.question === text);
+    }
+
+    function mergeWithBankQuestion(state, questionIndex) {
+      const bankQuestion = getBankQuestionByIndex(questionIndex);
+      if (!bankQuestion) return state;
+      const oldAnswers = Array.isArray(state.answers) ? state.answers : [];
+      return {
+        ...state,
+        question: bankQuestion.question,
+        answers: bankQuestion.answers.slice(0, 6).map((answer, index) => ({ text: answer.text, points: answer.points, revealed: !!oldAnswers[index]?.revealed }))
+      };
+    }
+
     function getDefaultState() {
+      const firstQuestion = getBankQuestionByIndex(0);
       return {
         showQuestion: false,
-        question: "",
+        question: firstQuestion ? firstQuestion.question : "",
         team1Name: readStored("familyfeud_team1") || "الفريق الأول",
         team2Name: readStored("familyfeud_team2") || "الفريق الثاني",
         team1Score: 0,
@@ -1057,46 +4052,21 @@
         phase: "idle",
         currentTurnTeam: "",
         stealingTeam: "",
-        answers: Array.from({ length: 6 }, () => ({
-          text: "",
-          points: 0,
-          revealed: false
-        }))
+        answers: firstQuestion ? firstQuestion.answers.slice(0, 6).map((answer) => ({ text: answer.text, points: answer.points, revealed: false })) : []
       };
     }
 
-    function normalizeNumber(value, fallback = 0) {
-      const n = Number(value);
-      return Number.isFinite(n) ? n : fallback;
-    }
-
-    function normalizeStrikeCount(value) {
-      return Math.max(0, Math.min(3, normalizeNumber(value, 0)));
-    }
-
-    function normalizeAnswer(answer, fallback) {
-      return {
-        text: String(answer?.text ?? fallback?.text ?? "").trim(),
-        points: Math.max(0, normalizeNumber(answer?.points, fallback?.points ?? 0)),
-        revealed: !!answer?.revealed
-      };
-    }
-
-    function normalizePhase(value) {
-      return String(value || "").trim().toLowerCase();
-    }
+    function normalizeStrikeCount(value) { return Math.max(0, Math.min(3, normalizeNumber(value, 0))); }
+    function normalizeAnswer(answer, fallback) { return { text: String(answer?.text ?? fallback?.text ?? "").trim(), points: Math.max(0, normalizeNumber(answer?.points, fallback?.points ?? 0)), revealed: !!answer?.revealed }; }
+    function normalizePhase(value) { return String(value || "").trim().toLowerCase(); }
 
     function normalizeState(raw) {
       const defaults = getDefaultState();
       const source = raw || defaults;
       const answersSource = Array.isArray(source.answers) ? source.answers : defaults.answers;
       const answerCount = Math.max(0, Math.min(6, answersSource.length));
-
       const normalizedAnswers = [];
-      for (let i = 0; i < answerCount; i++) {
-        normalizedAnswers.push(normalizeAnswer(answersSource[i], defaults.answers[i]));
-      }
-
+      for (let i = 0; i < answerCount; i++) normalizedAnswers.push(normalizeAnswer(answersSource[i], defaults.answers[i]));
       return {
         showQuestion: typeof source.showQuestion === "boolean" ? source.showQuestion : defaults.showQuestion,
         question: String(source.question || defaults.question).trim(),
@@ -1118,234 +4088,111 @@
       };
     }
 
+    function readControlQuestionIndex() {
+      const parsed = safeParse(readStored(CONTROL_KEY));
+      return Math.max(0, normalizeNumber(parsed?.currentQuestionIndex, 0));
+    }
+
     function readDisplayState() {
       const raw = readStored(DISPLAY_KEY);
-      if (!raw) return normalizeState(getDefaultState());
-
+      if (!raw) return mergeWithBankQuestion(normalizeState(getDefaultState()), readControlQuestionIndex());
       const parsed = safeParse(raw);
-      if (!parsed) return normalizeState(getDefaultState());
-
-      return normalizeState(parsed);
+      if (!parsed) return mergeWithBankQuestion(normalizeState(getDefaultState()), readControlQuestionIndex());
+      const normalized = normalizeState(parsed);
+      if (!isQuestionFromBank(normalized.question)) return mergeWithBankQuestion(normalized, readControlQuestionIndex());
+      return normalized;
     }
 
     async function startRemoteSync() {
       if (syncStarted) return;
       syncStarted = true;
-
       const ok = await detectApiBase();
-
-      if (ok) {
-        await syncTeamNamesToRemote();
-        await fetchRemoteGameState(true);
-        await initPusher();
-      }
-
+      if (ok) { await syncTeamNamesToRemote(); await fetchRemoteGameState(true); await initPusher(); }
       startFallbackPoll();
     }
 
-    function startFallbackPoll() {
-      if (fallbackPoll) clearInterval(fallbackPoll);
-
-      fallbackPoll = setInterval(() => {
-        fetchRemoteGameState(false);
-      }, FALLBACK_POLL_MS);
-    }
+    function startFallbackPoll() { if (fallbackPoll) clearInterval(fallbackPoll); fallbackPoll = setInterval(() => { fetchRemoteGameState(false); }, FALLBACK_POLL_MS); }
 
     function destroyLiveSync() {
-      if (fallbackPoll) {
-        clearInterval(fallbackPoll);
-        fallbackPoll = null;
-      }
-
-      if (gameChannel && pusher) {
-        try { gameChannel.unbind_all(); } catch (e) {}
-        try { pusher.unsubscribe(gameChannel.name); } catch (e) {}
-      }
-
+      if (fallbackPoll) { clearInterval(fallbackPoll); fallbackPoll = null; }
+      if (gameChannel && pusher) { try { gameChannel.unbind_all(); } catch (e) {} try { pusher.unsubscribe(gameChannel.name); } catch (e) {} }
       gameChannel = null;
-
-      if (pusher) {
-        try { pusher.disconnect(); } catch (e) {}
-      }
-
-      pusher = null;
-      syncStarted = false;
-      stateFetchInFlight = null;
-
-      clearFirstBuzzHighlightTimer();
+      if (pusher) { try { pusher.disconnect(); } catch (e) {} }
+      pusher = null; syncStarted = false; stateFetchInFlight = null; clearFirstBuzzHighlightTimer();
     }
 
     async function detectApiBase() {
       const bases = getApiBases();
-
       for (const base of bases) {
         try {
-          const res = await fetch(`${base}/api/game/state?room=${encodeURIComponent(roomId)}`, {
-            method: "GET",
-            cache: "no-store",
-            headers: {
-              "Cache-Control": "no-cache",
-              "Pragma": "no-cache"
-            }
-          });
-
+          const res = await fetch(`${base}/api/game/state?room=${encodeURIComponent(roomId)}`, { method: "GET", cache: "no-store", headers: { "Cache-Control": "no-cache", "Pragma": "no-cache" } });
           const data = await res.json().catch(() => null);
           if (!res.ok || !data || !data.ok || !data.state || !data.state.display) continue;
-
-          apiBase = base;
-          writeStored(API_BASE_KEY, base);
-          writeStored(BUZZ_API_BASE_KEY, base);
-          applyRemoteGameState(data.state);
-          renderDisplay();
-          return true;
+          apiBase = base; writeStored(API_BASE_KEY, base); writeStored(BUZZ_API_BASE_KEY, base); applyRemoteGameState(data.state); renderDisplay(); return true;
         } catch (error) {}
       }
-
       return false;
     }
 
     async function initPusher() {
-      if (!window.Pusher) return;
-      if (!apiBase) return;
-      if (pusher || gameChannel) return;
-
+      if (!window.Pusher) return; if (!apiBase) return; if (pusher || gameChannel) return;
       try {
-        const res = await fetch(`${apiBase}/api/game/pusher-config?room=${encodeURIComponent(roomId)}`, {
-          method: "GET",
-          cache: "no-store",
-          headers: {
-            "Cache-Control": "no-cache",
-            "Pragma": "no-cache"
-          }
-        });
-
+        const res = await fetch(`${apiBase}/api/game/pusher-config?room=${encodeURIComponent(roomId)}`, { method: "GET", cache: "no-store", headers: { "Cache-Control": "no-cache", "Pragma": "no-cache" } });
         const data = await res.json().catch(() => null);
         if (!res.ok || !data || !data.ok || !data.key || !data.cluster || !data.channel) return;
-
-        const authEndpoint = String(data.authEndpoint || "").startsWith("http")
-          ? data.authEndpoint
-          : `${apiBase}${data.authEndpoint}`;
-
+        const authEndpoint = String(data.authEndpoint || "").startsWith("http") ? data.authEndpoint : `${apiBase}${data.authEndpoint}`;
         window.Pusher.logToConsole = false;
-
-        pusher = new window.Pusher(data.key, {
-          cluster: data.cluster,
-          authEndpoint,
-          authTransport: "ajax",
-          channelAuthorization: {
-            endpoint: authEndpoint,
-            transport: "ajax"
-          }
-        });
-
+        pusher = new window.Pusher(data.key, { cluster: data.cluster, authEndpoint, authTransport: "ajax", channelAuthorization: { endpoint: authEndpoint, transport: "ajax" } });
         gameChannel = pusher.subscribe(data.channel);
-
-        gameChannel.bind("pusher:subscription_succeeded", async () => {
-          await fetchRemoteGameState(true);
-        });
-
-        gameChannel.bind("game-updated", (payload) => {
-          applyRemoteGameState(payload);
-          renderDisplay();
-        });
+        gameChannel.bind("pusher:subscription_succeeded", async () => { await fetchRemoteGameState(true); });
+        gameChannel.bind("game-updated", (payload) => { applyRemoteGameState(payload); renderDisplay(); });
       } catch (error) {}
     }
 
     async function fetchRemoteGameState(force = false) {
       if (stateFetchInFlight && !force) return stateFetchInFlight;
-
       stateFetchInFlight = (async () => {
         const bases = getApiBases();
-
         for (const base of bases) {
           try {
-            const res = await fetch(`${base}/api/game/state?room=${encodeURIComponent(roomId)}`, {
-              method: "GET",
-              cache: "no-store",
-              headers: {
-                "Cache-Control": "no-cache",
-                "Pragma": "no-cache"
-              }
-            });
-
+            const res = await fetch(`${base}/api/game/state?room=${encodeURIComponent(roomId)}`, { method: "GET", cache: "no-store", headers: { "Cache-Control": "no-cache", "Pragma": "no-cache" } });
             if (!res.ok) continue;
-
             const data = await res.json().catch(() => null);
             if (!data || !data.ok || !data.state || !data.state.display) continue;
-
-            apiBase = base;
-            writeStored(API_BASE_KEY, base);
-            writeStored(BUZZ_API_BASE_KEY, base);
-
-            applyRemoteGameState(data.state);
-            renderDisplay();
-            return true;
+            apiBase = base; writeStored(API_BASE_KEY, base); writeStored(BUZZ_API_BASE_KEY, base); applyRemoteGameState(data.state); renderDisplay(); return true;
           } catch (error) {}
         }
-
         return false;
       })();
-
-      try {
-        return await stateFetchInFlight;
-      } finally {
-        stateFetchInFlight = null;
-      }
+      try { return await stateFetchInFlight; } finally { stateFetchInFlight = null; }
     }
 
     async function sendGameAction(action, extra = {}) {
       const bases = getApiBases();
-
       for (const base of bases) {
         try {
-          const res = await fetch(`${base}/api/game/action?room=${encodeURIComponent(roomId)}`, {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              "Cache-Control": "no-cache",
-              "Pragma": "no-cache"
-            },
-            body: JSON.stringify({
-              action,
-              ...extra
-            })
-          });
-
+          const res = await fetch(`${base}/api/game/action?room=${encodeURIComponent(roomId)}`, { method: "POST", headers: { "Content-Type": "application/json", "Cache-Control": "no-cache", "Pragma": "no-cache" }, body: JSON.stringify({ action, ...extra }) });
           const data = await res.json().catch(() => null);
           if (!res.ok || !data || !data.ok || !data.state) continue;
-
-          apiBase = base;
-          writeStored(API_BASE_KEY, base);
-          writeStored(BUZZ_API_BASE_KEY, base);
-
-          applyRemoteGameState(data.state);
-          renderDisplay();
-          return true;
+          apiBase = base; writeStored(API_BASE_KEY, base); writeStored(BUZZ_API_BASE_KEY, base); applyRemoteGameState(data.state); renderDisplay(); return true;
         } catch (error) {}
       }
-
       return false;
     }
 
     async function syncTeamNamesToRemote() {
       if (teamNamesSynced) return;
       teamNamesSynced = true;
-
       const team1Name = String(readStored("familyfeud_team1") || "").trim();
       const team2Name = String(readStored("familyfeud_team2") || "").trim();
-
       if (!team1Name && !team2Name) return;
-
-      await sendGameAction("set_team_names", {
-        team1Name: team1Name || undefined,
-        team2Name: team2Name || undefined
-      });
+      await sendGameAction("set_team_names", { team1Name: team1Name || undefined, team2Name: team2Name || undefined });
     }
 
     function applyRemoteGameState(remoteState) {
       if (!remoteState || !remoteState.display) return false;
-
-      const nextState = normalizeState({
+      const controlIndex = Math.max(0, normalizeNumber(remoteState.control?.currentQuestionIndex, readControlQuestionIndex()));
+      let nextState = normalizeState({
         ...remoteState.display,
         displayErrorSeq: remoteState.effects?.displayErrorSeq,
         displayErrorReason: remoteState.effects?.displayErrorReason,
@@ -1355,374 +4202,155 @@
         currentTurnTeam: remoteState.control?.currentTurnTeam,
         stealingTeam: remoteState.control?.stealingTeam
       });
-
+      nextState = mergeWithBankQuestion(nextState, controlIndex);
       const nextSignature = JSON.stringify(nextState);
-
       currentDisplayState = nextState;
-
-      if (nextSignature === lastPersistedSignature) {
-        return false;
-      }
-
+      if (nextSignature === lastPersistedSignature) return false;
       lastPersistedSignature = nextSignature;
       writeStored(DISPLAY_KEY, nextState);
       return true;
     }
 
-    function getCurrentViewport() {
-      const vv = window.visualViewport;
-      return {
-        width: vv ? vv.width : window.innerWidth,
-        height: vv ? vv.height : window.innerHeight
-      };
-    }
+    function getCurrentViewport() { const vv = window.visualViewport; return { width: vv ? vv.width : window.innerWidth, height: vv ? vv.height : window.innerHeight }; }
+    function setAppHeight() { stableViewport = getCurrentViewport(); root.style.setProperty("--app-height", stableViewport.height + "px"); }
+    function fitGameToViewport() { stableViewport = getCurrentViewport(); const scale = Math.min((stableViewport.width - 8) / DESIGN_WIDTH, (stableViewport.height - 8) / DESIGN_HEIGHT); root.style.setProperty("--app-scale", String(scale)); }
+    function nudgeSafariBar() { const visibleHeight = stableViewport.height; const fullHeight = Math.max(document.body.scrollHeight, document.documentElement.scrollHeight); if (fullHeight <= visibleHeight + 8) return; window.scrollTo(0, 1); setTimeout(() => window.scrollTo(0, 1), 120); setTimeout(() => window.scrollTo(0, 1), 280); }
+    function updateLayout() { setAppHeight(); requestAnimationFrame(() => { fitGameToViewport(); applyAutoTextFitting(); nudgeSafariBar(); }); }
 
-    function setAppHeight() {
-      stableViewport = getCurrentViewport();
-      root.style.setProperty("--app-height", stableViewport.height + "px");
-    }
-
-    function fitGameToViewport() {
-      stableViewport = getCurrentViewport();
-
-      const horizontalPadding = 8;
-      const verticalPadding = 8;
-
-      const usableWidth = stableViewport.width - horizontalPadding;
-      const usableHeight = stableViewport.height - verticalPadding;
-
-      const scale = Math.min(
-        usableWidth / DESIGN_WIDTH,
-        usableHeight / DESIGN_HEIGHT
-      );
-
-      root.style.setProperty("--app-scale", String(scale));
-    }
-
-    function nudgeSafariBar() {
-      const visibleHeight = stableViewport.height;
-      const fullHeight = Math.max(
-        document.body.scrollHeight,
-        document.documentElement.scrollHeight
-      );
-
-      if (fullHeight <= visibleHeight + 8) return;
-
-      window.scrollTo(0, 1);
-      setTimeout(() => window.scrollTo(0, 1), 120);
-      setTimeout(() => window.scrollTo(0, 1), 280);
-    }
-
-    function updateLayout() {
-      setAppHeight();
-
-      requestAnimationFrame(() => {
-        fitGameToViewport();
-        applyAutoTextFitting();
-        nudgeSafariBar();
-      });
-    }
-
-    function applyStrikeRow(elements, activeCount) {
-      elements.forEach((el, index) => {
-        el.classList.toggle("active", index < activeCount);
-      });
-    }
-
-    function clearFirstBuzzHighlightTimer() {
-      if (firstBuzzHighlightTimer) {
-        clearTimeout(firstBuzzHighlightTimer);
-        firstBuzzHighlightTimer = null;
-      }
-    }
-
-    function applyFirstBuzzHighlightVisuals() {
-      ["team1", "team2"].forEach((team) => {
-        const isActive = activeFirstBuzzTeam === team;
-        teamPanelEls[team]?.classList.toggle("first-buzz-active", isActive);
-        teamNameEls[team]?.classList.toggle("first-buzz-active", isActive);
-      });
-    }
-
-    function applyTurnHighlightVisuals() {
-      ["team1", "team2"].forEach((team) => {
-        const isActive = activeTurnTeam === team;
-        teamPanelEls[team]?.classList.toggle("turn-active", isActive);
-      });
-    }
-
-    function startFirstBuzzHighlight(team, durationMs) {
-      clearFirstBuzzHighlightTimer();
-
-      activeFirstBuzzTeam = team;
-      applyFirstBuzzHighlightVisuals();
-
-      firstBuzzHighlightTimer = setTimeout(() => {
-        activeFirstBuzzTeam = "";
-        applyFirstBuzzHighlightVisuals();
-      }, durationMs);
-    }
+    function applyStrikeRow(elements, activeCount) { elements.forEach((el, index) => { el.classList.toggle("active", index < activeCount); }); }
+    function clearFirstBuzzHighlightTimer() { if (firstBuzzHighlightTimer) { clearTimeout(firstBuzzHighlightTimer); firstBuzzHighlightTimer = null; } }
+    function applyFirstBuzzHighlightVisuals() { ["team1", "team2"].forEach((team) => { const isActive = activeFirstBuzzTeam === team; teamPanelEls[team]?.classList.toggle("first-buzz-active", isActive); teamNameEls[team]?.classList.toggle("first-buzz-active", isActive); }); }
+    function applyTurnHighlightVisuals() { ["team1", "team2"].forEach((team) => { const isActive = activeTurnTeam === team; teamPanelEls[team]?.classList.toggle("turn-active", isActive); }); }
+    function startFirstBuzzHighlight(team, durationMs) { clearFirstBuzzHighlightTimer(); activeFirstBuzzTeam = team; applyFirstBuzzHighlightVisuals(); firstBuzzHighlightTimer = setTimeout(() => { activeFirstBuzzTeam = ""; applyFirstBuzzHighlightVisuals(); }, durationMs); }
 
     function detectFirstBuzzHighlight(state) {
       const team = normalizeTeam(state.firstBuzzTeam);
       const at = Math.max(0, normalizeNumber(state.firstBuzzAt, 0));
       const token = team && at ? `${team}:${at}` : "";
-
-      if (!token) return;
-      if (token === lastFirstBuzzToken) return;
-
+      if (!token || token === lastFirstBuzzToken) return;
       lastFirstBuzzToken = token;
-
-      const elapsed = Date.now() - at;
-      const remainingMs = FIRST_BUZZ_HIGHLIGHT_MS - elapsed;
-
+      const remainingMs = FIRST_BUZZ_HIGHLIGHT_MS - (Date.now() - at);
       if (remainingMs <= 0) return;
-
       startFirstBuzzHighlight(team, remainingMs);
     }
 
     function resolveTurnHighlightTeam(state) {
       const phase = normalizePhase(state.phase);
-
-      if (phase === "main") {
-        return normalizeTeam(state.currentTurnTeam);
-      }
-
-      if (phase === "steal_result" || phase === "steal_pick") {
-        return normalizeTeam(state.stealingTeam);
-      }
-
+      if (phase === "main") return normalizeTeam(state.currentTurnTeam);
+      if (phase === "steal_result" || phase === "steal_pick") return normalizeTeam(state.stealingTeam);
       return "";
     }
 
     function detectStrikeEffect(state) {
-      const nextSnapshot = {
-        team1: normalizeStrikeCount(state.team1Strikes),
-        team2: normalizeStrikeCount(state.team2Strikes)
-      };
-
-      if (!previousStrikeSnapshot) {
-        previousStrikeSnapshot = nextSnapshot;
-        return;
-      }
-
-      if (nextSnapshot.team1 > previousStrikeSnapshot.team1) {
-        playStrikeEffect({
-          showTransfer: nextSnapshot.team1 >= 3,
-          xDurationMs: 2000
-        });
-      } else if (nextSnapshot.team2 > previousStrikeSnapshot.team2) {
-        playStrikeEffect({
-          showTransfer: nextSnapshot.team2 >= 3,
-          xDurationMs: 2000
-        });
-      }
-
+      const nextSnapshot = { team1: normalizeStrikeCount(state.team1Strikes), team2: normalizeStrikeCount(state.team2Strikes) };
+      if (!previousStrikeSnapshot) { previousStrikeSnapshot = nextSnapshot; return; }
+      if (nextSnapshot.team1 > previousStrikeSnapshot.team1) playStrikeEffect({ showTransfer: nextSnapshot.team1 >= 3, xDurationMs: 2000 });
+      else if (nextSnapshot.team2 > previousStrikeSnapshot.team2) playStrikeEffect({ showTransfer: nextSnapshot.team2 >= 3, xDurationMs: 2000 });
       previousStrikeSnapshot = nextSnapshot;
     }
 
     function detectDisplayErrorEffect(state) {
       const nextSeq = Math.max(0, normalizeNumber(state.displayErrorSeq, 0));
-
-      if (previousDisplayErrorSeq === null) {
-        previousDisplayErrorSeq = nextSeq;
-        return;
-      }
-
-      if (nextSeq > previousDisplayErrorSeq) {
-        playStrikeEffect({
-          showTransfer: false,
-          xDurationMs: 2000
-        });
-      }
-
+      if (previousDisplayErrorSeq === null) { previousDisplayErrorSeq = nextSeq; return; }
+      if (nextSeq > previousDisplayErrorSeq) playStrikeEffect({ showTransfer: false, xDurationMs: 2000 });
       previousDisplayErrorSeq = nextSeq;
     }
 
     function detectAnswerRevealEffect(state) {
       const nextSnapshot = state.answers.map((answer) => !!answer.revealed);
-
-      if (!previousRevealedSnapshot) {
-        previousRevealedSnapshot = nextSnapshot;
-        pendingRevealIndexes.clear();
-        return;
-      }
-
+      if (!previousRevealedSnapshot) { previousRevealedSnapshot = nextSnapshot; pendingRevealIndexes.clear(); return; }
       const newIndexes = [];
-      nextSnapshot.forEach((revealed, index) => {
-        if (revealed && !previousRevealedSnapshot[index]) {
-          newIndexes.push(index);
-        }
-      });
-
+      nextSnapshot.forEach((revealed, index) => { if (revealed && !previousRevealedSnapshot[index]) newIndexes.push(index); });
       previousRevealedSnapshot = nextSnapshot;
       pendingRevealIndexes = new Set(newIndexes);
-
-      if (newIndexes.length > 0) {
-        playAnswerSound();
-      }
+      if (newIndexes.length > 0) playAnswerSound();
     }
 
-    function clearStrikeEffectTimers() {
-      strikeEffectTimers.forEach((timer) => clearTimeout(timer));
-      strikeEffectTimers = [];
-    }
-
-    function resetStrikeEffectLayer() {
-      strikeEffectLayer.classList.remove("show", "show-x", "show-transfer");
-      void strikeEffectLayer.offsetWidth;
-    }
+    function clearStrikeEffectTimers() { strikeEffectTimers.forEach((timer) => clearTimeout(timer)); strikeEffectTimers = []; }
+    function resetStrikeEffectLayer() { strikeEffectLayer.classList.remove("show", "show-x", "show-transfer"); void strikeEffectLayer.offsetWidth; }
 
     function playStrikeEffect(options = {}) {
       const showTransfer = options.showTransfer === true;
       const xDurationMs = Math.max(0, normalizeNumber(options.xDurationMs, 2000));
-
-      playWrongSound();
-
-      clearStrikeEffectTimers();
-      resetStrikeEffectLayer();
-
-      strikeEffectLayer.classList.add("show", "show-x");
-
+      playWrongSound(); clearStrikeEffectTimers(); resetStrikeEffectLayer(); strikeEffectLayer.classList.add("show", "show-x");
       if (showTransfer) {
-        strikeEffectTimers.push(setTimeout(() => {
-          strikeEffectLayer.classList.remove("show-x");
-          void strikeEffectLayer.offsetWidth;
-          strikeEffectLayer.classList.add("show", "show-transfer");
-        }, xDurationMs));
-
-        strikeEffectTimers.push(setTimeout(() => {
-          strikeEffectLayer.classList.remove("show", "show-x", "show-transfer");
-        }, xDurationMs + 1900));
+        strikeEffectTimers.push(setTimeout(() => { strikeEffectLayer.classList.remove("show-x"); void strikeEffectLayer.offsetWidth; strikeEffectLayer.classList.add("show", "show-transfer"); }, xDurationMs));
+        strikeEffectTimers.push(setTimeout(() => { strikeEffectLayer.classList.remove("show", "show-x", "show-transfer"); }, xDurationMs + 1900));
       } else {
-        strikeEffectTimers.push(setTimeout(() => {
-          strikeEffectLayer.classList.remove("show", "show-x", "show-transfer");
-        }, xDurationMs));
+        strikeEffectTimers.push(setTimeout(() => { strikeEffectLayer.classList.remove("show", "show-x", "show-transfer"); }, xDurationMs));
       }
     }
 
+    function escapeHtml(value) { return String(value || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;"); }
+
     function renderAnswers(state) {
-      const positions = [
-        { row: 1, col: 2 },
-        { row: 1, col: 1 },
-        { row: 2, col: 2 },
-        { row: 2, col: 1 },
-        { row: 3, col: 2 },
-        { row: 3, col: 1 }
-      ];
-
-      const revealIndexes = new Set(pendingRevealIndexes);
-      pendingRevealIndexes.clear();
-
-      answersGrid.innerHTML = "";
-
+      const positions = [{ row: 1, col: 2 }, { row: 1, col: 1 }, { row: 2, col: 2 }, { row: 2, col: 1 }, { row: 3, col: 2 }, { row: 3, col: 1 }];
+      const revealIndexes = new Set(pendingRevealIndexes); pendingRevealIndexes.clear(); answersGrid.innerHTML = "";
       state.answers.forEach((answer, index) => {
-        const position = positions[index];
-        if (!position) return;
-
+        const position = positions[index]; if (!position) return;
         const slot = document.createElement("div");
         const revealed = !!answer.revealed;
         const justRevealed = revealIndexes.has(index);
-
         slot.className = "answer-slot";
         if (revealed) slot.classList.add("is-revealed");
         if (justRevealed) slot.classList.add("just-revealed");
-
         slot.style.gridRow = position.row;
         slot.style.gridColumn = position.col;
-
-        slot.innerHTML = `
-          <div class="answer-flip">
-            <div class="answer-face answer-front">
-              <div class="rank-circle">${index + 1}</div>
-            </div>
-            <div class="answer-face answer-back">
-              <div class="answer-points">${answer.points}</div>
-              <div class="answer-label auto-fit-answer">${answer.text || ""}</div>
-            </div>
-          </div>
-        `;
-
+        slot.innerHTML = `<div class="answer-flip"><div class="answer-face answer-front"><div class="rank-circle">${index + 1}</div></div><div class="answer-face answer-back"><div class="answer-points">${answer.points}</div><div class="answer-label auto-fit-answer">${escapeHtml(answer.text || "")}</div></div></div>`;
         answersGrid.appendChild(slot);
       });
     }
 
     function renderDisplay() {
       const state = currentDisplayState || readDisplayState();
-
       activeTurnTeam = resolveTurnHighlightTeam(state);
       detectFirstBuzzHighlight(state);
       applyTurnHighlightVisuals();
       applyFirstBuzzHighlightVisuals();
-
       const signature = JSON.stringify(state);
-
       if (signature === lastRenderedSignature) return;
       lastRenderedSignature = signature;
-
       detectStrikeEffect(state);
       detectDisplayErrorEffect(state);
       detectAnswerRevealEffect(state);
-
       teamOneNameEl.textContent = state.team1Name;
       teamTwoNameEl.textContent = state.team2Name;
-
       teamOneScoreEl.textContent = state.team1Score;
       teamTwoScoreEl.textContent = state.team2Score;
-
       questionTextEl.textContent = state.showQuestion ? state.question : " ";
       questionTextEl.classList.toggle("is-hidden", !state.showQuestion);
-
       roundScoreEl.textContent = state.roundPoints;
-
       applyStrikeRow(strikeRows.team1, state.team1Strikes);
       applyStrikeRow(strikeRows.team2, state.team2Strikes);
-
       renderAnswers(state);
       requestAnimationFrame(applyAutoTextFitting);
     }
 
     function fitTextToBox(element, maxSize, minSize) {
       if (!element) return;
-
       element.style.fontSize = maxSize + "px";
-
       let current = maxSize;
       while (current > minSize) {
         const tooWide = element.scrollWidth > element.clientWidth + 1;
         const tooTall = element.scrollHeight > element.clientHeight + 1;
-
         if (!tooWide && !tooTall) break;
-
         current -= 1;
         element.style.fontSize = current + "px";
       }
     }
 
     function applyAutoTextFitting() {
-      if (!questionTextEl.classList.contains("is-hidden")) {
-        fitTextToBox(questionTextEl, 58, 26);
-      } else {
-        questionTextEl.style.fontSize = "58px";
-      }
-
+      if (!questionTextEl.classList.contains("is-hidden")) fitTextToBox(questionTextEl, 58, 26);
+      else questionTextEl.style.fontSize = "58px";
       fitTextToBox(teamOneNameEl, 48, 22);
       fitTextToBox(teamTwoNameEl, 48, 22);
-
-      document.querySelectorAll(".auto-fit-answer").forEach(el => {
-        fitTextToBox(el, 38, 18);
-      });
+      document.querySelectorAll(".auto-fit-answer").forEach(el => { fitTextToBox(el, 38, 18); });
     }
 
     const storeLogo = document.getElementById("storeLogo");
-    storeLogo.addEventListener("error", () => {
-      storeLogo.style.display = "none";
-    });
-
+    storeLogo.addEventListener("error", () => { storeLogo.style.display = "none"; });
     const gameLogo = document.getElementById("gameLogo");
-    gameLogo.addEventListener("error", () => {
-      gameLogo.style.display = "none";
-    });
+    gameLogo.addEventListener("error", () => { gameLogo.style.display = "none"; });
   </script>
 </body>
 </html>
