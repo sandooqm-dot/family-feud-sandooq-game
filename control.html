@@ -4179,6 +4179,7 @@ window.FAMILY_FEUD_QUESTIONS = [
     let roundClosedAfterSteal = readRoundClosedAfterSteal();
     let actionGuardUntil = new Map();
     let lastRenderSignature = "";
+    let hasAcceptedInitialRemoteQuestion = false;
 
     try {
       channel = new BroadcastChannel(DISPLAY_CHANNEL);
@@ -4483,6 +4484,48 @@ window.FAMILY_FEUD_QUESTIONS = [
               points: Math.max(0, Number(answer.points || 0))
             }))
           : []
+      };
+    }
+
+    function getBankQuestionByIndex(index) {
+      const bank = getControlQuestionBank();
+
+      if (!bank.length) {
+        return null;
+      }
+
+      const safeIndex = Number.isFinite(Number(index)) ? Math.floor(Number(index)) : 0;
+      const normalizedIndex = ((safeIndex % bank.length) + bank.length) % bank.length;
+      return bank[normalizedIndex] || bank[0] || null;
+    }
+
+    function mergeDisplayStateWithBankQuestion(state, questionIndex) {
+      if (!state) {
+        return state;
+      }
+
+      const bank = getControlQuestionBank();
+      if (!bank.length) {
+        return state;
+      }
+
+      const remoteQuestion = String(state.question || "").trim();
+      const bankQuestion = bank.find((item) => item.question === remoteQuestion) || getBankQuestionByIndex(questionIndex);
+
+      if (!bankQuestion) {
+        return state;
+      }
+
+      const remoteAnswers = normalizeAnswersForDisplay(state.answers);
+
+      return {
+        ...state,
+        question: String(bankQuestion.question || "").trim(),
+        answers: bankQuestion.answers.slice(0, 6).map((answer, index) => ({
+          text: String(answer.text || "").trim(),
+          points: Math.max(0, Number(answer.points || 0)),
+          revealed: !!remoteAnswers[index]?.revealed
+        }))
       };
     }
 
@@ -5066,55 +5109,17 @@ window.FAMILY_FEUD_QUESTIONS = [
 
       lastRemoteStateAt = Date.now();
 
-      const previousDisplayState = displayState ? {
-        question: String(displayState.question || ""),
-        answers: normalizeAnswersForDisplay(displayState.answers)
-      } : null;
+      const previousQuestion = displayState ? String(displayState.question || "") : "";
       const previousQuestionIndex = controlState ? Number(controlState.currentQuestionIndex || 0) : 0;
+      const previousAnswers = normalizeAnswersForDisplay(displayState?.answers);
 
       const display = remoteState.display || {};
       const control = remoteState.control || {};
       const buzz = remoteState.buzz || {};
-      const remoteAnswers = normalizeAnswersForDisplay(display.answers);
-      const bank = getControlQuestionBank();
-      const nextQuestionIndex = Number(control.currentQuestionIndex || 0);
-      const normalizedNextIndex = bank.length
-        ? ((Number.isFinite(nextQuestionIndex) ? Math.floor(nextQuestionIndex) : 0) % bank.length + bank.length) % bank.length
-        : 0;
-      const localQuestion = bank.length ? cloneQuestionForApi(bank[normalizedNextIndex]) : null;
-      const sameQuestionIndex = previousQuestionIndex === nextQuestionIndex;
-
-      let nextQuestionText = String(display.question || "").trim();
-      let nextAnswers = remoteAnswers;
-
-      if (sameQuestionIndex) {
-        if (previousDisplayState?.question) {
-          nextQuestionText = previousDisplayState.question;
-        } else if (localQuestion?.question) {
-          nextQuestionText = String(localQuestion.question || "").trim();
-        }
-
-        const baseAnswers = previousDisplayState?.answers?.length
-          ? previousDisplayState.answers
-          : (localQuestion?.answers ? normalizeAnswersForDisplay(localQuestion.answers) : remoteAnswers);
-
-        nextAnswers = baseAnswers.map((answer, index) => ({
-          text: String(answer?.text || "").trim(),
-          points: Number(answer?.points || 0),
-          revealed: !!remoteAnswers[index]?.revealed
-        }));
-      } else if (localQuestion?.question) {
-        nextQuestionText = String(localQuestion.question || "").trim();
-        nextAnswers = normalizeAnswersForDisplay(localQuestion.answers).map((answer, index) => ({
-          text: String(answer?.text || "").trim(),
-          points: Number(answer?.points || 0),
-          revealed: !!remoteAnswers[index]?.revealed
-        }));
-      }
 
       displayState = {
         showQuestion: !!display.showQuestion,
-        question: nextQuestionText,
+        question: String(display.question || ""),
         team1Name: String(display.team1Name || readStored("familyfeud_team1") || "الفريق الأول"),
         team2Name: String(display.team2Name || readStored("familyfeud_team2") || "الفريق الثاني"),
         team1Score: Number(display.team1Score || 0),
@@ -5122,12 +5127,12 @@ window.FAMILY_FEUD_QUESTIONS = [
         team1Strikes: Number(display.team1Strikes || 0),
         team2Strikes: Number(display.team2Strikes || 0),
         roundPoints: Number(display.roundPoints || 0),
-        answers: nextAnswers
+        answers: normalizeAnswersForDisplay(display.answers)
       };
 
       controlState = {
-        currentQuestionIndex: nextQuestionIndex,
-        totalQuestions: Number(control.totalQuestions || bank.length || 0),
+        currentQuestionIndex: Number(control.currentQuestionIndex || 0),
+        totalQuestions: Number(control.totalQuestions || 0),
         stage: String(control.phase || "idle"),
         currentTurnTeam: String(control.currentTurnTeam || ""),
         confrontationWinner: String(control.confrontationWinner || ""),
@@ -5137,7 +5142,33 @@ window.FAMILY_FEUD_QUESTIONS = [
         buzzVisible: !!buzz.enabled
       };
 
-      const questionChanged = previousQuestionIndex !== controlState.currentQuestionIndex;
+      const shouldKeepCurrentQuestion =
+        hasAcceptedInitialRemoteQuestion &&
+        !nextQuestionInFlight &&
+        !!previousQuestion &&
+        controlState.currentQuestionIndex !== previousQuestionIndex &&
+        (controlState.stage === "steal_result" || controlState.stage === "steal_pick");
+
+      if (shouldKeepCurrentQuestion) {
+        displayState = {
+          ...displayState,
+          question: previousQuestion,
+          answers: previousAnswers.map((answer) => ({
+            text: String(answer.text || "").trim(),
+            points: Math.max(0, Number(answer.points || 0)),
+            revealed: !!answer.revealed
+          }))
+        };
+        controlState.currentQuestionIndex = previousQuestionIndex;
+      } else {
+        displayState = mergeDisplayStateWithBankQuestion(displayState, controlState.currentQuestionIndex);
+      }
+
+      hasAcceptedInitialRemoteQuestion = true;
+
+      const questionChanged =
+        previousQuestion !== displayState.question ||
+        previousQuestionIndex !== controlState.currentQuestionIndex;
 
       if (questionChanged) {
         clearRoundClosedAfterSteal();
