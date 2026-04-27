@@ -516,7 +516,7 @@
         <div id="questionNumber" class="question-number">سؤال 1</div>
 
         <div class="question-box">
-          <div id="questionText" class="question-text">نص السؤال</div>
+          <div id="questionText" class="question-text">إضافة شعبية تنحط مع الشاي الأحمر لتعطيه نكهة؟</div>
         </div>
 
         <section class="answers-panel">
@@ -4295,7 +4295,7 @@ window.FAMILY_FEUD_QUESTIONS = [
 
         toggleActionInFlight = true;
 
-        if (nextVisible && currentQuestionBundle.question) {
+        if (currentQuestionBundle.question) {
           applyLocalQuestionBundle(currentQuestionBundle);
         }
 
@@ -4303,22 +4303,17 @@ window.FAMILY_FEUD_QUESTIONS = [
         renderAll();
 
         try {
-          if (nextVisible && currentQuestionBundle.question) {
-            const bundleOk = await sendGameAction("next_question_bundle", currentQuestionBundle, { skipBusy: true });
+          let ok = true;
 
-            if (!bundleOk) {
-              displayState.showQuestion = previousVisible;
-              displayState.question = previousQuestion;
-              displayState.answers = previousAnswers;
-              controlState.currentQuestionIndex = previousQuestionIndex;
-              controlState.totalQuestions = previousTotalQuestions;
-              renderAll();
-              await fetchRemoteGameState({ force: true });
-              return;
-            }
+          if (currentQuestionBundle.question) {
+            ok = await sendGameAction("next_question_bundle", currentQuestionBundle, { skipBusy: true });
           }
 
-          const ok = await sendGameAction("show_question", { visible: nextVisible }, { skipBusy: true });
+          if (ok) {
+            ok = await sendGameAction("show_question", {
+              visible: nextVisible
+            }, { skipBusy: true });
+          }
 
           if (!ok) {
             displayState.showQuestion = previousVisible;
@@ -5104,6 +5099,8 @@ window.FAMILY_FEUD_QUESTIONS = [
         buzzVisible: !!buzz.enabled
       };
 
+      forceDisplayStateToLocalBankOnly();
+
       const questionChanged =
         previousQuestion !== displayState.question ||
         previousQuestionIndex !== controlState.currentQuestionIndex;
@@ -5146,6 +5143,27 @@ window.FAMILY_FEUD_QUESTIONS = [
       });
     }
 
+    function forceDisplayStateToLocalBankOnly() {
+      const bank = getControlQuestionBank();
+      if (!bank.length || !displayState || !controlState) return;
+
+      const currentQuestion = String(displayState.question || "").trim();
+      let localIndex = bank.findIndex((item) => item.question === currentQuestion);
+
+      if (localIndex < 0) {
+        const rawIndex = Number(controlState.currentQuestionIndex || 0);
+        const safeIndex = Number.isFinite(rawIndex) ? Math.floor(rawIndex) : 0;
+        localIndex = ((safeIndex % bank.length) + bank.length) % bank.length;
+
+        const localQuestion = cloneQuestionForApi(bank[localIndex]);
+        displayState.question = String(localQuestion.question || "").trim();
+        displayState.answers = normalizeAnswersForDisplay(localQuestion.answers);
+      }
+
+      controlState.currentQuestionIndex = localIndex;
+      controlState.totalQuestions = bank.length;
+    }
+
     function ensureInitialState() {
       if (!displayState || !Array.isArray(displayState.answers)) {
         const currentBundle = getCurrentLocalQuestionBundle();
@@ -5174,7 +5192,12 @@ window.FAMILY_FEUD_QUESTIONS = [
         saveDisplayState();
       } else {
         displayState.answers = normalizeAnswersForDisplay(displayState.answers);
+
+        controlState = controlState || getDefaultControlState();
+        forceDisplayStateToLocalBankOnly();
+
         saveDisplayState();
+        saveControlState();
       }
 
       if (!controlState) {
@@ -5387,7 +5410,7 @@ window.FAMILY_FEUD_QUESTIONS = [
       const questionNumber = Number(controlState.currentQuestionIndex || 0) + 1;
       questionNumberEl.textContent = `سؤال ${questionNumber}`;
 
-      questionTextEl.textContent = displayState.question || "نص السؤال";
+      questionTextEl.textContent = displayState.question || (getControlQuestionBank()[0]?.question || "");
       firstPlayerBoxEl.textContent = getFirstBuzzLabel();
       firstPlayerBoxEl.classList.toggle("active", !!controlState.firstBuzzName);
 
