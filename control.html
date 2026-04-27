@@ -5683,6 +5683,8 @@ window.FAMILY_FEUD_QUESTIONS = [
 
       if (!answer) return;
 
+      const teamBeforeReveal = String(controlState.currentTurnTeam || "");
+
       const guardKey = isStealStage() ? `steal-answer-${index}` : `answer-${index}`;
       if (isActionGuarded(guardKey)) return;
       armActionGuard(guardKey, isStealStage() ? NORMAL_ACTION_GUARD_MS : FAST_ACTION_GUARD_MS);
@@ -5760,7 +5762,9 @@ window.FAMILY_FEUD_QUESTIONS = [
       try {
         const ok = await sendGameAction("reveal_answer", { answerIndex: index }, { skipBusy: true });
 
-        if (!ok) {
+        if (ok) {
+          await maybeAwardCompletedRound(teamBeforeReveal);
+        } else {
           optimisticRevealedIndexes.delete(index);
           renderAll();
         }
@@ -5768,6 +5772,41 @@ window.FAMILY_FEUD_QUESTIONS = [
         answerActionInFlight.delete(index);
         renderAll();
       }
+    }
+
+    function areAllRoundAnswersRevealed() {
+      const answers = normalizeAnswersForDisplay(displayState.answers);
+      if (!answers.length) return false;
+      return answers.every((answer) => !!answer.revealed);
+    }
+
+    function getTeamStrikeCount(team) {
+      if (team === "team1") return Number(displayState.team1Strikes || 0);
+      if (team === "team2") return Number(displayState.team2Strikes || 0);
+      return 0;
+    }
+
+    function shouldAwardCompletedRound(team) {
+      if (!team) return false;
+      if (isRoundClosedAfterSteal()) return false;
+      if (isStealStage()) return false;
+      if (controlState.stage !== "main") return false;
+      if (controlState.currentTurnTeam !== team) return false;
+      if (getTeamStrikeCount(team) >= 3) return false;
+      if (!areAllRoundAnswersRevealed()) return false;
+      return true;
+    }
+
+    async function maybeAwardCompletedRound(team) {
+      if (!shouldAwardCompletedRound(team)) return false;
+
+      const ok = await sendGameAction("award_round", { team }, { skipBusy: true });
+
+      if (ok) {
+        renderAll();
+      }
+
+      return ok;
     }
 
     async function choosePlayOrPass(decision) {
