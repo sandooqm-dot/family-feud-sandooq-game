@@ -1563,7 +1563,13 @@ window.FAMILY_FEUD_QUESTIONS = [
         buzzVisible: !!buzz.enabled
       };
 
-      if (String(previousQuestion || "").trim() && previousQuestionIndex === controlState.currentQuestionIndex) {
+      const remoteQuestionText = String(display.question || "").trim();
+      const shouldKeepCurrentQuestion =
+        String(previousQuestion || "").trim() &&
+        previousQuestionIndex === controlState.currentQuestionIndex &&
+        remoteQuestionText === previousQuestion;
+
+      if (shouldKeepCurrentQuestion) {
         const mergedAnswers = [];
         const remoteAnswers = Array.isArray(displayState.answers) ? displayState.answers : [];
 
