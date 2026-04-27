@@ -4179,7 +4179,6 @@ window.FAMILY_FEUD_QUESTIONS = [
     let roundClosedAfterSteal = readRoundClosedAfterSteal();
     let actionGuardUntil = new Map();
     let lastRenderSignature = "";
-    let hasAcceptedInitialRemoteQuestion = false;
 
     try {
       channel = new BroadcastChannel(DISPLAY_CHANNEL);
@@ -4484,48 +4483,6 @@ window.FAMILY_FEUD_QUESTIONS = [
               points: Math.max(0, Number(answer.points || 0))
             }))
           : []
-      };
-    }
-
-    function getBankQuestionByIndex(index) {
-      const bank = getControlQuestionBank();
-
-      if (!bank.length) {
-        return null;
-      }
-
-      const safeIndex = Number.isFinite(Number(index)) ? Math.floor(Number(index)) : 0;
-      const normalizedIndex = ((safeIndex % bank.length) + bank.length) % bank.length;
-      return bank[normalizedIndex] || bank[0] || null;
-    }
-
-    function mergeDisplayStateWithBankQuestion(state, questionIndex) {
-      if (!state) {
-        return state;
-      }
-
-      const bank = getControlQuestionBank();
-      if (!bank.length) {
-        return state;
-      }
-
-      const remoteQuestion = String(state.question || "").trim();
-      const bankQuestion = bank.find((item) => item.question === remoteQuestion) || getBankQuestionByIndex(questionIndex);
-
-      if (!bankQuestion) {
-        return state;
-      }
-
-      const remoteAnswers = normalizeAnswersForDisplay(state.answers);
-
-      return {
-        ...state,
-        question: String(bankQuestion.question || "").trim(),
-        answers: bankQuestion.answers.slice(0, 6).map((answer, index) => ({
-          text: String(answer.text || "").trim(),
-          points: Math.max(0, Number(answer.points || 0)),
-          revealed: !!remoteAnswers[index]?.revealed
-        }))
       };
     }
 
@@ -5111,7 +5068,6 @@ window.FAMILY_FEUD_QUESTIONS = [
 
       const previousQuestion = displayState ? String(displayState.question || "") : "";
       const previousQuestionIndex = controlState ? Number(controlState.currentQuestionIndex || 0) : 0;
-      const previousAnswers = normalizeAnswersForDisplay(displayState?.answers);
 
       const display = remoteState.display || {};
       const control = remoteState.control || {};
@@ -5141,30 +5097,6 @@ window.FAMILY_FEUD_QUESTIONS = [
         firstBuzzTeam: String(buzz.firstBuzz?.team || ""),
         buzzVisible: !!buzz.enabled
       };
-
-      const shouldKeepCurrentQuestion =
-        hasAcceptedInitialRemoteQuestion &&
-        !nextQuestionInFlight &&
-        !!previousQuestion &&
-        controlState.currentQuestionIndex !== previousQuestionIndex &&
-        (controlState.stage === "steal_result" || controlState.stage === "steal_pick");
-
-      if (shouldKeepCurrentQuestion) {
-        displayState = {
-          ...displayState,
-          question: previousQuestion,
-          answers: previousAnswers.map((answer) => ({
-            text: String(answer.text || "").trim(),
-            points: Math.max(0, Number(answer.points || 0)),
-            revealed: !!answer.revealed
-          }))
-        };
-        controlState.currentQuestionIndex = previousQuestionIndex;
-      } else {
-        displayState = mergeDisplayStateWithBankQuestion(displayState, controlState.currentQuestionIndex);
-      }
-
-      hasAcceptedInitialRemoteQuestion = true;
 
       const questionChanged =
         previousQuestion !== displayState.question ||
