@@ -19,7 +19,25 @@
       const ACCESS_KEYS = [
         "familyfeud_access_ok_v1",
         "familyfeud_activation_ok_v1",
-        "familyfeud_auth_passed_v1"
+        "familyfeud_auth_passed_v1",
+        "familyfeud_new_access_ok_v1"
+      ];
+      const NEW_TOKEN_QUERY_KEYS = [
+        "sg_token",
+        "sandooq_token",
+        "access_token",
+        "token"
+      ];
+      const NEW_TEMP_QUERY_KEYS = [
+        "sg_temp",
+        "sg_private",
+        "private",
+        "temporary",
+        "is_temporary"
+      ];
+      const NEW_COOKIE_KEYS = [
+        "sandooq_site_token_v1",
+        "sandooq_auth_token_v1"
       ];
 
       function hasStoredValue(key) {
@@ -36,12 +54,75 @@
         return false;
       }
 
+      function readCookie(name) {
+        try {
+          const cookie = String(document.cookie || "");
+          const parts = cookie.split(";");
+
+          for (const part of parts) {
+            const index = part.indexOf("=");
+            if (index === -1) continue;
+
+            const key = part.slice(0, index).trim();
+            const value = part.slice(index + 1).trim();
+
+            if (key === name) {
+              return decodeURIComponent(value || "");
+            }
+          }
+        } catch (e) {}
+
+        return "";
+      }
+
+      function readFirstQueryValue(url, keys) {
+        for (const key of keys) {
+          const value = String(url.searchParams.get(key) || "").trim();
+          if (value) return value;
+        }
+
+        return "";
+      }
+
+      function hasNewSystemAccess(url) {
+        const queryToken = readFirstQueryValue(url, NEW_TOKEN_QUERY_KEYS);
+        if (queryToken) return true;
+
+        for (const key of NEW_COOKIE_KEYS) {
+          const cookieValue = readCookie(key);
+          if (cookieValue && String(cookieValue).trim()) return true;
+        }
+
+        return false;
+      }
+
+      function rememberNewSystemAccess(url) {
+        try { sessionStorage.setItem("familyfeud_new_access_ok_v1", "1"); } catch (e) {}
+        try { sessionStorage.setItem("familyfeud_auth_passed_v1", "1"); } catch (e) {}
+
+        const queryToken = readFirstQueryValue(url, NEW_TOKEN_QUERY_KEYS);
+        if (queryToken) {
+          try { sessionStorage.setItem("familyfeud_new_sg_token_v1", queryToken); } catch (e) {}
+        }
+
+        const queryTemp = readFirstQueryValue(url, NEW_TEMP_QUERY_KEYS);
+        if (queryTemp) {
+          try { sessionStorage.setItem("familyfeud_new_temp_v1", "1"); } catch (e) {}
+        }
+      }
+
+      const url = new URL(window.location.href);
       const hasToken = TOKEN_KEYS.some(hasStoredValue);
       const hasAccess = ACCESS_KEYS.some(hasStoredValue);
+      const hasNewAccess = hasNewSystemAccess(url);
+
+      if (hasNewAccess) {
+        rememberNewSystemAccess(url);
+        return;
+      }
 
       if (hasToken || hasAccess) return;
 
-      const url = new URL(window.location.href);
       const path = url.pathname;
 
       if (/index\.html?$/i.test(path)) {
@@ -843,6 +924,47 @@
       });
     }
 
+    function readCurrentAccessParam(keys) {
+      try {
+        const current = new URL(window.location.href);
+        for (const key of keys) {
+          const value = String(current.searchParams.get(key) || "").trim();
+          if (value) return value;
+        }
+      } catch (e) {}
+
+      try {
+        if (keys.includes("sg_token")) {
+          const savedToken = sessionStorage.getItem("familyfeud_new_sg_token_v1") || "";
+          if (savedToken && String(savedToken).trim()) return String(savedToken).trim();
+        }
+      } catch (e) {}
+
+      return "";
+    }
+
+    function appendNewAccessParams(targetUrl, fileName) {
+      const targetFile = String(fileName || "").toLowerCase();
+      if (targetFile !== "game.html" && targetFile !== "index.html") return;
+
+      const token = readCurrentAccessParam(["sg_token", "sandooq_token", "access_token", "token"]);
+      if (!token) return;
+
+      targetUrl.searchParams.set("sg_token", token);
+
+      const temp = readCurrentAccessParam(["sg_temp", "sg_private", "private", "temporary", "is_temporary"]);
+      if (temp) {
+        targetUrl.searchParams.set("sg_temp", "1");
+        targetUrl.searchParams.delete("sg_device");
+        return;
+      }
+
+      const device = readCurrentAccessParam(["sg_device", "device_token", "device"]);
+      if (device) {
+        targetUrl.searchParams.set("sg_device", device);
+      }
+    }
+
     function buildPageLink(fileName) {
       const url = new URL(window.location.href);
       const path = url.pathname;
@@ -858,6 +980,7 @@
       url.search = "";
       url.hash = "";
       url.searchParams.set("room", currentRoomId);
+      appendNewAccessParams(url, fileName);
       return url.toString();
     }
 
