@@ -155,7 +155,11 @@ async function checkNewSystemAccess(request, currentUrl) {
         allowed: true,
         blocked: false,
         cookies: cookiesToSet,
-        redirectCleanUrl: hasNewAccessQuery(currentUrl)
+        temporaryMode: isTemporary,
+        // مهم: الجلسة المؤقتة لا نخزنها في كوكي ولا ننظف الرابط،
+        // لأن تنظيف الرابط يحذف sg_token و sg_temp ثم ترجع الصفحة بدون صلاحية.
+        // لذلك المتصفح الخفي يفتح مباشرة من نفس الطلب، وإذا أغلق الصفحة يدخل من الموقع مرة أخرى.
+        redirectCleanUrl: !isTemporary && hasNewAccessQuery(currentUrl)
       };
     }
 
@@ -187,6 +191,8 @@ function hasNewAccessQuery(url) {
     ...NEW_TOKEN_QUERY_KEYS,
     ...NEW_DEVICE_QUERY_KEYS,
     "sg_temp",
+    "sg_private",
+    "private",
     "temporary",
     "is_temporary"
   ];
@@ -197,6 +203,8 @@ function hasNewAccessQuery(url) {
 function isTemporaryRequest(url) {
   const value = String(
     url.searchParams.get("sg_temp") ||
+    url.searchParams.get("sg_private") ||
+    url.searchParams.get("private") ||
     url.searchParams.get("temporary") ||
     url.searchParams.get("is_temporary") ||
     ""
@@ -239,6 +247,8 @@ function redirectToCleanUrl(currentUrl, cookies = []) {
     ...NEW_TOKEN_QUERY_KEYS,
     ...NEW_DEVICE_QUERY_KEYS,
     "sg_temp",
+    "sg_private",
+    "private",
     "temporary",
     "is_temporary"
   ].forEach(key => target.searchParams.delete(key));
