@@ -89,9 +89,19 @@ export async function onRequest(context) {
 const NEW_AUTH_API_BASE = "https://sandooq-games-api.sandooq-m.workers.dev";
 const NEW_GAME_ID = "family-feud";
 const NEW_TOKEN_COOKIE = "sandooq_site_token_v1";
-const NEW_DEVICE_COOKIE = "sandooq_site_device_v1";
-const NEW_TOKEN_QUERY_KEYS = ["sg_token", "sandooq_token", "access_token", "token"];
-const NEW_DEVICE_QUERY_KEYS = ["sg_device", "device_token", "device"];
+
+const NEW_TOKEN_QUERY_KEYS = [
+  "sg_token",
+  "sandooq_token",
+  "access_token",
+  "token"
+];
+
+const NEW_DEVICE_QUERY_KEYS = [
+  "sg_device",
+  "device_token",
+  "device"
+];
 
 async function checkNewSystemAccess(request, currentUrl) {
   const cookieHeader = String(request.headers.get("Cookie") || "");
@@ -110,23 +120,24 @@ async function checkNewSystemAccess(request, currentUrl) {
     return { allowed: false, blocked: false };
   }
 
-  const isTemporary = isTemporaryRequest(currentUrl);
-  const queryDevice = readFirstQueryValue(currentUrl, NEW_DEVICE_QUERY_KEYS);
-  const cookieDevice = String(cookies[NEW_DEVICE_COOKIE] || "").trim();
-  const generatedDevice = (!queryDevice && !cookieDevice && !isTemporary) ? createNewDeviceToken() : "";
-
-  const deviceToken = isTemporary
-    ? (queryDevice || createTemporaryDeviceToken())
-    : (queryDevice || cookieDevice || generatedDevice);
-
+  /*
+    القرار النهائي:
+    أي دخول قادم من موقع صندوق المسابقات ومعه sg_token نعامله كدخول موثق من الموقع.
+    لا نطبق عليه حد الأجهزة داخل فاميلي فيود.
+    التحقق الحقيقي يكون: هل التوكن صحيح؟ وهل الرقم يملك اللعبة؟
+  */
+  const isTemporary = true;
+  const deviceToken = createTemporaryDeviceToken();
   const cookiesToSet = [];
 
-  if (tokenFromQuery && !isTemporary) {
-    cookiesToSet.push(buildCookie(NEW_TOKEN_COOKIE, token, currentUrl, 60 * 60 * 24 * 180));
-  }
-
-  if ((queryDevice || generatedDevice) && !isTemporary && deviceToken) {
-    cookiesToSet.push(buildCookie(NEW_DEVICE_COOKIE, deviceToken, currentUrl, 60 * 60 * 24 * 365));
+  /*
+    نحفظ توكن الموقع في كوكي جلسة داخل دومين اللعبة حتى:
+    1) ننظف الرابط من sg_token بعد أول دخول.
+    2) لا تضيع الصلاحية عند الانتقال بين index.html و game.html.
+    3) في المتصفح الخاص تبقى الصلاحية فقط داخل نفس الجلسة، وبعد الإغلاق تختفي.
+  */
+  if (tokenFromQuery) {
+    cookiesToSet.push(buildSessionCookie(NEW_TOKEN_COOKIE, token, currentUrl));
   }
 
   try {
@@ -139,7 +150,7 @@ async function checkNewSystemAccess(request, currentUrl) {
       body: JSON.stringify({
         game_id: NEW_GAME_ID,
         device_token: deviceToken,
-        device_name: "Family Feud Web",
+        device_name: "Family Feud Site Access",
         is_temporary: isTemporary
       }),
       cache: "no-store"
@@ -155,11 +166,8 @@ async function checkNewSystemAccess(request, currentUrl) {
         allowed: true,
         blocked: false,
         cookies: cookiesToSet,
-        temporaryMode: isTemporary,
-        // مهم: الجلسة المؤقتة لا نخزنها في كوكي ولا ننظف الرابط،
-        // لأن تنظيف الرابط يحذف sg_token و sg_temp ثم ترجع الصفحة بدون صلاحية.
-        // لذلك المتصفح الخفي يفتح مباشرة من نفس الطلب، وإذا أغلق الصفحة يدخل من الموقع مرة أخرى.
-        redirectCleanUrl: !isTemporary && hasNewAccessQuery(currentUrl)
+        temporaryMode: true,
+        redirectCleanUrl: hasNewAccessQuery(currentUrl)
       };
     }
 
@@ -200,39 +208,23 @@ function hasNewAccessQuery(url) {
   return keys.some(key => url.searchParams.has(key));
 }
 
-function isTemporaryRequest(url) {
-  const value = String(
-    url.searchParams.get("sg_temp") ||
-    url.searchParams.get("sg_private") ||
-    url.searchParams.get("private") ||
-    url.searchParams.get("temporary") ||
-    url.searchParams.get("is_temporary") ||
-    ""
-  ).trim().toLowerCase();
-
-  return value === "1" || value === "true" || value === "yes";
-}
-
-function createNewDeviceToken() {
+function createTemporaryDeviceToken() {
   try {
-    if (crypto.randomUUID) return "ffdev_" + crypto.randomUUID();
+    if (crypto.randomUUID) return "ffsite_" + crypto.randomUUID();
   } catch (_) {}
 
   try {
     const bytes = new Uint8Array(16);
     crypto.getRandomValues(bytes);
-    return "ffdev_" + Array.from(bytes).map(byte => byte.toString(16).padStart(2, "0")).join("");
+    return "ffsite_" + Array.from(bytes).map(byte => byte.toString(16).padStart(2, "0")).join("");
   } catch (_) {}
 
-  return "ffdev_" + Date.now().toString(36) + Math.random().toString(36).slice(2);
+  return "ffsite_" + Date.now().toString(36) + Math.random().toString(36).slice(2);
 }
 
-function createTemporaryDeviceToken() {
-  try {
-    if (crypto.randomUUID) return "fftemp_" + crypto.randomUUID();
-  } catch (_) {}
-
-  return "fftemp_" + Date.now().toString(36) + Math.random().toString(36).slice(2);
+function buildSessionCookie(name, value, currentUrl) {
+  const secure = currentUrl.protocol === "https:" ? "; Secure" : "";
+  return `${name}=${encodeURIComponent(value)}; Path=/; SameSite=Lax${secure}`;
 }
 
 function buildCookie(name, value, currentUrl, maxAgeSeconds) {
