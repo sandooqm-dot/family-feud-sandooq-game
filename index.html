@@ -388,6 +388,12 @@
       filter:none;
     }
 
+    .action-btn.home-btn{
+      background:linear-gradient(180deg, #ff6258 0%, #df342d 100%);
+      color:#fff;
+      text-shadow:0 2px 0 rgba(0,0,0,.18);
+    }
+
     .overlay{
       position:absolute;
       inset:0;
@@ -631,7 +637,7 @@
             <button id="buzzBtn" class="action-btn" type="button">زر الجرس</button>
             <button id="answersBtn" class="action-btn" type="button">لوحة المضيف</button>
             <button id="guideBtn" class="action-btn" type="button">التعليمات</button>
-            <button class="action-btn" type="button" disabled>الرئيسية</button>
+            <button id="homeBtn" class="action-btn home-btn" type="button">الرئيسية</button>
           </div>
         </section>
 
@@ -718,6 +724,7 @@
     const guideBtn = document.getElementById("guideBtn");
     const answersBtn = document.getElementById("answersBtn");
     const buzzBtn = document.getElementById("buzzBtn");
+    const homeBtn = document.getElementById("homeBtn");
     const startBtn = document.getElementById("startBtn");
 
     const guideOverlay = document.getElementById("guideOverlay");
@@ -1215,6 +1222,10 @@
       openOverlay(buzzOverlay);
     });
 
+    homeBtn.addEventListener("click", () => {
+      window.location.href = "https://sandooq-games.com/index.html?focus=family-feud#games";
+    });
+
     startBtn.addEventListener("click", async () => {
       if (startBtn.disabled || startInProgress) return;
 
@@ -1403,5 +1414,6 @@
       }, { passive: true });
     }
   </script>
+  <!-- VERSION: family-feud-index — red-home-button-v1 -->
 </body>
 </html>
