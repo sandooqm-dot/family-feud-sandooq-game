@@ -125,8 +125,39 @@
     }
 
     .answer-label{
-      width:100%; height:100%; display:flex; align-items:center; justify-content:center; text-align:center; color:var(--white);
-      font-size:38px; line-height:1.15; font-weight:900; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; padding:0 10px;
+      width:100%;
+      min-width:0;
+      height:100%;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      text-align:center;
+      color:var(--white);
+      font-size:38px;
+      line-height:1.08;
+      font-weight:900;
+      white-space:normal;
+      overflow:hidden;
+      text-overflow:clip;
+      padding:0 8px;
+      direction:rtl;
+      overflow-wrap:anywhere;
+      word-break:normal;
+    }
+
+    .answer-label.long-answer{
+      font-size:32px;
+      line-height:1.06;
+    }
+
+    .answer-label.xlong-answer{
+      font-size:28px;
+      line-height:1.05;
+    }
+
+    .answer-label.xxlong-answer{
+      font-size:24px;
+      line-height:1.04;
     }
 
     .team-panel{
@@ -4283,6 +4314,22 @@ window.FAMILY_FEUD_QUESTIONS = [
 
     function escapeHtml(value) { return String(value || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;"); }
 
+    function getAnswerLabelClass(text) {
+      const length = Array.from(String(text || "").trim()).length;
+
+      if (length >= 34) return "answer-label auto-fit-answer xxlong-answer";
+      if (length >= 26) return "answer-label auto-fit-answer xlong-answer";
+      if (length >= 18) return "answer-label auto-fit-answer long-answer";
+      return "answer-label auto-fit-answer";
+    }
+
+    function getAnswerMaxFontSize(element) {
+      if (element.classList.contains("xxlong-answer")) return 24;
+      if (element.classList.contains("xlong-answer")) return 28;
+      if (element.classList.contains("long-answer")) return 32;
+      return 38;
+    }
+
     function renderAnswers(state) {
       const positions = [{ row: 1, col: 2 }, { row: 1, col: 1 }, { row: 2, col: 2 }, { row: 2, col: 1 }, { row: 3, col: 2 }, { row: 3, col: 1 }];
       const revealIndexes = new Set(pendingRevealIndexes); pendingRevealIndexes.clear(); answersGrid.innerHTML = "";
@@ -4296,7 +4343,8 @@ window.FAMILY_FEUD_QUESTIONS = [
         if (justRevealed) slot.classList.add("just-revealed");
         slot.style.gridRow = position.row;
         slot.style.gridColumn = position.col;
-        slot.innerHTML = `<div class="answer-flip"><div class="answer-face answer-front"><div class="rank-circle">${index + 1}</div></div><div class="answer-face answer-back"><div class="answer-points">${answer.points}</div><div class="answer-label auto-fit-answer">${escapeHtml(answer.text || "")}</div></div></div>`;
+        const answerLabelClass = getAnswerLabelClass(answer.text);
+        slot.innerHTML = `<div class="answer-flip"><div class="answer-face answer-front"><div class="rank-circle">${index + 1}</div></div><div class="answer-face answer-back"><div class="answer-points">${answer.points}</div><div class="${answerLabelClass}">${escapeHtml(answer.text || "")}</div></div></div>`;
         answersGrid.appendChild(slot);
       });
     }
@@ -4344,7 +4392,7 @@ window.FAMILY_FEUD_QUESTIONS = [
       else questionTextEl.style.fontSize = "58px";
       fitTextToBox(teamOneNameEl, 48, 22);
       fitTextToBox(teamTwoNameEl, 48, 22);
-      document.querySelectorAll(".auto-fit-answer").forEach(el => { fitTextToBox(el, 38, 18); });
+      document.querySelectorAll(".auto-fit-answer").forEach(el => { fitTextToBox(el, getAnswerMaxFontSize(el), 18); });
     }
 
     const storeLogo = document.getElementById("storeLogo");
