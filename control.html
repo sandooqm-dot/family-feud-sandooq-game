@@ -4362,9 +4362,9 @@ window.FAMILY_FEUD_QUESTIONS = [
         renderAll();
 
         try {
-          await sendGameAction("register_error", {
+          await sendGameAction("register_error", getCurrentQuestionActionPayload({
             team: controlState.currentTurnTeam
-          }, { skipBusy: true });
+          }), { skipBusy: true });
         } finally {
           errorActionInFlight = false;
           renderAll();
@@ -4597,6 +4597,21 @@ window.FAMILY_FEUD_QUESTIONS = [
       };
     }
 
+    function getCurrentQuestionActionPayload(extra = {}) {
+      const bundle = getCurrentLocalQuestionBundle();
+
+      if (!bundle || !bundle.question) {
+        return { ...extra };
+      }
+
+      return {
+        ...extra,
+        questionIndex: bundle.questionIndex,
+        totalQuestions: bundle.totalQuestions,
+        question: bundle.question
+      };
+    }
+
     function getNextLocalQuestionBundle() {
       const bank = getControlQuestionBank();
 
@@ -4625,8 +4640,25 @@ window.FAMILY_FEUD_QUESTIONS = [
       const existsInBank = bank.some((item) => item.question === currentQuestion);
       const looksEmpty = !currentQuestion || !currentAnswers.length;
 
-      if (existsInBank && !looksEmpty) {
+      const expectedRoundPoints = calculateRoundPoints();
+      const pointsMismatch = Number(displayState?.roundPoints || 0) !== expectedRoundPoints;
+
+      if (existsInBank && !looksEmpty && !pointsMismatch) {
         return;
+      }
+
+      if (existsInBank && !looksEmpty && pointsMismatch) {
+        const currentBundle = getCurrentLocalQuestionBundle();
+
+        if (currentBundle.question) {
+          await sendGameAction("show_question", {
+            visible: !!displayState.showQuestion,
+            questionIndex: currentBundle.questionIndex,
+            totalQuestions: currentBundle.totalQuestions,
+            question: currentBundle.question
+          }, { skipBusy: true });
+          return;
+        }
       }
 
       const firstQuestion = cloneQuestionForApi(bank[0]);
@@ -5696,7 +5728,7 @@ window.FAMILY_FEUD_QUESTIONS = [
       renderAll();
 
       try {
-        const ok = await sendGameAction("steal_result", { result: "fail" }, { skipBusy: true });
+        const ok = await sendGameAction("steal_result", getCurrentQuestionActionPayload({ result: "fail" }), { skipBusy: true });
 
         if (ok) {
           markRoundClosedAfterSteal();
@@ -5731,7 +5763,7 @@ window.FAMILY_FEUD_QUESTIONS = [
         renderAll();
 
         try {
-          const ok = await sendGameAction("reveal_answer", { answerIndex: index }, { skipBusy: true });
+          const ok = await sendGameAction("reveal_answer", getCurrentQuestionActionPayload({ answerIndex: index }), { skipBusy: true });
 
           if (!ok) {
             optimisticRevealedIndexes.delete(index);
@@ -5756,20 +5788,20 @@ window.FAMILY_FEUD_QUESTIONS = [
           let awarded = false;
 
           if (controlState.stage === "steal_result") {
-            awarded = await sendGameAction("award_steal", { answerIndex: index }, { skipBusy: true });
+            awarded = await sendGameAction("award_steal", getCurrentQuestionActionPayload({ answerIndex: index }), { skipBusy: true });
 
             if (!awarded) {
-              const movedToPick = await sendGameAction("steal_result", { result: "success" }, { skipBusy: true });
+              const movedToPick = await sendGameAction("steal_result", getCurrentQuestionActionPayload({ result: "success" }), { skipBusy: true });
               if (!movedToPick) {
                 optimisticRevealedIndexes.delete(index);
                 renderAll();
                 return;
               }
 
-              awarded = await sendGameAction("award_steal", { answerIndex: index }, { skipBusy: true });
+              awarded = await sendGameAction("award_steal", getCurrentQuestionActionPayload({ answerIndex: index }), { skipBusy: true });
             }
           } else {
-            awarded = await sendGameAction("award_steal", { answerIndex: index }, { skipBusy: true });
+            awarded = await sendGameAction("award_steal", getCurrentQuestionActionPayload({ answerIndex: index }), { skipBusy: true });
           }
 
           if (awarded) {
@@ -5793,7 +5825,7 @@ window.FAMILY_FEUD_QUESTIONS = [
       renderAll();
 
       try {
-        const ok = await sendGameAction("reveal_answer", { answerIndex: index }, { skipBusy: true });
+        const ok = await sendGameAction("reveal_answer", getCurrentQuestionActionPayload({ answerIndex: index }), { skipBusy: true });
 
         if (ok) {
           await maybeAwardCompletedRound(teamBeforeReveal);
@@ -5833,7 +5865,7 @@ window.FAMILY_FEUD_QUESTIONS = [
     async function maybeAwardCompletedRound(team) {
       if (!shouldAwardCompletedRound(team)) return false;
 
-      const ok = await sendGameAction("award_round", { team }, { skipBusy: true });
+      const ok = await sendGameAction("award_round", getCurrentQuestionActionPayload({ team }), { skipBusy: true });
 
       if (ok) {
         renderAll();
