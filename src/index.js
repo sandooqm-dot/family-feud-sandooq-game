@@ -259,33 +259,11 @@ export class BuzzRoomDO {
         const body = await safeJson(request);
 
         const state = await this.loadState(room);
+        const result = initializeGameState(state, body);
 
-        const questionIndex = normalizeQuestionIndex(body.questionIndex ?? 0);
-        const snapshot = createQuestionSnapshot(questionIndex);
-
-        state.game.currentQuestionIndex = questionIndex;
-        state.game.totalQuestions = QUESTIONS.length;
-        state.game.phase = "idle";
-        state.game.showQuestion = false;
-        state.game.currentTurnTeam = "";
-        state.game.confrontationWinner = "";
-        state.game.stealingTeam = "";
-        state.game.needsDuelChoice = false;
-        state.game.questionText = snapshot.questionText;
-        state.game.answers = snapshot.answers;
-        state.game.roundPoints = 0;
-        state.game.roundClosedAfterSteal = false;
-        state.game.team1Name = normalizeTeamLabel(body.team1Name || state.game.team1Name || "الفريق الأول");
-        state.game.team2Name = normalizeTeamLabel(body.team2Name || state.game.team2Name || "الفريق الثاني");
-        state.game.team1Score = 0;
-        state.game.team2Score = 0;
-        state.game.team1Strikes = 0;
-        state.game.team2Strikes = 0;
-        state.game.displayErrorSeq = 0;
-        state.game.displayErrorReason = "";
-
-        state.enabled = true;
-        state.firstBuzz = null;
+        if (!result.ok) {
+          return json(result, 400);
+        }
 
         touchState(state);
         await this.saveState(state, true);
@@ -453,8 +431,19 @@ function applyGameAction(state, action, body) {
       if (typeof body.visible !== "boolean") {
         return { ok: false, error: "VISIBLE_BOOLEAN_REQUIRED" };
       }
+
+      const bundle = normalizeIncomingQuestionBundle(body);
+      if (bundle) {
+        syncQuestionBundleIntoCurrentRound(state, bundle);
+      }
+
       state.game.showQuestion = body.visible;
       return { ok: true };
+    }
+
+    case "init":
+    case "init_question_bundle": {
+      return initializeGameState(state, body);
     }
 
     case "set_team_names": {
@@ -489,7 +478,7 @@ function applyGameAction(state, action, body) {
 
     case "next_question":
     case "next_question_bundle": {
-      return applyNextQuestionBundle(state);
+      return applyNextQuestionBundle(state, body);
     }
 
     case "previous_question": {
@@ -750,14 +739,46 @@ function applyGameAction(state, action, body) {
   }
 }
 
-function applyNextQuestionBundle(state) {
-  const nextIndex = normalizeQuestionIndex(state.game.currentQuestionIndex + 1);
-  loadQuestionIntoRound(state, nextIndex, { preserveScores: true, preserveNames: true });
+function applyNextQuestionBundle(state, body = {}) {
+  const bundle = normalizeIncomingQuestionBundle(body);
+
+  if (bundle) {
+    loadIncomingQuestionBundleIntoRound(state, bundle, { preserveScores: true, preserveNames: true });
+  } else {
+    const nextIndex = normalizeQuestionIndex(state.game.currentQuestionIndex + 1);
+    loadQuestionIntoRound(state, nextIndex, { preserveScores: true, preserveNames: true });
+  }
+
   state.game.showQuestion = false;
   state.game.displayErrorReason = "";
   state.game.roundClosedAfterSteal = false;
   state.enabled = true;
   state.firstBuzz = null;
+  return { ok: true };
+}
+
+function initializeGameState(state, body = {}) {
+  const bundle = normalizeIncomingQuestionBundle(body);
+
+  if (bundle) {
+    loadIncomingQuestionBundleIntoRound(state, bundle, { preserveScores: false, preserveNames: false });
+  } else {
+    const questionIndex = normalizeQuestionIndex(body.questionIndex ?? 0);
+    loadQuestionIntoRound(state, questionIndex, { preserveScores: false, preserveNames: false });
+  }
+
+  state.game.team1Name = normalizeTeamLabel(body.team1Name || state.game.team1Name || "الفريق الأول");
+  state.game.team2Name = normalizeTeamLabel(body.team2Name || state.game.team2Name || "الفريق الثاني");
+  state.game.team1Score = 0;
+  state.game.team2Score = 0;
+  state.game.team1Strikes = 0;
+  state.game.team2Strikes = 0;
+  state.game.displayErrorSeq = 0;
+  state.game.displayErrorReason = "";
+  state.game.roundClosedAfterSteal = false;
+  state.enabled = true;
+  state.firstBuzz = null;
+
   return { ok: true };
 }
 
@@ -896,6 +917,71 @@ function loadQuestionIntoRound(state, questionIndex, options = {}) {
   state.firstBuzz = null;
 }
 
+function loadIncomingQuestionBundleIntoRound(state, bundle, options = {}) {
+  const preserveScores = !!options.preserveScores;
+  const preserveNames = !!options.preserveNames;
+
+  const team1Name = preserveNames ? state.game.team1Name : "الفريق الأول";
+  const team2Name = preserveNames ? state.game.team2Name : "الفريق الثاني";
+  const team1Score = preserveScores ? state.game.team1Score : 0;
+  const team2Score = preserveScores ? state.game.team2Score : 0;
+
+  state.game.currentQuestionIndex = bundle.questionIndex;
+  state.game.totalQuestions = bundle.totalQuestions;
+  state.game.phase = "idle";
+  state.game.showQuestion = false;
+  state.game.team1Name = team1Name;
+  state.game.team2Name = team2Name;
+  state.game.team1Score = team1Score;
+  state.game.team2Score = team2Score;
+  state.game.team1Strikes = 0;
+  state.game.team2Strikes = 0;
+  state.game.currentTurnTeam = "";
+  state.game.confrontationWinner = "";
+  state.game.stealingTeam = "";
+  state.game.needsDuelChoice = false;
+  state.game.questionText = bundle.questionText;
+  state.game.answers = cloneBundleAnswers(bundle.answers, false);
+  state.game.roundPoints = 0;
+  state.game.roundClosedAfterSteal = false;
+  state.game.displayErrorReason = "";
+
+  state.enabled = true;
+  state.firstBuzz = null;
+}
+
+function syncQuestionBundleIntoCurrentRound(state, bundle) {
+  const sameQuestion =
+    normalizeNumber(state.game.currentQuestionIndex, 0) === bundle.questionIndex &&
+    normalizeQuestionText(state.game.questionText) === bundle.questionText;
+
+  const existingAnswers = Array.isArray(state.game.answers) ? state.game.answers : [];
+
+  state.game.currentQuestionIndex = bundle.questionIndex;
+  state.game.totalQuestions = bundle.totalQuestions;
+  state.game.questionText = bundle.questionText;
+  state.game.answers = bundle.answers.map((answer, index) => ({
+    text: answer.text,
+    points: answer.points,
+    revealed: sameQuestion ? !!existingAnswers[index]?.revealed : false
+  }));
+
+  if (!sameQuestion) {
+    state.game.phase = "idle";
+    state.game.currentTurnTeam = "";
+    state.game.confrontationWinner = "";
+    state.game.stealingTeam = "";
+    state.game.needsDuelChoice = false;
+    state.game.team1Strikes = 0;
+    state.game.team2Strikes = 0;
+    state.game.roundPoints = 0;
+    state.game.roundClosedAfterSteal = false;
+    state.game.displayErrorReason = "";
+    state.enabled = true;
+    state.firstBuzz = null;
+  }
+}
+
 /* =========================
    State creation / migration
 ========================= */
@@ -963,15 +1049,20 @@ function migrateState(stored, room) {
     return base;
   }
 
+  const storedTotalQuestions = normalizeTotalQuestions(
+    stored?.game?.totalQuestions,
+    base.game.totalQuestions
+  );
   const currentQuestionIndex = normalizeQuestionIndex(
-    stored?.game?.currentQuestionIndex ?? base.game.currentQuestionIndex
+    stored?.game?.currentQuestionIndex ?? base.game.currentQuestionIndex,
+    storedTotalQuestions
   );
   const snapshot = createQuestionSnapshot(currentQuestionIndex);
 
   const game = {
     ...base.game,
     currentQuestionIndex,
-    totalQuestions: QUESTIONS.length,
+    totalQuestions: storedTotalQuestions,
     phase: normalizeGamePhase(stored?.game?.phase),
     showQuestion: typeof stored?.game?.showQuestion === "boolean" ? stored.game.showQuestion : base.game.showQuestion,
     team1Name: normalizeTeamLabel(stored?.game?.team1Name || base.game.team1Name),
@@ -1220,13 +1311,76 @@ function normalizeAnswerIndex(value) {
   return n;
 }
 
-function normalizeQuestionIndex(value) {
+function normalizeQuestionIndex(value, totalQuestions = QUESTIONS.length) {
   const n = Number(value);
   if (!Number.isInteger(n)) return 0;
-  if (QUESTIONS.length <= 0) return 0;
+
+  const total = normalizeTotalQuestions(totalQuestions, QUESTIONS.length);
+  if (total <= 0) return 0;
   if (n < 0) return 0;
-  if (n >= QUESTIONS.length) return n % QUESTIONS.length;
+  if (n >= total) return n % total;
   return n;
+}
+
+function normalizeTotalQuestions(value, fallback = QUESTIONS.length) {
+  const n = Number(value);
+  if (Number.isInteger(n) && n > 0) return n;
+
+  const f = Number(fallback);
+  if (Number.isInteger(f) && f > 0) return f;
+
+  return Math.max(1, QUESTIONS.length || 1);
+}
+
+function normalizeIncomingQuestionBundle(body) {
+  if (!body || typeof body !== "object") return null;
+
+  const source = body.question && typeof body.question === "object" ? body.question : body;
+  const rawQuestionText = source.question ?? source.questionText ?? body.questionText;
+  const questionText = normalizeQuestionText(rawQuestionText);
+  const rawAnswers = Array.isArray(source.answers)
+    ? source.answers
+    : Array.isArray(body.answers)
+      ? body.answers
+      : [];
+
+  if (!questionText || !rawAnswers.length) return null;
+
+  const answers = Array.from({ length: 6 }, (_, index) => {
+    const answer = rawAnswers[index] || { text: "", points: 0 };
+    return {
+      text: normalizeAnswerText(answer.text),
+      points: Math.max(0, normalizeNumber(answer.points, 0)),
+      revealed: false
+    };
+  });
+
+  if (!answers.some((answer) => answer.text)) return null;
+
+  const rawIndex = Number(body.questionIndex);
+  const fallbackTotal = Number.isInteger(rawIndex) && rawIndex >= 0
+    ? Math.max(QUESTIONS.length, rawIndex + 1)
+    : QUESTIONS.length;
+  const totalQuestions = normalizeTotalQuestions(body.totalQuestions, fallbackTotal);
+  const questionIndex = normalizeQuestionIndex(body.questionIndex, totalQuestions);
+
+  return {
+    questionIndex,
+    totalQuestions,
+    questionText,
+    answers
+  };
+}
+
+function cloneBundleAnswers(answers, revealed = false) {
+  return Array.from({ length: 6 }, (_, index) => {
+    const answer = Array.isArray(answers) ? answers[index] : null;
+    return {
+      text: normalizeAnswerText(answer?.text),
+      points: Math.max(0, normalizeNumber(answer?.points, 0)),
+      revealed: !!revealed
+    };
+  });
 }
 
 function normalizeGamePhase(value) {
