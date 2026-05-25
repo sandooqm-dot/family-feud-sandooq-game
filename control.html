@@ -264,15 +264,37 @@
 
     .answer-label{
       width:100%;
+      min-width:0;
       text-align:center;
       color:var(--white);
       font-size:28px;
       font-weight:900;
-      line-height:1.12;
-      white-space:nowrap;
+      line-height:1.08;
+      white-space:normal;
       overflow:hidden;
-      text-overflow:ellipsis;
-      padding:2px 8px 0;
+      text-overflow:clip;
+      padding:0 4px;
+      direction:rtl;
+      display:-webkit-box;
+      -webkit-line-clamp:3;
+      -webkit-box-orient:vertical;
+      overflow-wrap:anywhere;
+      word-break:normal;
+    }
+
+    .answer-label.long-answer{
+      font-size:24px;
+      line-height:1.06;
+    }
+
+    .answer-label.xlong-answer{
+      font-size:21px;
+      line-height:1.05;
+    }
+
+    .answer-label.xxlong-answer{
+      font-size:18px;
+      line-height:1.04;
     }
 
     .right-panel{
@@ -5465,6 +5487,15 @@ window.FAMILY_FEUD_QUESTIONS = [
       renderPanel();
     }
 
+    function getAnswerLabelClass(text) {
+      const length = Array.from(String(text || "").trim()).length;
+
+      if (length >= 34) return "answer-label xxlong-answer";
+      if (length >= 26) return "answer-label xlong-answer";
+      if (length >= 18) return "answer-label long-answer";
+      return "answer-label";
+    }
+
     function renderAnswers() {
       const positions = [
         { row: 1, col: 2 },
@@ -5500,9 +5531,11 @@ window.FAMILY_FEUD_QUESTIONS = [
         card.style.gridRow = position.row;
         card.style.gridColumn = position.col;
 
+        const answerLabelClass = getAnswerLabelClass(answer.text);
+
         card.innerHTML = `
           <div class="answer-points">${answer.points}</div>
-          <div class="answer-label">${answer.text}</div>
+          <div class="${answerLabelClass}">${answer.text}</div>
         `;
 
         card.addEventListener("click", async () => {
