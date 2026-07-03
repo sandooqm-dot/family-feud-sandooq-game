@@ -1233,30 +1233,28 @@
 
     bootstrapBuzz();
 
-    window.addEventListener("pageshow", async () => {
+    async function resumeBuzzSession() {
       if (!API_BASE) {
         await detectApiBase();
       }
 
       await fetchGameDisplay();
+      await initPusher();
 
       if (!joinScreen.classList.contains("hidden")) return;
 
+      startLiveSync();
       await joinRoom();
       await fetchBuzzState();
-    });
+    }
 
-    window.addEventListener("focus", async () => {
-      if (!API_BASE) {
-        await detectApiBase();
-      }
+    window.addEventListener("pageshow", resumeBuzzSession);
+    window.addEventListener("focus", resumeBuzzSession);
 
-      await fetchGameDisplay();
-
-      if (!joinScreen.classList.contains("hidden")) return;
-
-      await joinRoom();
-      await fetchBuzzState();
+    document.addEventListener("visibilitychange", async () => {
+      if (document.visibilityState !== "visible") return;
+      await resumeBuzzSession();
+      updateLayout(true);
     });
 
     window.addEventListener("load", () => {

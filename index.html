@@ -440,6 +440,46 @@
       color:#f4f2ea;
     }
 
+    .video-modal{
+      width:900px;
+      max-width:96%;
+    }
+
+    .video-frame-wrap{
+      width:100%;
+      aspect-ratio:16 / 9;
+      border-radius:22px;
+      overflow:hidden;
+      background:#000;
+      border:3px solid rgba(255,255,255,.88);
+      box-shadow:0 12px 28px rgba(0,0,0,.28);
+    }
+
+    .video-frame-wrap iframe{
+      width:100%;
+      height:100%;
+      display:block;
+      border:0;
+      background:#000;
+    }
+
+    .youtube-link-btn{
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      min-width:250px;
+      height:60px;
+      margin-top:18px;
+      padding:0 20px;
+      border-radius:22px;
+      border:3px solid rgba(243,242,234,.95);
+      background:linear-gradient(180deg, #d92525 0%, #ad1010 100%);
+      color:#fff;
+      font-size:22px;
+      font-weight:900;
+      text-decoration:none;
+    }
+
     .close-btn{
       margin-top:20px;
       min-width:180px;
@@ -636,7 +676,7 @@
           <div class="actions-grid">
             <button id="buzzBtn" class="action-btn" type="button">زر الجرس</button>
             <button id="answersBtn" class="action-btn" type="button">لوحة المضيف</button>
-            <button id="guideBtn" class="action-btn" type="button">التعليمات</button>
+            <button id="guideBtn" class="action-btn" type="button">شرح اللعبة</button>
             <button id="homeBtn" class="action-btn home-btn" type="button">الرئيسية</button>
           </div>
         </section>
@@ -646,14 +686,23 @@
         </div>
 
         <div id="guideOverlay" class="overlay">
-          <div class="modal">
-            <div class="modal-title">التعليمات</div>
-            <div class="modal-text">
-              اكتب اسم كل فريق في الخانة الخاصة به.<br>
-              ثم اضغط ابدأ للدخول إلى صفحة العرض.<br>
-              استخدم لوحة المضيف لفتح صفحة التحكم الكاملة.<br>
-              واستخدم زر الجرس لإدخال اللاعبين إلى صفحة الجرس.
+          <div class="modal video-modal">
+            <div class="modal-title">شرح اللعبة</div>
+            <div class="video-frame-wrap">
+              <iframe
+                id="guideVideoFrame"
+                title="شرح لعبة فاميلي فيود"
+                src=""
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                allowfullscreen
+              ></iframe>
             </div>
+            <a
+              class="youtube-link-btn"
+              href="https://youtu.be/7y2nRk72XC4?si=9ufZ9yIzw-DeOoTQ"
+              target="_blank"
+              rel="noopener noreferrer"
+            >فتح الفيديو في يوتيوب</a>
             <button class="close-btn" type="button" data-close="guideOverlay">إغلاق</button>
           </div>
         </div>
@@ -728,6 +777,7 @@
     const startBtn = document.getElementById("startBtn");
 
     const guideOverlay = document.getElementById("guideOverlay");
+    const guideVideoFrame = document.getElementById("guideVideoFrame");
     const answersOverlay = document.getElementById("answersOverlay");
     const buzzOverlay = document.getElementById("buzzOverlay");
 
@@ -743,7 +793,7 @@
 
     let stableViewport = { width: window.innerWidth, height: window.innerHeight };
     let stableOrientationPortrait = window.innerHeight > window.innerWidth;
-    let currentRoomId = createFreshRoomId();
+    let currentRoomId = resolveOrCreateRoomId();
     let layoutFrozenUntil = 0;
     let startInProgress = false;
 
@@ -833,9 +883,29 @@
       return result;
     }
 
+    function normalizeRoom(value) {
+      return String(value || "")
+        .trim()
+        .toLowerCase()
+        .replace(/[^a-z0-9_-]/g, "")
+        .slice(0, 64);
+    }
+
     function createFreshRoomId() {
       const randomPart = Math.random().toString(36).slice(2, 8);
       return `family-feud-${randomPart}`;
+    }
+
+    function resolveOrCreateRoomId() {
+      let roomFromUrl = "";
+
+      try {
+        const url = new URL(window.location.href);
+        roomFromUrl = normalizeRoom(url.searchParams.get("room"));
+      } catch (e) {}
+
+      const storedRoom = normalizeRoom(readStored(ROOM_KEY) || readStored(BUZZ_ROOM_KEY));
+      return roomFromUrl || storedRoom || createFreshRoomId();
     }
 
     function persistRoomId(roomId) {
@@ -1023,6 +1093,10 @@
     function closeOverlay(el) {
       freezeLayout(700);
       el.classList.remove("show");
+
+      if (el === guideOverlay && guideVideoFrame) {
+        guideVideoFrame.setAttribute("src", "");
+      }
     }
 
     function updateStartButtonState() {
@@ -1134,7 +1208,7 @@
       }
     }
 
-    async function initializeRemoteGame(room, team1, team2) {
+    async function sendRemoteGameAction(room, payload) {
       const bases = getApiBases();
 
       for (const base of bases) {
@@ -1146,12 +1220,7 @@
               "Cache-Control": "no-cache",
               "Pragma": "no-cache"
             },
-            body: JSON.stringify({
-              action: "init",
-              team1Name: team1,
-              team2Name: team2,
-              questionIndex: 0
-            })
+            body: JSON.stringify(payload || {})
           });
 
           if (!response.ok) continue;
@@ -1171,6 +1240,22 @@
       }
 
       return false;
+    }
+
+    async function initializeRemoteGame(room, team1, team2) {
+      return await sendRemoteGameAction(room, {
+        action: "set_team_names",
+        team1Name: team1,
+        team2Name: team2
+      });
+    }
+
+    async function startRemoteGameSession(room, team1, team2) {
+      return await sendRemoteGameAction(room, {
+        action: "start_session",
+        team1Name: team1,
+        team2Name: team2
+      });
     }
 
     function getTeamSignature(team1, team2) {
@@ -1210,7 +1295,15 @@
       }, 180);
     }
 
-    guideBtn.addEventListener("click", () => openOverlay(guideOverlay));
+    guideBtn.addEventListener("click", () => {
+      if (guideVideoFrame && !guideVideoFrame.getAttribute("src")) {
+        guideVideoFrame.setAttribute(
+          "src",
+          "https://www.youtube-nocookie.com/embed/7y2nRk72XC4?rel=0&playsinline=1"
+        );
+      }
+      openOverlay(guideOverlay);
+    });
 
     answersBtn.addEventListener("click", () => {
       updateAnswersBox();
@@ -1240,12 +1333,12 @@
       writeStored("familyfeud_team1", team1);
       writeStored("familyfeud_team2", team2);
 
-      const remotePromise = startRoomWarmup(team1, team2);
+      await startRoomWarmup(team1, team2);
 
       let remoteOk = false;
 
       try {
-        remoteOk = await remotePromise;
+        remoteOk = await startRemoteGameSession(currentRoomId, team1, team2);
       } catch (e) {
         remoteOk = false;
       }
